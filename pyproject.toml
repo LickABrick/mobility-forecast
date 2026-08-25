@@ -1,0 +1,26 @@
+[project]
+name = "mobility-forecast"
+version = "0.0.0"
+description = "Privacy-conscious mobility forecasting for Home Assistant"
+readme = "README.md"
+requires-python = ">=3.13"
+license = "Apache-2.0"
+authors = [{ name = "Mobility Forecast contributors" }]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3.13",
+  "Typing :: Typed",
+]
+
+[tool.ruff]
+target-version = "py313"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.pyright]
+include = ["custom_components/mobility_forecast", "tests"]
+pythonVersion = "3.13"
+typeCheckingMode = "strict"

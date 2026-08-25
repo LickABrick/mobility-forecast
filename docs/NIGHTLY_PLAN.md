@@ -11,8 +11,9 @@ The controller executes one bounded checkpoint per agent run and checks OpenAI C
 - [x] **C1 — Product scope, architecture and ADRs**
   - V1/non-goals, one-entry-per-profile, clean-room decision, advisory-only policy, dynamic vehicle-location policy and provider architecture.
   - Evidence: `docs/PRODUCT_SCOPE.md`, `docs/ARCHITECTURE.md` and accepted ADRs 0001–0005; documentation/link/checkpoint validation passed on 2026-08-25.
-- [ ] **C2 — Domain contracts and package foundation**
+- [x] **C2 — Domain contracts and package foundation**
   - Typed pure-Python event, location, route, vehicle, trip, quality and forecast models; package/tool configuration; unit-test foundation.
+  - Evidence: nine deterministic `unittest` cases cover immutability, privacy-safe representations, temporal/numeric validation, degraded trips and forecast uncertainty; checkpoint validation passed on 2026-08-25.
 - [ ] **C3 — Calendar filtering and preview semantics**
   - Deterministic include/exclude rules, online/all-day/location handling, privacy-safe preview counts and tests.
 - [ ] **C4 — Location resolution and freshness/fallback semantics**

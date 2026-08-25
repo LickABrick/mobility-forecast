@@ -64,6 +64,7 @@ def main() -> int:
     pyproject = ROOT / "pyproject.toml"
     if pyproject.exists():
         run([sys.executable, "-m", "compileall", "-q", "src", "tests", "custom_components"])
+        run([sys.executable, "-m", "unittest", "discover", "-s", "tests"])
 
     print("checkpoint validation: PASS")
     return 0
