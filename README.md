@@ -8,6 +8,9 @@ This repository is in phase 1: architecture, contracts, tests and a safe develop
 
 See:
 
+- [`docs/PRODUCT_SCOPE.md`](docs/PRODUCT_SCOPE.md)
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+- [`docs/adr/`](docs/adr/)
 - [`docs/NIGHTLY_PLAN.md`](docs/NIGHTLY_PLAN.md)
 - [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md)
 - [`CONTRIBUTING.md`](CONTRIBUTING.md)
