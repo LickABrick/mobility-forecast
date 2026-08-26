@@ -28,6 +28,14 @@ from .models import (
     Trip,
     VehicleObservation,
 )
+from .planning import (
+    ItineraryCandidate,
+    PlannedLeg,
+    PlannedStop,
+    PlanRevision,
+    append_plan_revision,
+    assemble_plan_revision,
+)
 from .routing import (
     DeterministicRouteProvider,
     InMemoryRouteCache,
@@ -58,10 +66,14 @@ __all__ = [
     "FilterPreview",
     "Forecast",
     "InMemoryRouteCache",
+    "ItineraryCandidate",
     "LocationCandidate",
     "LocationProvenance",
     "LocationResolution",
     "LocationResolutionReason",
+    "PlannedLeg",
+    "PlannedStop",
+    "PlanRevision",
     "ResolvedLocation",
     "Route",
     "RouteCache",
@@ -80,6 +92,8 @@ __all__ = [
     "StartLocationPolicy",
     "Trip",
     "VehicleObservation",
+    "append_plan_revision",
+    "assemble_plan_revision",
     "build_route_cache_key",
     "classify_event",
     "preview_events",

@@ -73,7 +73,11 @@ Google Routes is the intended first production adapter, not a domain dependency.
 
 A plan run creates a revision rather than mutating an earlier plan. Each revision records normalized identifiers, source observation times, planned legs and quality/provenance needed to interpret the result. Raw event text, addresses and coordinates must not be copied into diagnostics.
 
-Later calendar edits create a new revision. Passive odometer observations are matched to the revision that was current for the relevant period so model training does not rewrite history. Storage schema and migration mechanics are deferred until their checkpoint; schema changes require explicit versioning and migration tests.
+C6 requires each filtered calendar candidate to carry an explicit adapter-normalized deduplication key rather than guessing identity from private event text or locations. Candidates sharing a key deduplicate only when their time range, resolved destination and destination reason agree; conflicts fail explicitly. The deterministic representative and source references use source/event identifier ordering, while stops are ordered by start time, end time and references.
+
+The first leg starts at the independently resolved initial origin. Each later leg starts at the preceding stop's destination, even when routing that preceding leg failed, because a route failure does not erase a known endpoint. An unknown destination breaks subsequent chaining until a future planning policy supplies another defensible origin. Missing endpoints are `unavailable` legs; typed route failures are `partial` legs; stale and partial endpoint/route quality propagate without becoming a zero-distance success. A non-empty day with any degraded leg is partial, while a day with no stops is unavailable.
+
+Later calendar edits create a new revision. The pure append contract rejects duplicate revision identifiers and non-increasing creation times, returns a new immutable history tuple and leaves earlier objects unchanged. Passive odometer observations are matched to the revision that was current for the relevant period so model training does not rewrite history. Persistent repository/storage schema and migration mechanics are deferred until their checkpoint; schema changes require explicit versioning and migration tests.
 
 ## Quality and failure semantics
 

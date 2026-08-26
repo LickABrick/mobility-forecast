@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-08-26 02:35 CEST
+Last updated: 2026-08-26 02:46 CEST
 
 ## Current phase
 
@@ -22,12 +22,15 @@ Phase 1 — architecture, contracts and safe development foundation.
 - C5 added asynchronous typed route-provider and cache protocols, provider-neutral requests/options, privacy-safe failures, and deterministic in-memory fakes with exact expected requests and no network path.
 - C5 makes route direction, options, departure time and a stable non-secret provider/config namespace part of a profile-keyed HMAC-SHA-256 cache key without retaining raw endpoint identifiers or coordinates. Required fresh/stale age limits have no defaults.
 - C5 uses inclusive cache boundaries: fresh hits skip the provider, stale hits attempt refresh and fall back with `stale` quality plus the typed refresh failure, expired entries are not returned, and successful refreshes replace cache entries. Provider/cache direction mismatches are rejected.
+- C6 added pure typed itinerary candidates, chronological deduplicated stops, directional planned legs and immutable plan revisions. Explicit adapter-normalized deduplication keys avoid matching on private event text or locations; conflicting duplicate claims fail rather than silently dropping data.
+- C6 chains the initial origin through each known stop destination, retains typed route failures as partial legs, breaks the chain explicitly after an unknown destination, and propagates unavailable/partial/stale quality without fabricating zero distance.
+- C6 added an append-only revision-history function that rejects duplicate revision identifiers and non-increasing creation times while preserving earlier revision objects unchanged.
 
 ## Active checkpoint
 
-C6 — Itinerary and planning revisions.
+C7 — Passive actuals and robust forecast baseline.
 
-Next bounded checkpoint: use TDD to assemble chronological stops across synthetic calendars, define deterministic deduplication and daily chaining, preserve partial route quality, and append immutable plan revisions without rewriting earlier truth.
+Next bounded checkpoint: use TDD to validate passive odometer samples, close pending days against the correct immutable revision, and establish a cold-start robust P50/P90 correction baseline with explicit outlier behavior.
 
 ## Verification evidence
 
@@ -112,6 +115,21 @@ All C5 endpoints, provider names and key material are synthetic. The provider an
 
 Configuration review for C5: `pyproject.toml`, `.gitignore`, package layout and standard-library test discovery were reviewed and require no changes. `manifest.json`, `hacs.json`, strings/translations, workflows, config-flow schemas and storage schemas remain intentionally absent until their planned checkpoints. C5 changes no persisted or Home Assistant schema and establishes no silent cache or routing default: both route option flags, both cache age limits, a stable provider/config namespace and profile-local privacy key material are required inputs. Cache persistence/key rotation and user-facing defaults remain C8 responsibilities.
 
+C6 TDD and verification on 2026-08-26:
+
+```text
+python3 -m unittest tests.test_planning -v       RED: planning exports absent
+python3 -m unittest tests.test_planning -v       PASS (7 tests)
+python3 -m unittest discover -s tests -v         PASS (40 tests)
+python3 scripts/check_checkpoint.py              PASS (40 tests)
+git diff --check                                PASS
+ruff / pyright / pytest executable discovery    unavailable
+```
+
+All C6 calendars, identifiers, locations, provider responses and revision data are synthetic. The planner is pure apart from its typed route-provider boundary, which is exercised only through the exact in-memory deterministic fake. Tests make no network, Home Assistant, vehicle-service or notification calls. Independent diff review found no credentials, personal data, production calls, copied upstream implementation or scope outside C6.
+
+Configuration review for C6: `pyproject.toml`, `.gitignore`, package layout and standard-library test discovery were reviewed and require no changes. `manifest.json`, `hacs.json`, strings/translations, GitHub workflows, config-flow schemas and storage schemas remain intentionally absent until C8/C9. C6 changes no persisted or Home Assistant schema and introduces no silent policy/default: the normalized deduplication key, destination reason, initial origin, route options, provider and revision/source timestamps are explicit inputs. Persistent plan repository schema and migrations remain C8 responsibilities.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -126,13 +144,15 @@ Configuration review for C5: `pyproject.toml`, `.gitignore`, package layout and 
 - Calendar filtering is deterministic and profile-policy driven. Include/exclude terms use case-insensitive substring matching over summary and description only; previews expose aggregate counts and stable reason codes only.
 - Passive start GPS is accepted only within explicit inclusive age, accuracy and trip-horizon gates. Start and end fallback decisions are independent; fallbacks are partial rather than silently complete.
 - Routing is directional and asynchronous behind typed provider/cache protocols. Cache keys are profile-keyed HMAC digests of all route-affecting inputs; fresh/stale limits are explicit, and stale fallback retains both stale quality and the refresh-failure category.
+- Itinerary assembly uses explicit normalized deduplication keys, deterministic stop ordering and known-destination chaining. Conflicting duplicates fail closed, degraded legs remain explicit, and revision history is append-only and immutable.
 
 ## Remaining risks and deferred details
 
-- C2–C5 now define value, filtering, endpoint-resolution and route/cache contracts, but not itinerary assembly or forecast algorithms; those remain C6–C7 work.
+- C2–C6 now define value, filtering, endpoint-resolution, route/cache and itinerary/revision contracts, but not passive-actual matching or forecast algorithms; those remain C7 work.
 - Calendar adapters must eventually normalize provider-specific online-event signals into the required `is_online` flag; adapter mapping and config-entry representation remain deferred to C8.
 - C3 term matching is intentionally a literal case-insensitive substring contract, not regex, tokenization or location-text matching. Any broader rule language requires a separately tested and documented checkpoint.
 - C5 cache storage is an in-memory contract fake only. Persistent profile-scoped cache storage, privacy-key generation/rotation and migration behavior remain deferred to C8; no key material is logged or persisted by the domain.
+- C6 revision history is a pure append contract, not persistent storage. Profile-scoped serialization, retention, schema versioning, migrations and matching actuals to the historically current revision remain C7–C8 work.
 - Domain representations reduce accidental disclosure but do not replace the dedicated diagnostics/log redaction boundary and tests required at C8.
 - Python 3.13 compatibility is explicit, but CI has not yet exercised Ruff or Pyright because those tools and workflows are deferred to C9.
 - C4 defines required freshness/accuracy/horizon fields but intentionally supplies no product defaults. Config-flow representation, default selection and migration policy remain C8 work.

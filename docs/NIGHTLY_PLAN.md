@@ -23,8 +23,9 @@ The controller executes one bounded checkpoint per agent run and checks OpenAI C
 - [x] **C5 — Route provider and cache contracts**
   - Provider protocol, typed errors, deterministic fake, directional routes, cache key/TTL/privacy behavior and tests. No live API calls.
   - Evidence: asynchronous provider/cache protocols, five typed failure categories, exact deterministic fakes, directional HMAC-SHA-256 cache keys, explicit fresh/stale limits and refresh/fallback behavior; eight deterministic tests and checkpoint validation passed on 2026-08-26.
-- [ ] **C6 — Itinerary and planning revisions**
+- [x] **C6 — Itinerary and planning revisions**
   - Chronological stops, multi-calendar dedupe, daily chaining, partial quality, immutable plan revisions and tests.
+  - Evidence: explicit cross-calendar deduplication keys with conflict rejection, deterministic chronological stops, directional daily chaining, degraded legs, and append-only immutable revisions; seven deterministic tests and checkpoint validation passed on 2026-08-26.
 - [ ] **C7 — Passive actuals and robust forecast baseline**
   - Odometer sample quality, pending day closure, cold start, robust correction/outlier behavior, P50/P90 and tests.
 - [ ] **C8 — Home Assistant integration skeleton**
