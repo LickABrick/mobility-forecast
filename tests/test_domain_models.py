@@ -43,6 +43,8 @@ class SourceEventTests(unittest.TestCase):
             event_id="event-1",
             starts_at=NOW,
             ends_at=NOW + timedelta(hours=1),
+            all_day=False,
+            is_online=False,
             summary="Private appointment",
             description="Private details",
             location_text="Synthetic Street 1",
@@ -57,9 +59,16 @@ class SourceEventTests(unittest.TestCase):
 
     def test_rejects_naive_or_reversed_times(self) -> None:
         with self.assertRaises(ValueError):
-            SourceEvent("calendar.synthetic", "event-1", NOW.replace(tzinfo=None), NOW)
+            SourceEvent(
+                "calendar.synthetic",
+                "event-1",
+                NOW.replace(tzinfo=None),
+                NOW,
+                False,
+                False,
+            )
         with self.assertRaises(ValueError):
-            SourceEvent("calendar.synthetic", "event-1", NOW, NOW)
+            SourceEvent("calendar.synthetic", "event-1", NOW, NOW, False, False)
 
 
 class MobilityValueTests(unittest.TestCase):

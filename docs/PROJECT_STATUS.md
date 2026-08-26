@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-08-25 22:20 CEST
+Last updated: 2026-08-26 02:21 CEST
 
 ## Current phase
 
@@ -13,12 +13,15 @@ Phase 1 — architecture, contracts and safe development foundation.
 - C2 added dependency-free, frozen and typed domain values for normalized source events, coordinates/resolved locations, directional successful routes, passive vehicle observations, degraded trips, shared quality states and uncertainty-aware daily forecasts.
 - C2 made privacy-bearing event text and coordinates absent from object representations, rejects naive/reversed event time ranges and invalid numeric measurements, and prevents a failed route from being represented as a zero-valued successful route.
 - C2 established Python/package metadata, Ruff and Pyright policy, a standard-library `unittest` foundation and checkpoint execution of the test suite.
+- C3 added an immutable, explicit event-filter policy with case-insensitive include/exclude terms matched only against summary and description, plus tested handling for normalized online events, all-day events and missing physical locations.
+- C3 uses one stable primary exclusion reason in this order: exclude term, disallowed online, disallowed all-day, required location missing, include mismatch. An explicitly allowed online event does not require a physical location.
+- C3 added aggregate-only previews containing total/included/excluded counts and stable reason counts; previews retain no source event, identifier, event text or location text.
 
 ## Active checkpoint
 
-C3 — Calendar filtering and preview semantics.
+C4 — Location resolution and freshness/fallback semantics.
 
-Next bounded checkpoint: use TDD to add deterministic include/exclude rules and privacy-safe aggregate preview results for synthetic normalized events, including online, all-day and missing-location semantics. Do not resolve locations, call route providers or expose private event fields in previews.
+Next bounded checkpoint: use TDD to define independent start/end location policies with explicit freshness, accuracy, trip-horizon and fallback behavior. Keep all thresholds explicit, use only synthetic inputs and do not call Home Assistant, vehicle services or route providers.
 
 ## Verification evidence
 
@@ -54,6 +57,20 @@ The C2 test suite uses only synthetic identifiers and coordinates and makes no n
 
 Configuration review for C2: `pyproject.toml` now explicitly sets pre-alpha project metadata, Apache-2.0, Python 3.13 compatibility and Ruff/Pyright policy. The pure package lives under `custom_components/mobility_forecast`, includes `py.typed`, and has no runtime dependencies or build backend. `.gitignore`, package inclusion and test discovery were reviewed; no additional ignore or test configuration was needed. Home Assistant `manifest.json`, `hacs.json`, strings/translations, workflows, config-flow schemas and storage schemas remain intentionally absent until their planned checkpoints. No Home Assistant option, schema version, threshold or behavioral default was introduced.
 
+C3 TDD and verification on 2026-08-25–26:
+
+```text
+python3 -m unittest tests.test_calendar_filters -v  RED: filter module absent
+python3 -m unittest tests.test_calendar_filters -v  PASS (7 tests)
+python3 -m unittest discover -s tests -v             PASS (16 tests)
+python3 scripts/check_checkpoint.py                  PASS
+git diff --check                                     PASS
+```
+
+All C3 fixtures use synthetic text, identifiers and locations. Tests and implementation are pure and make no network, Home Assistant, route-provider, vehicle-service or notification calls. Ruff, Pyright and pytest remain unavailable locally; the configured standard-library suite is the executable verification path.
+
+Configuration review for C3: `pyproject.toml`, `.gitignore`, package layout and checkpoint test discovery remain applicable and required no changes. `manifest.json`, `hacs.json`, strings/translations, workflows, config-flow schemas and storage schemas remain intentionally absent until their planned checkpoints. C3 introduces no Home Assistant setting, schema version or silent default: all five filter-policy fields are required domain inputs, and normalized `all_day` and `is_online` flags are now required on `SourceEvent`.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -64,11 +81,14 @@ Configuration review for C2: `pyproject.toml` now explicitly sets pre-alpha proj
 - The domain uses provider-neutral typed boundaries. Google Routes is the intended first production route adapter; unattended tests use deterministic fakes only.
 - Route and input failures remain partial, stale or unavailable and never become zero distance or false readiness.
 - Historical plan revisions are immutable so later calendar edits do not rewrite training truth.
-- Domain value objects are frozen and dependency-free. Operational private fields remain available to pure logic but are omitted from representations to reduce accidental logging.
+- Domain value objects are frozen and dependency-free. Operational private fields remain available to pure logic but are omitted from representations to reduce accidental disclosure.
+- Calendar filtering is deterministic and profile-policy driven. Include/exclude terms use case-insensitive substring matching over summary and description only; previews expose aggregate counts and stable reason codes only.
 
 ## Remaining risks and deferred details
 
-- C2 defines value contracts, not event filtering, endpoint-resolution policy, provider failure/cache protocols, itinerary assembly or forecast algorithms; those remain C3–C7 work.
+- C2/C3 now define value and filtering contracts, but not endpoint-resolution policy, provider failure/cache protocols, itinerary assembly or forecast algorithms; those remain C4–C7 work.
+- Calendar adapters must eventually normalize provider-specific online-event signals into the required `is_online` flag; adapter mapping and config-entry representation remain deferred to C8.
+- C3 term matching is intentionally a literal case-insensitive substring contract, not regex, tokenization or location-text matching. Any broader rule language requires a separately tested and documented checkpoint.
 - Route currently models only a successful positive route. Typed provider failures and deterministic fake-provider behavior remain explicitly deferred to C5.
 - Domain representations reduce accidental disclosure but do not replace the dedicated diagnostics/log redaction boundary and tests required at C8.
 - Python 3.13 compatibility is explicit, but CI has not yet exercised Ruff or Pyright because those tools and workflows are deferred to C9.

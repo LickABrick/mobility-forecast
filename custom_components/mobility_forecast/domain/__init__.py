@@ -1,5 +1,13 @@
 """Pure typed domain contracts for Mobility Forecast."""
 
+from .calendar_filters import (
+    EventFilterDecision,
+    EventFilterPolicy,
+    ExclusionReason,
+    FilterPreview,
+    classify_event,
+    preview_events,
+)
 from .models import (
     Coordinates,
     DataQuality,
@@ -15,6 +23,10 @@ from .models import (
 __all__ = [
     "Coordinates",
     "DataQuality",
+    "EventFilterDecision",
+    "EventFilterPolicy",
+    "ExclusionReason",
+    "FilterPreview",
     "Forecast",
     "LocationProvenance",
     "ResolvedLocation",
@@ -22,4 +34,6 @@ __all__ = [
     "SourceEvent",
     "Trip",
     "VehicleObservation",
+    "classify_event",
+    "preview_events",
 ]

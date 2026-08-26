@@ -69,7 +69,8 @@ class SourceEvent:
     event_id: str
     starts_at: datetime
     ends_at: datetime
-    all_day: bool = False
+    all_day: bool
+    is_online: bool
     summary: str | None = field(default=None, repr=False)
     description: str | None = field(default=None, repr=False)
     location_text: str | None = field(default=None, repr=False)
