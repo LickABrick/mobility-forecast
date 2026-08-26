@@ -9,5 +9,12 @@
         }
       }
     }
+  },
+  "entity": {
+    "sensor": {
+      "forecast_distance": {
+        "name": "Forecast distance"
+      }
+    }
   }
 }

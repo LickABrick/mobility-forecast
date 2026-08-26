@@ -104,6 +104,8 @@ The integration layer may call only read methods on configured sources. No servi
 
 C8d adds the dependency-free coordinator contract used by that future adapter. Each coordinator is constructed with exactly one config-entry identifier, a typed source exposing only `read(previous_state)`, and typed storage whose load/save calls always require that identifier. A refresh loads immutable prior state, reads one validated update, persists its next state, and only then publishes an immutable, chronologically ordered forecast snapshot. Read or save failures propagate without replacing the last published snapshot, so entities cannot observe state that was never durably accepted. Source adapters remain responsible for composing the already-tested pure pipeline; the coordinator adds no active refresh, service, credential, notification or external-provider capability.
 
+C8e adds one thin sensor-platform adapter over that immutable snapshot. Each config entry receives exactly one read-only forecast-distance sensor whose state is the earliest service day's conservative P90 distance in kilometres. P50 distance, service date, quality and generation time are a fixed attribute allowlist; arbitrary reason text and all source/entity/event/location/provider identifiers are excluded. A missing distance remains an unknown value rather than becoming zero, while a persisted degraded snapshot remains inspectable through its quality attribute. The entity implements no polling, refresh or action method. Config-entry lifecycle composition and forwarding of the sensor platform remain deferred until the source and storage adapters can construct a real coordinator without invented defaults.
+
 ## Test strategy
 
 - Pure domain behavior: unit tests with typed synthetic values.

@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-08-26 08:34 CEST
+Last updated: 2026-08-26 08:42 CEST
 
 ## Current phase
 
@@ -36,12 +36,14 @@ Phase 1 — architecture, contracts and safe development foundation.
 - C8c decoding rebuilds validated domain values, rejects unknown schema versions and malformed or duplicate records, and preserves unavailable plans without fabricating route or distance values.
 - C8d added a dependency-free profile coordinator over typed read-only source and config-entry-scoped storage protocols. Every load/save is explicitly addressed by config-entry identifier, while source reads receive only immutable prior state.
 - C8d validates unique chronologically ordered forecast dates, persists the next state before publishing an immutable snapshot, and preserves the last published data when a source read or storage save fails.
+- C8e added one passive, entry-scoped forecast-distance sensor over the coordinator's immutable snapshot. It exposes the earliest forecast's conservative P90 distance in kilometres without implementing polling, update or action methods.
+- C8e keeps missing distance as an unknown value rather than zero and limits attributes to service date, P50 distance, quality and generation time. Arbitrary reason text and source identifiers are not projected.
 
 ## Active checkpoint
 
-C8 — Home Assistant integration skeleton (C8a diagnostics, C8b metadata/config flow, C8c storage and C8d coordinator contracts complete; checkpoint remains open).
+C8 — Home Assistant integration skeleton (C8a diagnostics, C8b metadata/config flow, C8c storage, C8d coordinator and C8e read-only sensor complete; checkpoint remains open).
 
-Next bounded checkpoint: add the smallest read-only entity slice over immutable coordinator snapshots, with synthetic Home Assistant stand-ins only. The Home Assistant diagnostics adapter remains a separate later slice.
+Next bounded checkpoint: add the Home Assistant config-entry diagnostics adapter over the existing typed aggregate projection, using synthetic Home Assistant stand-ins only.
 
 ## Verification evidence
 
@@ -228,6 +230,24 @@ All C8d entry identifiers, forecast dates, measurements and failures are synthet
 
 Configuration review for C8d: `pyproject.toml`, `.gitignore`, package inclusion, test discovery, `manifest.json`, `hacs.json`, config-entry schema version 1/minor version 1, storage schema version 1, and source/English strings were reviewed and require no change. GitHub workflows remain deferred to C9. The coordinator introduces no Home Assistant setting, persisted field, schema migration, translation or behavioral threshold/default; it consumes the existing typed `ProfileState` and publishes only immutable forecasts and generation time.
 
+C8e TDD and verification on 2026-08-26:
+
+```text
+python3 -m unittest tests.test_sensor -v        RED: sensor module absent (4 errors)
+python3 -m unittest tests.test_sensor -v        RED: translation/attribute allowlist absent (1 error, 1 failure)
+python3 -m unittest tests.test_sensor -v        PASS (5 tests)
+python3 -m unittest discover -s tests -v        PASS (73 tests)
+python3 scripts/check_checkpoint.py             PASS (73 tests)
+python3 -m compileall -q custom_components tests PASS
+git diff --check                                PASS
+ruff / pyright / basedpyright / pytest / hassfest discovery
+                                                 unavailable
+```
+
+All C8e entry identifiers, dates, measurements and quality values are synthetic. Tests load the adapter only against in-process Home Assistant stand-ins and make no production Home Assistant, filesystem, network, route-provider, vehicle-refresh, service or notification call. The sensor implements no polling, update or action method. Its fixed attributes exclude config-entry, source, entity, event, location and provider identifiers plus arbitrary reason text; unavailable distance remains `None`, not zero.
+
+Configuration review for C8e: `pyproject.toml`, `.gitignore`, package inclusion/test discovery, `manifest.json`, `hacs.json`, config-entry schema version 1/minor version 1 and storage schema version 1 were reviewed and require no change. Source strings and `translations/en.json` now add only the reviewed `forecast_distance` entity name and remain exactly equal. GitHub workflows remain deferred to C9. The sensor introduces no config option, persisted field, migration, polling interval, threshold or behavioral default; P90 is explicitly the conservative primary presentation already carried by the domain forecast.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -249,6 +269,7 @@ Configuration review for C8d: `pyproject.toml`, `.gitignore`, package inclusion,
 - Config flow creates one entry per profile from a required display name, deliberately permits multiple entries and stores no behavioral settings until their defaults and migrations are separately reviewed.
 - Durable state uses config-entry identifiers rather than profile titles for isolation. Storage schema version 1 round-trips validated immutable revisions, pending days and actuals; unsupported versions are rejected until explicitly migrated.
 - Coordinator refreshes are profile-scoped transactions: load prior state, read one typed source update, persist next state, then publish an immutable ordered forecast snapshot. Failed reads or saves do not replace published data.
+- The first entity is one entry-scoped passive distance sensor. It presents the earliest forecast's P90 distance, keeps unavailable distance unknown, and exposes only a fixed non-identifying attribute allowlist.
 
 ## Remaining risks and deferred details
 
@@ -257,7 +278,7 @@ Configuration review for C8d: `pyproject.toml`, `.gitignore`, package inclusion,
 - C3 term matching is intentionally a literal case-insensitive substring contract, not regex, tokenization or location-text matching. Any broader rule language requires a separately tested and documented checkpoint.
 - C5 cache storage is an in-memory contract fake only. Persistent profile-scoped cache storage, privacy-key generation/rotation and migration behavior remain deferred to C8; no key material is logged or persisted by the domain.
 - C8c defines serialization but not a Home Assistant `Store` adapter, retention policy, transactional update behavior or recovery UI. No pre-version-1 payload exists; future schema changes require explicit forward migration and rollback tests.
-- C8d defines orchestration protocols but not their Home Assistant `DataUpdateCoordinator`, source-composition or `Store` adapters, update interval, timeout/retry policy, or entity lifecycle. Those policies must be explicit in later C8 slices rather than silently defaulted here.
+- C8d/C8e define orchestration and a passive sensor-platform adapter but not their Home Assistant `DataUpdateCoordinator`, source-composition or `Store` adapters, config-entry platform forwarding, update interval, timeout/retry policy, or unload lifecycle. Those policies must be explicit in later slices rather than silently defaulted here.
 - C8a provides the pure diagnostics projection, but the Home Assistant `async_get_config_entry_diagnostics` adapter and a separate privacy-safe logging policy remain unimplemented.
 - C8b metadata intentionally omits documentation/issue URLs and code-owner handles because no repository remote or approved maintainer handle exists; these are release-readiness blockers to resolve before HACS publication.
 - Python 3.13 compatibility is explicit, but CI has not yet exercised Ruff or Pyright because those tools and workflows are deferred to C9.
