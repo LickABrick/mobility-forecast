@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import TYPE_CHECKING, Final, TypeAlias, cast
+from typing import TYPE_CHECKING, Final, cast
 
 from .domain.calendar_filters import FilterPreview
 from .domain.models import DataQuality
@@ -24,8 +24,8 @@ if TYPE_CHECKING:
 
 DIAGNOSTICS_SCHEMA_VERSION: Final = 1
 
-JsonValue: TypeAlias = (
-    None | bool | int | float | str | list["JsonValue"] | dict[str, "JsonValue"]
+type JsonValue = (
+    bool | int | float | str | list[JsonValue] | dict[str, JsonValue] | None
 )
 
 

@@ -105,7 +105,9 @@ def _revision_to_dict(value: PlanRevision) -> dict[str, object]:
                 "ends_at": stop.ends_at.isoformat(),
                 "destination": _location_to_dict(stop.destination),
                 "destination_reason": stop.destination_reason,
-                "source_references": [list(reference) for reference in stop.source_references],
+                "source_references": [
+                    list(reference) for reference in stop.source_references
+                ],
             }
             for stop in value.stops
         ],
@@ -246,13 +248,16 @@ def _location_from_dict(value: object, field_name: str) -> ResolvedLocation | No
     except ValueError as error:
         raise ValueError(f"{field_name}.provenance is unknown") from error
     return ResolvedLocation(
-        endpoint_id=_string(_required(item, "endpoint_id"), f"{field_name}.endpoint_id"),
+        endpoint_id=_string(
+            _required(item, "endpoint_id"), f"{field_name}.endpoint_id"
+        ),
         coordinates=Coordinates(
             latitude=_number(
                 _required(coordinates, "latitude"), f"{field_name}.coordinates.latitude"
             ),
             longitude=_number(
-                _required(coordinates, "longitude"), f"{field_name}.coordinates.longitude"
+                _required(coordinates, "longitude"),
+                f"{field_name}.coordinates.longitude",
             ),
         ),
         provenance=provenance,

@@ -63,7 +63,9 @@ class OdometerSampleAssessment:
         _require_aware(self.observed_at, "observed_at")
         if self.reason is OdometerSampleReason.ACCEPTED:
             if self.quality is not DataQuality.COMPLETE or self.odometer_km is None:
-                raise ValueError("accepted sample must contain a complete odometer value")
+                raise ValueError(
+                    "accepted sample must contain a complete odometer value"
+                )
         elif self.quality is not DataQuality.UNAVAILABLE:
             raise ValueError("rejected sample must be unavailable")
 

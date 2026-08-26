@@ -21,6 +21,13 @@ line-length = 88
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.pyright]
-include = ["custom_components/mobility_forecast", "tests"]
+include = [
+  "custom_components/mobility_forecast/domain",
+  "custom_components/mobility_forecast/coordinator.py",
+  "custom_components/mobility_forecast/storage.py",
+]
 pythonVersion = "3.13"
 typeCheckingMode = "strict"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -7,9 +7,9 @@ import hmac
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from enum import StrEnum
-from typing import Protocol, TypeAlias
+from typing import Protocol
 
-from .models import DataQuality, Route, ResolvedLocation
+from .models import DataQuality, ResolvedLocation, Route
 
 
 def _require_aware(value: datetime, field_name: str) -> None:
@@ -102,7 +102,7 @@ class RouteSuccess:
             raise ValueError("refresh failure is valid only for stale-cache results")
 
 
-RouteResult: TypeAlias = RouteSuccess | RouteFailure
+type RouteResult = RouteSuccess | RouteFailure
 
 
 class RouteProvider(Protocol):

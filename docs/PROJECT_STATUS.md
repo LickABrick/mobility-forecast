@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-08-26 08:50 CEST
+Last updated: 2026-08-26 12:04 CEST
 
 ## Current phase
 
@@ -40,12 +40,14 @@ Phase 1 — architecture, contracts and safe development foundation.
 - C8e keeps missing distance as an unknown value rather than zero and limits attributes to service date, P50 distance, quality and generation time. Arbitrary reason text and source identifiers are not projected.
 - C8f added the Home Assistant config-entry diagnostics adapter over the existing typed aggregate projection. It reads only an entry-scoped diagnostics source and never traverses config-entry metadata, data, options, coordinator state or raw storage.
 - C8f added one immutable runtime composition root so the sensor and diagnostics adapters consume separate typed read-only boundaries from the same config entry. Diagnostics source failures propagate without a fallback object dump.
+- C9a added one least-privilege GitHub Actions quality job for pushes and pull requests, with read-only repository permission, concurrency cancellation, a ten-minute timeout and immutable action commit pins.
+- C9a pins Ruff 0.16.4, Pyright 1.1.411 and pytest 9.1.1, runs the standard-library checkpoint/config validator and all 77 tests, lints the complete integration package, and strictly type-checks the dependency-free domain/coordinator/storage core.
 
 ## Active checkpoint
 
-C9 — CI, quality audit and handoff. C8 is complete through its diagnostics adapter.
+C9 — CI, quality audit and handoff. C9a deterministic CI definitions are complete.
 
-Next bounded checkpoint: C9a, add deterministic CI definitions for the configured Python checks and validate them without publishing, credentials or a remote.
+Next bounded checkpoint: C9b, audit and resolve or explicitly scope the remaining repository-wide Ruff/Pyright findings, validate Home Assistant/HACS configuration contracts where isolated tooling permits, and reconcile documentation without publishing or adding production dependencies.
 
 ## Verification evidence
 
@@ -269,6 +271,23 @@ All C8f entry metadata, configuration values, timestamps and aggregate counts ar
 
 Configuration review for C8f: `pyproject.toml`, `.gitignore`, package inclusion/test discovery, `manifest.json`, `hacs.json`, config-entry schema version 1/minor version 1, storage schema version 1, and source/English strings were reviewed and require no change. GitHub workflows remain deferred to C9. The diagnostics payload remains schema version 1; the runtime composition root is in-memory only. No default, config option, persisted field, migration, translation or integration metadata changed.
 
+C9a TDD and verification on 2026-08-26:
+
+```text
+python3 -m unittest tests.test_ci_configuration -v
+                                                    RED: workflow/lock absent (2 errors)
+python3 -m unittest tests.test_ci_configuration -v PASS (2 tests)
+python3 scripts/check_checkpoint.py                PASS (77 tests included)
+ruff check custom_components/mobility_forecast    PASS
+pyright                                            PASS (0 errors, 0 warnings)
+pytest                                             PASS (77 tests)
+git diff --check                                  PASS (via checkpoint validator)
+```
+
+The C9a workflow has no manual or privileged trigger, write permission, secret reference, publication step or untrusted event-data interpolation. It uses only repository checkout, Python setup and local checks; tests remain synthetic and no production Home Assistant, route provider, vehicle service, notification, credential or personal data was accessed. Local validation used an ignored in-repository tool directory because the host lacks `ensurepip`; CI uses Python's normal pip in the isolated GitHub runner.
+
+Configuration review for C9a: `pyproject.toml` now gives pytest an explicit `tests` discovery root and limits strict Pyright enforcement to the dependency-free domain, coordinator and storage modules that can be validated without installing Home Assistant. Ruff policy and Python 3.13 remain unchanged; the workflow lints the entire integration package. `requirements-dev.txt` pins the three direct quality tools, while both GitHub actions are pinned to immutable commits. `.gitignore`, package inclusion, `manifest.json`, `hacs.json`, config-entry schema version 1/minor version 1, storage schema version 1 and source/English strings were reviewed and require no change. No runtime dependency, behavioral default, persisted field, schema version, translation or integration metadata changed.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -303,7 +322,8 @@ Configuration review for C8f: `pyproject.toml`, `.gitignore`, package inclusion/
 - C8d–C8f define orchestration, runtime composition, a passive sensor-platform adapter and diagnostics adapter but not their Home Assistant `DataUpdateCoordinator`, concrete aggregate source, source-composition or `Store` adapters, config-entry platform forwarding, update interval, timeout/retry policy, or unload lifecycle. Those policies must be explicit in later slices rather than silently defaulted here.
 - A separate privacy-safe logging policy remains unimplemented; diagnostics safety does not make arbitrary logs safe.
 - C8b metadata intentionally omits documentation/issue URLs and code-owner handles because no repository remote or approved maintainer handle exists; these are release-readiness blockers to resolve before HACS publication.
-- Python 3.13 compatibility is explicit, but CI has not yet exercised Ruff or Pyright because those tools and workflows are deferred to C9.
+- C9a exercises Ruff over the integration package and strict Pyright over the dependency-free domain/coordinator/storage core. Repository-wide Ruff still reports legacy findings in tests and local controller scripts, while strict typing of Home Assistant adapters requires an isolated dependency/fixture strategy; C9b must resolve or explicitly preserve those boundaries rather than claiming full coverage.
+- The development requirements pin direct tool versions but not hashes or every transitive dependency. Action commits are immutable; a later supply-chain audit may add a fully hashed lock when a supported dependency workflow is chosen.
 - C4 defines required freshness/accuracy/horizon fields but intentionally supplies no product defaults. Config-flow representation, default selection and migration policy remain future product work and must be reviewed before introduction.
 - Location candidates currently cover passive vehicle GPS and already-resolved event/zone coordinates. Geocoding and Home Assistant zone/entity adapters remain outside the pure C4 boundary and are deferred to source composition.
 - Config-entry schema version 1 and storage schema version 1 now exist, but options, future migrations and a Home Assistant storage adapter remain unbuilt.
