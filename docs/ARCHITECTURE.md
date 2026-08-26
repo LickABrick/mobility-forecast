@@ -79,6 +79,10 @@ The first leg starts at the independently resolved initial origin. Each later le
 
 Later calendar edits create a new revision. The pure append contract rejects duplicate revision identifiers and non-increasing creation times, returns a new immutable history tuple and leaves earlier objects unchanged. Passive odometer observations are matched to the revision that was current for the relevant period so model training does not rewrite history. Persistent repository/storage schema and migration mechanics are deferred until their checkpoint; schema changes require explicit versioning and migration tests.
 
+C7 captures that match when a pending day opens: it selects the latest complete revision for the service date whose creation time is not later than the opening time, snapshots its complete positive routed distance and revision identifier, and never consults later edits when closing. Start and end odometer samples are passive inputs accepted only when present, not future-dated and within an explicit inclusive maximum age. Closure additionally requires a newer end sample, a nondecreasing odometer and an explicit maximum daily-distance gate. Rejected samples and incomplete plans cannot become training actuals.
+
+The baseline forecast trains only on complete closed actuals with a positive captured plan. Historical actual/planned ratios outside explicit inclusive correction bounds are classified as outliers. If fewer than the explicit minimum number of inliers remain, cold start uses the current uncorrected complete plan as P50 and an explicit multiplier of at least one for P90, with `partial` quality. Otherwise P50 uses the median inlier correction and P90 uses the greater of that median and nearest-rank 90th percentile. A current incomplete or unavailable plan produces no distance percentiles rather than a zero. All age, distance, sample-count, correction-bound and cold-start values are required domain inputs; C7 introduces no product default.
+
 ## Quality and failure semantics
 
 Quality is part of the domain result, not an incidental log message:

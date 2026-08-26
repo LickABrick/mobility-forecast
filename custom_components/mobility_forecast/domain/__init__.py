@@ -1,5 +1,17 @@
 """Pure typed domain contracts for Mobility Forecast."""
 
+from .actuals_forecasting import (
+    ActualDistance,
+    ForecastPolicy,
+    OdometerPolicy,
+    OdometerSampleAssessment,
+    OdometerSampleReason,
+    PendingDay,
+    build_distance_forecast,
+    classify_odometer_sample,
+    close_pending_day,
+    open_pending_day,
+)
 from .calendar_filters import (
     EventFilterDecision,
     EventFilterPolicy,
@@ -56,6 +68,7 @@ from .routing import (
 )
 
 __all__ = [
+    "ActualDistance",
     "Coordinates",
     "DataQuality",
     "DeterministicRouteProvider",
@@ -65,12 +78,17 @@ __all__ = [
     "ExclusionReason",
     "FilterPreview",
     "Forecast",
+    "ForecastPolicy",
     "InMemoryRouteCache",
     "ItineraryCandidate",
     "LocationCandidate",
     "LocationProvenance",
     "LocationResolution",
     "LocationResolutionReason",
+    "OdometerPolicy",
+    "OdometerSampleAssessment",
+    "OdometerSampleReason",
+    "PendingDay",
     "PlannedLeg",
     "PlannedStop",
     "PlanRevision",
@@ -94,8 +112,12 @@ __all__ = [
     "VehicleObservation",
     "append_plan_revision",
     "assemble_plan_revision",
+    "build_distance_forecast",
     "build_route_cache_key",
     "classify_event",
+    "classify_odometer_sample",
+    "close_pending_day",
+    "open_pending_day",
     "preview_events",
     "resolve_end_location",
     "resolve_start_location",

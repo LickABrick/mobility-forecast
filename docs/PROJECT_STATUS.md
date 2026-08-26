@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-08-26 02:46 CEST
+Last updated: 2026-08-26 02:54 CEST
 
 ## Current phase
 
@@ -25,12 +25,15 @@ Phase 1 — architecture, contracts and safe development foundation.
 - C6 added pure typed itinerary candidates, chronological deduplicated stops, directional planned legs and immutable plan revisions. Explicit adapter-normalized deduplication keys avoid matching on private event text or locations; conflicting duplicate claims fail rather than silently dropping data.
 - C6 chains the initial origin through each known stop destination, retains typed route failures as partial legs, breaks the chain explicitly after an unknown destination, and propagates unavailable/partial/stale quality without fabricating zero distance.
 - C6 added an append-only revision-history function that rejects duplicate revision identifiers and non-increasing creation times while preserving earlier revision objects unchanged.
+- C7 added explicit passive-odometer acceptance policy for missing, future and stale samples; inclusive sample-age limits and a maximum daily-distance guard have no domain defaults.
+- C7 opens pending days only from a complete positive routed plan that existed at opening time, snapshots that immutable revision identifier and distance, and rejects stale/non-newer end samples, odometer rollback and excessive daily movement at closure.
+- C7 added a robust distance baseline that rejects duplicate or nonhistorical training actuals, excludes ratios outside explicit inclusive bounds, uses median P50 and nearest-rank P90 correction after enough inliers, and otherwise exposes an explicit partial-quality cold start. Unavailable plans retain absent percentiles rather than zero distance.
 
 ## Active checkpoint
 
-C7 — Passive actuals and robust forecast baseline.
+C8 — Home Assistant integration skeleton.
 
-Next bounded checkpoint: use TDD to validate passive odometer samples, close pending days against the correct immutable revision, and establish a cold-start robust P50/P90 correction baseline with explicit outlier behavior.
+Next bounded checkpoint: use isolated synthetic fixtures to add the manifest/HACS/config-flow contract, coordinator boundary, read-only entities, translations and diagnostics redaction without installing into or contacting production Home Assistant.
 
 ## Verification evidence
 
@@ -130,6 +133,26 @@ All C6 calendars, identifiers, locations, provider responses and revision data a
 
 Configuration review for C6: `pyproject.toml`, `.gitignore`, package layout and standard-library test discovery were reviewed and require no changes. `manifest.json`, `hacs.json`, strings/translations, GitHub workflows, config-flow schemas and storage schemas remain intentionally absent until C8/C9. C6 changes no persisted or Home Assistant schema and introduces no silent policy/default: the normalized deduplication key, destination reason, initial origin, route options, provider and revision/source timestamps are explicit inputs. Persistent plan repository schema and migrations remain C8 responsibilities.
 
+C7 TDD and verification on 2026-08-26:
+
+```text
+python3 -m unittest tests.test_actuals_forecasting -v
+                                                     RED: actuals exports absent
+python3 -m unittest tests.test_actuals_forecasting.RobustForecastTests.test_rejects_duplicate_or_nonhistorical_training_actuals -v
+                                                     RED: invalid history accepted
+python3 -m unittest tests.test_actuals_forecasting -v
+                                                     PASS (10 tests)
+python3 -m unittest discover -s tests -v             PASS (50 tests)
+python3 scripts/check_checkpoint.py                  PASS (50 tests)
+python3 -m compileall -q custom_components tests    PASS
+git diff --check                                     PASS
+ruff / pyright / basedpyright / pytest discovery    unavailable
+```
+
+All C7 revision identifiers, times, routes and odometer values are synthetic. The implementation is frozen, typed, dependency-free domain logic and exposes no Home Assistant, storage, network, route-provider, vehicle-refresh, service or notification path. Independent diff review found no credentials, addresses, coordinates from a real location, calendar contents, personal data or scope outside C7.
+
+Configuration review for C7: `pyproject.toml`, `.gitignore`, package layout and standard-library test discovery were reviewed and require no changes. `manifest.json`, `hacs.json`, strings/translations, GitHub workflows, config-flow schemas and storage schemas remain intentionally absent until C8/C9. C7 changes no persisted or Home Assistant schema and introduces no silent behavioral default: maximum sample age, maximum daily distance, minimum history count, lower/upper correction bounds and cold-start P90 multiplier are all required inputs. Profile-scoped serialization, schema versioning and migration remain C8 responsibilities.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -145,14 +168,16 @@ Configuration review for C6: `pyproject.toml`, `.gitignore`, package layout and 
 - Passive start GPS is accepted only within explicit inclusive age, accuracy and trip-horizon gates. Start and end fallback decisions are independent; fallbacks are partial rather than silently complete.
 - Routing is directional and asynchronous behind typed provider/cache protocols. Cache keys are profile-keyed HMAC digests of all route-affecting inputs; fresh/stale limits are explicit, and stale fallback retains both stale quality and the refresh-failure category.
 - Itinerary assembly uses explicit normalized deduplication keys, deterministic stop ordering and known-destination chaining. Conflicting duplicates fail closed, degraded legs remain explicit, and revision history is append-only and immutable.
+- Passive actuals capture the latest complete revision that existed when a day opened and never rematch later edits. Only fresh, monotonic and explicitly distance-bounded odometer closures become complete training actuals.
+- Forecast correction uses only unique earlier-day actuals. Explicit ratio bounds reject outliers; sufficient inliers use median P50 and nearest-rank P90, while cold start is partial and uses an explicit conservative multiplier.
 
 ## Remaining risks and deferred details
 
-- C2–C6 now define value, filtering, endpoint-resolution, route/cache and itinerary/revision contracts, but not passive-actual matching or forecast algorithms; those remain C7 work.
+- C2–C7 define the pure value, filtering, endpoint-resolution, route/cache, itinerary/revision, passive-actual and distance-forecast contracts. Required-SOC conversion remains unimplemented and must be added behind explicit vehicle/consumption policy rather than guessed.
 - Calendar adapters must eventually normalize provider-specific online-event signals into the required `is_online` flag; adapter mapping and config-entry representation remain deferred to C8.
 - C3 term matching is intentionally a literal case-insensitive substring contract, not regex, tokenization or location-text matching. Any broader rule language requires a separately tested and documented checkpoint.
 - C5 cache storage is an in-memory contract fake only. Persistent profile-scoped cache storage, privacy-key generation/rotation and migration behavior remain deferred to C8; no key material is logged or persisted by the domain.
-- C6 revision history is a pure append contract, not persistent storage. Profile-scoped serialization, retention, schema versioning, migrations and matching actuals to the historically current revision remain C7–C8 work.
+- C6 revision history and C7 pending/actual state are pure contracts, not persistent storage. Profile-scoped serialization, retention, schema versioning and migrations remain C8 work.
 - Domain representations reduce accidental disclosure but do not replace the dedicated diagnostics/log redaction boundary and tests required at C8.
 - Python 3.13 compatibility is explicit, but CI has not yet exercised Ruff or Pyright because those tools and workflows are deferred to C9.
 - C4 defines required freshness/accuracy/horizon fields but intentionally supplies no product defaults. Config-flow representation, default selection and migration policy remain C8 work.

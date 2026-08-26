@@ -26,8 +26,9 @@ The controller executes one bounded checkpoint per agent run and checks OpenAI C
 - [x] **C6 — Itinerary and planning revisions**
   - Chronological stops, multi-calendar dedupe, daily chaining, partial quality, immutable plan revisions and tests.
   - Evidence: explicit cross-calendar deduplication keys with conflict rejection, deterministic chronological stops, directional daily chaining, degraded legs, and append-only immutable revisions; seven deterministic tests and checkpoint validation passed on 2026-08-26.
-- [ ] **C7 — Passive actuals and robust forecast baseline**
+- [x] **C7 — Passive actuals and robust forecast baseline**
   - Odometer sample quality, pending day closure, cold start, robust correction/outlier behavior, P50/P90 and tests.
+  - Evidence: passive sample freshness gates, immutable revision-bound pending/actual records, rollback/daily-distance rejection, bounded median/nearest-rank correction and explicit cold start; ten deterministic tests and checkpoint validation passed on 2026-08-26.
 - [ ] **C8 — Home Assistant integration skeleton**
   - Manifest, HACS metadata, config-flow contract, coordinator boundary, read-only entities, translations and diagnostics redaction. No production installation.
 - [ ] **C9 — CI, quality audit and handoff**
