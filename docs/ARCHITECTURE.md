@@ -55,11 +55,11 @@ These are responsibilities, not speculative class names. C2 will introduce only 
 
 Start and end are separate decisions. The configured origin is not implicitly copied to every destination, and an event location is not implicitly treated as the next trip's origin without itinerary evidence.
 
-A start policy may use a passively observed vehicle location for an applicable near-term trip only when the sample satisfies explicitly configured freshness and quality requirements. It must never request a refresh. If the sample is stale, inaccurate, missing or unsuitable for the trip horizon, resolution uses the configured fallback when available and records that provenance; otherwise it is unavailable.
+A start policy may use a passively observed vehicle location for an applicable near-term trip only when the sample satisfies explicitly configured freshness and quality requirements. It must never request a refresh. The policy requires maximum sample age, maximum reported accuracy radius in metres and maximum trip horizon; the domain establishes no numeric defaults. Limits are inclusive. A missing observation time, future-dated observation, unknown accuracy, excessive age or accuracy, or trip beyond the horizon rejects the vehicle candidate. Resolution then uses a configured fallback with `partial` quality when available; otherwise it is `unavailable`. The privacy-safe reason preserves which gate rejected the sample.
 
-An end policy resolves the event destination independently from supported event/location data and configured fallbacks. It does not silently substitute the current vehicle position for an unknown destination.
+An end policy resolves an event- or zone-derived destination independently. Its required fallback flag explicitly permits or forbids a configured destination fallback; a used fallback has `partial` quality. It does not accept or silently substitute the current vehicle position for an unknown destination.
 
-The exact freshness thresholds, horizon rules, accuracy representation and fallback precedence belong to C4 and must be introduced as tested, visible configuration rather than undocumented defaults.
+These C4 policy values are required pure-domain inputs. Home Assistant config-flow representation and any user-facing defaults remain deferred to C8 and must not silently alter this contract.
 
 ## Route-provider architecture
 

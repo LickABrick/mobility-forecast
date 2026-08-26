@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-08-26 02:21 CEST
+Last updated: 2026-08-26 02:27 CEST
 
 ## Current phase
 
@@ -16,12 +16,15 @@ Phase 1 — architecture, contracts and safe development foundation.
 - C3 added an immutable, explicit event-filter policy with case-insensitive include/exclude terms matched only against summary and description, plus tested handling for normalized online events, all-day events and missing physical locations.
 - C3 uses one stable primary exclusion reason in this order: exclude term, disallowed online, disallowed all-day, required location missing, include mismatch. An explicitly allowed online event does not require a physical location.
 - C3 added aggregate-only previews containing total/included/excluded counts and stable reason counts; previews retain no source event, identifier, event text or location text.
+- C4 added separate immutable start and end location policies and a pure resolver that never exposes a refresh, service or provider boundary.
+- C4 requires all passive-vehicle gates as domain inputs: maximum sample age, maximum accuracy radius and maximum trip horizon. Numeric defaults are intentionally absent, limits are inclusive, and missing/future timestamps, stale samples, unknown/excessive accuracy and out-of-horizon trips have stable privacy-safe reasons.
+- C4 accepts event- and zone-derived destinations independently, never accepts vehicle position as a destination, marks configured fallbacks `partial`, and returns explicit `unavailable` results when no allowed fallback exists.
 
 ## Active checkpoint
 
-C4 — Location resolution and freshness/fallback semantics.
+C5 — Route provider and cache contracts.
 
-Next bounded checkpoint: use TDD to define independent start/end location policies with explicit freshness, accuracy, trip-horizon and fallback behavior. Keep all thresholds explicit, use only synthetic inputs and do not call Home Assistant, vehicle services or route providers.
+Next bounded checkpoint: use TDD to define the provider-neutral route protocol, typed failures, deterministic fake and directional privacy-safe cache behavior. Use synthetic endpoints only and make no live route calls.
 
 ## Verification evidence
 
@@ -71,6 +74,20 @@ All C3 fixtures use synthetic text, identifiers and locations. Tests and impleme
 
 Configuration review for C3: `pyproject.toml`, `.gitignore`, package layout and checkpoint test discovery remain applicable and required no changes. `manifest.json`, `hacs.json`, strings/translations, workflows, config-flow schemas and storage schemas remain intentionally absent until their planned checkpoints. C3 introduces no Home Assistant setting, schema version or silent default: all five filter-policy fields are required domain inputs, and normalized `all_day` and `is_online` flags are now required on `SourceEvent`.
 
+C4 TDD and verification on 2026-08-26:
+
+```text
+python3 -m unittest tests.test_location_resolution -v  RED: location contract absent
+python3 -m unittest tests.test_location_resolution -v  PASS (9 tests)
+python3 -m unittest discover -s tests -v                PASS (25 tests)
+python3 scripts/check_checkpoint.py                     PASS
+git diff --check                                        PASS
+```
+
+All C4 fixtures use synthetic identifiers and coordinates. The resolver is pure and makes no network, Home Assistant, route-provider, vehicle-service or notification calls. Ruff, Pyright and pytest executables remain unavailable locally; the standard-library suite is the executable verification path. Independent diff review found no secrets, personal data, external calls or scope outside C4.
+
+Configuration review for C4: `pyproject.toml`, `.gitignore`, package layout and checkpoint test discovery were reviewed and require no changes. `manifest.json`, `hacs.json`, strings/translations, workflows, config-flow schemas and storage schemas remain intentionally absent until their planned checkpoints. C4 changes no persisted or Home Assistant schema and establishes no silent numeric default: all three start thresholds and the end-fallback choice are required constructor inputs. `docs/ARCHITECTURE.md` now documents the exact domain behavior and preserves C8 ownership of user-facing defaults.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -83,16 +100,18 @@ Configuration review for C3: `pyproject.toml`, `.gitignore`, package layout and 
 - Historical plan revisions are immutable so later calendar edits do not rewrite training truth.
 - Domain value objects are frozen and dependency-free. Operational private fields remain available to pure logic but are omitted from representations to reduce accidental disclosure.
 - Calendar filtering is deterministic and profile-policy driven. Include/exclude terms use case-insensitive substring matching over summary and description only; previews expose aggregate counts and stable reason codes only.
+- Passive start GPS is accepted only within explicit inclusive age, accuracy and trip-horizon gates. Start and end fallback decisions are independent; fallbacks are partial rather than silently complete.
 
 ## Remaining risks and deferred details
 
-- C2/C3 now define value and filtering contracts, but not endpoint-resolution policy, provider failure/cache protocols, itinerary assembly or forecast algorithms; those remain C4–C7 work.
+- C2–C4 now define value, filtering and endpoint-resolution contracts, but not provider failure/cache protocols, itinerary assembly or forecast algorithms; those remain C5–C7 work.
 - Calendar adapters must eventually normalize provider-specific online-event signals into the required `is_online` flag; adapter mapping and config-entry representation remain deferred to C8.
 - C3 term matching is intentionally a literal case-insensitive substring contract, not regex, tokenization or location-text matching. Any broader rule language requires a separately tested and documented checkpoint.
 - Route currently models only a successful positive route. Typed provider failures and deterministic fake-provider behavior remain explicitly deferred to C5.
 - Domain representations reduce accidental disclosure but do not replace the dedicated diagnostics/log redaction boundary and tests required at C8.
 - Python 3.13 compatibility is explicit, but CI has not yet exercised Ruff or Pyright because those tools and workflows are deferred to C9.
-- Numeric freshness thresholds, future-trip horizon, unknown accuracy and fallback precedence are deliberately deferred to tested C4 configuration.
+- C4 defines required freshness/accuracy/horizon fields but intentionally supplies no product defaults. Config-flow representation, default selection and migration policy remain C8 work.
+- Location candidates currently cover passive vehicle GPS and already-resolved event/zone coordinates. Geocoding and Home Assistant zone/entity adapters remain outside the pure C4 boundary and are deferred.
 - Storage/config-entry schema versions, migrations and diagnostics redaction implementation remain unbuilt.
 - No production Home Assistant mount or isolated HA development environment is configured.
 - No GitHub remote/authentication is available; work remains local.

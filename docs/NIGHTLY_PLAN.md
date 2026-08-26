@@ -17,8 +17,9 @@ The controller executes one bounded checkpoint per agent run and checks OpenAI C
 - [x] **C3 — Calendar filtering and preview semantics**
   - Deterministic include/exclude rules, online/all-day/location handling, privacy-safe preview counts and tests.
   - Evidence: explicit immutable policy and decisions, stable exclusion precedence, aggregate-only previews and seven deterministic tests; checkpoint validation passed on 2026-08-26.
-- [ ] **C4 — Location resolution and freshness/fallback semantics**
+- [x] **C4 — Location resolution and freshness/fallback semantics**
   - Independent start/end policies, zone/GPS/future-day behavior, unknown accuracy, stale/unavailable fallbacks and tests.
+  - Evidence: required threshold fields with no numeric defaults, inclusive passive-GPS gates, event/zone destinations, explicit partial fallback and unavailable results, privacy-safe reason codes and nine deterministic tests; checkpoint validation passed on 2026-08-26.
 - [ ] **C5 — Route provider and cache contracts**
   - Provider protocol, typed errors, deterministic fake, directional routes, cache key/TTL/privacy behavior and tests. No live API calls.
 - [ ] **C6 — Itinerary and planning revisions**
