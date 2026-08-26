@@ -40,15 +40,14 @@ def event(
 class EventFilterPolicyTests(unittest.TestCase):
     def test_rejects_empty_or_duplicate_normalized_terms(self) -> None:
         for terms in (("",), (" Trip ", "trip")):
-            with self.subTest(terms=terms):
-                with self.assertRaises(ValueError):
-                    EventFilterPolicy(
-                        include_terms=terms,
-                        exclude_terms=(),
-                        allow_online=False,
-                        allow_all_day=False,
-                        require_location=True,
-                    )
+            with self.subTest(terms=terms), self.assertRaises(ValueError):
+                EventFilterPolicy(
+                    include_terms=terms,
+                    exclude_terms=(),
+                    allow_online=False,
+                    allow_all_day=False,
+                    require_location=True,
+                )
 
     def test_policy_is_immutable(self) -> None:
         policy = EventFilterPolicy((), (), False, False, True)
@@ -67,7 +66,9 @@ class EventClassificationTests(unittest.TestCase):
             require_location=True,
         )
 
-    def test_include_terms_match_summary_or_description_case_insensitively(self) -> None:
+    def test_include_terms_match_summary_or_description_case_insensitively(
+        self,
+    ) -> None:
         for candidate in (
             event("summary", summary="CLIENT visit"),
             event("description", description="Meet the Client"),
@@ -127,11 +128,17 @@ class EventClassificationTests(unittest.TestCase):
 
 
 class FilterPreviewTests(unittest.TestCase):
-    def test_preview_contains_only_aggregate_counts_in_stable_reason_order(self) -> None:
+    def test_preview_contains_only_aggregate_counts_in_stable_reason_order(
+        self,
+    ) -> None:
         private_text = "Confidential Alpha Appointment"
         private_location = "Synthetic Secret Street 99"
         candidates = (
-            event("included-private-id", summary=private_text, location_text=private_location),
+            event(
+                "included-private-id",
+                summary=private_text,
+                location_text=private_location,
+            ),
             event("all-day-private-id", all_day=True),
             event("missing-private-id", location_text=None),
         )

@@ -27,7 +27,9 @@ def main() -> int:
                 "label": window.label,
                 "used_percent": used,
                 "remaining_percent": None if used is None else max(0.0, 100.0 - used),
-                "reset_at": None if window.reset_at is None else window.reset_at.isoformat(),
+                "reset_at": None
+                if window.reset_at is None
+                else window.reset_at.isoformat(),
             }
         )
 

@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import re
+import tomllib
 import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "quality.yml"
 REQUIREMENTS = ROOT / "requirements-dev.txt"
+PYPROJECT = ROOT / "pyproject.toml"
 
 
 class QualityWorkflowTests(unittest.TestCase):
@@ -19,10 +21,11 @@ class QualityWorkflowTests(unittest.TestCase):
 
         self.assertIn("permissions:\n  contents: read", workflow)
         self.assertIn("timeout-minutes:", workflow)
-        self.assertIn("python-version: \"3.13\"", workflow)
+        self.assertIn('python-version: "3.13"', workflow)
         self.assertIn("python -m pip install -r requirements-dev.txt", workflow)
         self.assertIn("python scripts/check_checkpoint.py", workflow)
-        self.assertIn("ruff check custom_components/mobility_forecast", workflow)
+        self.assertIn("ruff check .", workflow)
+        self.assertIn("ruff format --check .", workflow)
         self.assertIn("pyright", workflow)
         self.assertIn("pytest", workflow)
 
@@ -32,7 +35,13 @@ class QualityWorkflowTests(unittest.TestCase):
             all(re.fullmatch(r"[^@]+@[0-9a-f]{40}", item) for item in action_references)
         )
 
-        forbidden = ("pull_request_target", "workflow_dispatch", "secrets.", "publish", "release")
+        forbidden = (
+            "pull_request_target",
+            "workflow_dispatch",
+            "secrets.",
+            "publish",
+            "release",
+        )
         self.assertFalse(any(item in workflow.casefold() for item in forbidden))
 
     def test_quality_tools_are_exactly_pinned(self) -> None:
@@ -46,7 +55,24 @@ class QualityWorkflowTests(unittest.TestCase):
                 "ruff==0.16.4",
             ],
         )
-        self.assertTrue(all(re.fullmatch(r"[a-z]+==[0-9.]+", line) for line in requirements))
+        self.assertTrue(
+            all(re.fullmatch(r"[a-z]+==[0-9.]+", line) for line in requirements)
+        )
+
+    def test_strict_typing_boundary_is_explicit(self) -> None:
+        pyright = tomllib.loads(PYPROJECT.read_text(encoding="utf-8"))["tool"][
+            "pyright"
+        ]
+
+        self.assertEqual(pyright["typeCheckingMode"], "strict")
+        self.assertEqual(
+            pyright["include"],
+            [
+                "custom_components/mobility_forecast/domain",
+                "custom_components/mobility_forecast/coordinator.py",
+                "custom_components/mobility_forecast/storage.py",
+            ],
+        )
 
 
 if __name__ == "__main__":

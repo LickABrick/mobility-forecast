@@ -143,9 +143,7 @@ class VehicleObservation:
         if self.soc_percent is not None:
             _require_finite_range(self.soc_percent, "soc_percent", 0.0, 100.0)
         if self.estimated_range_km is not None:
-            _require_finite_range(
-                self.estimated_range_km, "estimated_range_km", 0.0
-            )
+            _require_finite_range(self.estimated_range_km, "estimated_range_km", 0.0)
 
 
 @dataclass(frozen=True, slots=True)

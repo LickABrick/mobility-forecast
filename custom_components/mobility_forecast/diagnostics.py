@@ -88,8 +88,7 @@ def diagnostics_payload(snapshot: DiagnosticsSnapshot) -> dict[str, JsonValue]:
             for reason, count in snapshot.filter_preview.reason_counts
         },
         "route_failures": {
-            category.value: count
-            for category, count in snapshot.route_failure_counts
+            category.value: count for category, count in snapshot.route_failure_counts
         },
     }
 

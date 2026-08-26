@@ -61,7 +61,9 @@ class FailingSaveStorage(FakeProfileStorage):
 
 
 class ProfileCoordinatorTests(unittest.IsolatedAsyncioTestCase):
-    async def test_refresh_loads_scoped_state_saves_and_publishes_snapshot(self) -> None:
+    async def test_refresh_loads_scoped_state_saves_and_publishes_snapshot(
+        self,
+    ) -> None:
         storage = FakeProfileStorage({"entry-a": EMPTY_STATE})
         update = ProfileUpdate(
             state=EMPTY_STATE,
@@ -101,7 +103,9 @@ class ProfileCoordinatorTests(unittest.IsolatedAsyncioTestCase):
             result_a.forecasts[0].service_date, result_b.forecasts[0].service_date
         )
 
-    async def test_failed_refresh_preserves_last_published_data_and_storage(self) -> None:
+    async def test_failed_refresh_preserves_last_published_data_and_storage(
+        self,
+    ) -> None:
         storage = FakeProfileStorage({"entry-a": EMPTY_STATE})
         first = ProfileUpdate(EMPTY_STATE, (forecast(),), NOW)
         source = FakeReadOnlySource([first, RuntimeError("synthetic read failure")])
@@ -117,9 +121,7 @@ class ProfileCoordinatorTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_failed_save_does_not_publish_unpersisted_data(self) -> None:
         storage = FailingSaveStorage({"entry-a": EMPTY_STATE})
-        source = FakeReadOnlySource(
-            [ProfileUpdate(EMPTY_STATE, (forecast(),), NOW)]
-        )
+        source = FakeReadOnlySource([ProfileUpdate(EMPTY_STATE, (forecast(),), NOW)])
         coordinator = ProfileCoordinator("entry-a", source, storage)
 
         with self.assertRaisesRegex(RuntimeError, "synthetic save failure"):

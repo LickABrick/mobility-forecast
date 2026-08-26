@@ -82,9 +82,7 @@ class RouteContractTests(unittest.TestCase):
         reverse = request(self.b, self.a)
         avoid_tolls = request(self.a, self.b, avoid_tolls=True)
 
-        outbound_key = build_route_cache_key(
-            outbound, PRIVACY_KEY, PROVIDER_NAMESPACE
-        )
+        outbound_key = build_route_cache_key(outbound, PRIVACY_KEY, PROVIDER_NAMESPACE)
         self.assertNotEqual(
             outbound_key,
             build_route_cache_key(reverse, PRIVACY_KEY, PROVIDER_NAMESPACE),
@@ -126,9 +124,7 @@ class RouteContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             RouteCachePolicy(timedelta(hours=2), timedelta(hours=1))
         with self.assertRaises(ValueError):
-            build_route_cache_key(
-                request(self.a, self.b), b"short", PROVIDER_NAMESPACE
-            )
+            build_route_cache_key(request(self.a, self.b), b"short", PROVIDER_NAMESPACE)
 
     def test_failure_is_typed_retryable_and_privacy_safe(self) -> None:
         transient = RouteFailure(
@@ -179,9 +175,7 @@ class CachedRoutingTests(unittest.IsolatedAsyncioTestCase):
     async def test_fresh_cache_hit_skips_provider(self) -> None:
         provider = fake_provider({})
         cache = InMemoryRouteCache()
-        key = build_route_cache_key(
-            self.route_request, PRIVACY_KEY, PROVIDER_NAMESPACE
-        )
+        key = build_route_cache_key(self.route_request, PRIVACY_KEY, PROVIDER_NAMESPACE)
         await cache.put(key, self.route, NOW)
 
         result = await route_with_cache(
@@ -205,9 +199,7 @@ class CachedRoutingTests(unittest.IsolatedAsyncioTestCase):
         )
         provider = fake_provider({self.route_request: failure})
         cache = InMemoryRouteCache()
-        key = build_route_cache_key(
-            self.route_request, PRIVACY_KEY, PROVIDER_NAMESPACE
-        )
+        key = build_route_cache_key(self.route_request, PRIVACY_KEY, PROVIDER_NAMESPACE)
         await cache.put(key, self.route, NOW)
 
         result = await route_with_cache(
@@ -228,17 +220,13 @@ class CachedRoutingTests(unittest.IsolatedAsyncioTestCase):
         self,
     ) -> None:
         cache = InMemoryRouteCache()
-        key = build_route_cache_key(
-            self.route_request, PRIVACY_KEY, PROVIDER_NAMESPACE
-        )
+        key = build_route_cache_key(self.route_request, PRIVACY_KEY, PROVIDER_NAMESPACE)
         await cache.put(key, self.route, NOW)
         refreshed = successful_route(
             self.route_request,
             NOW + timedelta(minutes=31),
         )
-        provider = fake_provider(
-            {self.route_request: RouteSuccess(refreshed)}
-        )
+        provider = fake_provider({self.route_request: RouteSuccess(refreshed)})
 
         refresh_result = await route_with_cache(
             request=self.route_request,
@@ -273,9 +261,7 @@ class CachedRoutingTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_cache_rejects_future_evaluation_and_provider_mismatch(self) -> None:
         cache = InMemoryRouteCache()
-        key = build_route_cache_key(
-            self.route_request, PRIVACY_KEY, PROVIDER_NAMESPACE
-        )
+        key = build_route_cache_key(self.route_request, PRIVACY_KEY, PROVIDER_NAMESPACE)
         await cache.put(key, self.route, NOW)
         provider = fake_provider({})
         with self.assertRaises(ValueError):

@@ -1,10 +1,10 @@
 # Project status
 
-Last updated: 2026-08-26 12:04 CEST
+Last updated: 2026-08-26 16:38 CEST
 
 ## Current phase
 
-Phase 1 — architecture, contracts and safe development foundation.
+Phase 1 is complete. Work is at the bounded post-phase Home Assistant adapter handoff.
 
 ## Completed
 
@@ -42,12 +42,14 @@ Phase 1 — architecture, contracts and safe development foundation.
 - C8f added one immutable runtime composition root so the sensor and diagnostics adapters consume separate typed read-only boundaries from the same config entry. Diagnostics source failures propagate without a fallback object dump.
 - C9a added one least-privilege GitHub Actions quality job for pushes and pull requests, with read-only repository permission, concurrency cancellation, a ten-minute timeout and immutable action commit pins.
 - C9a pins Ruff 0.16.4, Pyright 1.1.411 and pytest 9.1.1, runs the standard-library checkpoint/config validator and all 77 tests, lints the complete integration package, and strictly type-checks the dependency-free domain/coordinator/storage core.
+- C9b expanded Ruff lint and format enforcement to every tracked Python file, resolved all 33 previously reported repository findings, and added a contract test that makes the strict Pyright boundary explicit rather than implying repository-wide type coverage.
+- C9b completed the phase-1 configuration/documentation audit without changing runtime metadata, schemas, defaults or dependencies. Existing isolated contracts continue to validate manifest/HACS metadata and exact source/English translation parity.
 
 ## Active checkpoint
 
-C9 — CI, quality audit and handoff. C9a deterministic CI definitions are complete.
+C9 — CI, quality audit and handoff is complete; all numbered phase-1 checkpoints are complete.
 
-Next bounded checkpoint: C9b, audit and resolve or explicitly scope the remaining repository-wide Ruff/Pyright findings, validate Home Assistant/HACS configuration contracts where isolated tooling permits, and reconcile documentation without publishing or adding production dependencies.
+Next bounded checkpoint: implement real `async_setup_entry`/`async_unload_entry` lifecycle and sensor-platform forwarding, proved with isolated Home Assistant contract fixtures only. Do not add storage, calendar/source composition or end-to-end behavior in that checkpoint.
 
 ## Verification evidence
 
@@ -288,6 +290,30 @@ The C9a workflow has no manual or privileged trigger, write permission, secret r
 
 Configuration review for C9a: `pyproject.toml` now gives pytest an explicit `tests` discovery root and limits strict Pyright enforcement to the dependency-free domain, coordinator and storage modules that can be validated without installing Home Assistant. Ruff policy and Python 3.13 remain unchanged; the workflow lints the entire integration package. `requirements-dev.txt` pins the three direct quality tools, while both GitHub actions are pinned to immutable commits. `.gitignore`, package inclusion, `manifest.json`, `hacs.json`, config-entry schema version 1/minor version 1, storage schema version 1 and source/English strings were reviewed and require no change. No runtime dependency, behavioral default, persisted field, schema version, translation or integration metadata changed.
 
+C9b TDD and verification on 2026-08-26:
+
+```text
+python3 -m unittest tests.test_ci_configuration -v
+                                                    RED: repository format check absent
+ruff check .                                       RED: 33 repository findings
+ruff check .                                       PASS
+ruff format --check .                              PASS (43 files)
+python3 -m unittest tests.test_ci_configuration -v PASS (3 tests)
+python3 -m unittest discover -s tests -v            PASS (78 tests)
+python3 scripts/check_checkpoint.py                 PASS (78 tests included)
+PYTHONPATH=.venv/site python3 -m pytest             PASS (78 tests)
+PYTHONPATH=.venv/site python3 -m pyright            PASS (0 errors, 0 warnings)
+PYTHONPATH=.venv/site python3 -m pyright custom_components/mobility_forecast tests scripts
+                                                    AUDIT: 104 strict findings
+controller prompt semantic comparison              PASS (exact value preserved)
+```
+
+The broad Pyright audit is deliberately non-gating: the configured strict boundary remains the dependency-free domain/coordinator/storage core. The 104 broader findings are concentrated in Home Assistant adapters loaded without Home Assistant type information and dynamic synthetic module/config fixtures; silently weakening strict mode or installing production Home Assistant was rejected. The next lifecycle checkpoint must establish isolated typed Home Assistant contract fixtures before expanding adapter type coverage.
+
+All formatting and lint changes are behavior-neutral; the controller prompt was compared to its committed predecessor as an evaluated Python value and is identical. Tests remain synthetic and no production Home Assistant, route provider, vehicle service, notification, credential or personal data was accessed. The complete diff was reviewed for workflow injection, secrets, private data, external calls and scope creep.
+
+Configuration review for C9b: `pyproject.toml`, Python/tool versions, `requirements-dev.txt`, `.gitignore`, package/test discovery, `manifest.json`, `hacs.json`, source/English strings, config-entry schema version 1/minor version 1 and storage schema version 1 were reviewed. Only the existing quality workflow changed: Ruff now covers the repository and enforces formatting. Action pins, permissions and triggers are unchanged. No dependency, runtime metadata, translation, behavioral default, persisted field or schema version changed. Hassfest/Home Assistant validation remains unavailable without adding the intentionally absent Home Assistant development dependency; existing isolated metadata/config-flow/translation tests pass instead.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -322,7 +348,7 @@ Configuration review for C9a: `pyproject.toml` now gives pytest an explicit `tes
 - C8d–C8f define orchestration, runtime composition, a passive sensor-platform adapter and diagnostics adapter but not their Home Assistant `DataUpdateCoordinator`, concrete aggregate source, source-composition or `Store` adapters, config-entry platform forwarding, update interval, timeout/retry policy, or unload lifecycle. Those policies must be explicit in later slices rather than silently defaulted here.
 - A separate privacy-safe logging policy remains unimplemented; diagnostics safety does not make arbitrary logs safe.
 - C8b metadata intentionally omits documentation/issue URLs and code-owner handles because no repository remote or approved maintainer handle exists; these are release-readiness blockers to resolve before HACS publication.
-- C9a exercises Ruff over the integration package and strict Pyright over the dependency-free domain/coordinator/storage core. Repository-wide Ruff still reports legacy findings in tests and local controller scripts, while strict typing of Home Assistant adapters requires an isolated dependency/fixture strategy; C9b must resolve or explicitly preserve those boundaries rather than claiming full coverage.
+- Ruff lint and formatting now cover the complete repository. Strict Pyright remains scoped to the dependency-free domain/coordinator/storage core; a broad audit reports 104 findings in Home Assistant adapters and dynamic synthetic fixtures. Expanding that boundary requires isolated typed Home Assistant contract fixtures and must not be achieved by weakening strict mode or installing into production.
 - The development requirements pin direct tool versions but not hashes or every transitive dependency. Action commits are immutable; a later supply-chain audit may add a fully hashed lock when a supported dependency workflow is chosen.
 - C4 defines required freshness/accuracy/horizon fields but intentionally supplies no product defaults. Config-flow representation, default selection and migration policy remain future product work and must be reviewed before introduction.
 - Location candidates currently cover passive vehicle GPS and already-resolved event/zone coordinates. Geocoding and Home Assistant zone/entity adapters remain outside the pure C4 boundary and are deferred to source composition.

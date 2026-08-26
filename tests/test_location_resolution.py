@@ -256,9 +256,11 @@ class LocationPolicyValidationTests(unittest.TestCase):
             (timedelta(minutes=1), 100.0, timedelta(0)),
         )
         for age, accuracy, horizon in invalid_values:
-            with self.subTest(age=age, accuracy=accuracy, horizon=horizon):
-                with self.assertRaises(ValueError):
-                    StartLocationPolicy(age, accuracy, horizon)
+            with (
+                self.subTest(age=age, accuracy=accuracy, horizon=horizon),
+                self.assertRaises(ValueError),
+            ):
+                StartLocationPolicy(age, accuracy, horizon)
 
     def test_candidate_validates_observation_and_accuracy(self) -> None:
         with self.assertRaises(ValueError):

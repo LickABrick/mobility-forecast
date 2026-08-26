@@ -29,9 +29,7 @@ class ForecastDistanceSensor(SensorEntity):
 
     _attr_has_entity_name = True
 
-    def __init__(
-        self, config_entry_id: str, coordinator: ProfileCoordinator
-    ) -> None:
+    def __init__(self, config_entry_id: str, coordinator: ProfileCoordinator) -> None:
         if not config_entry_id.strip():
             raise ValueError("config_entry_id must not be empty")
         self._config_entry_id = config_entry_id

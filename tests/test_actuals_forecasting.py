@@ -10,9 +10,9 @@ from custom_components.mobility_forecast.domain import (
     ForecastPolicy,
     OdometerPolicy,
     OdometerSampleReason,
-    PlanRevision,
     PlannedLeg,
     PlannedStop,
+    PlanRevision,
     Route,
     VehicleObservation,
     build_distance_forecast,
@@ -170,7 +170,9 @@ class PendingDayTests(unittest.TestCase):
             )
 
         degraded = revision(
-            "revision:partial", created_at=NOW - timedelta(hours=1), quality=DataQuality.PARTIAL
+            "revision:partial",
+            created_at=NOW - timedelta(hours=1),
+            quality=DataQuality.PARTIAL,
         )
         with self.assertRaises(ValueError):
             open_pending_day(
@@ -194,9 +196,8 @@ class PendingDayTests(unittest.TestCase):
             (observation(NOW + timedelta(hours=1), 2_001.0), NOW + timedelta(hours=1)),
             (observation(NOW, 1_020.0), NOW + timedelta(hours=3)),
         ):
-            with self.subTest(sample=sample):
-                with self.assertRaises(ValueError):
-                    close_pending_day(pending, sample, closed_at, ODOMETER_POLICY)
+            with self.subTest(sample=sample), self.assertRaises(ValueError):
+                close_pending_day(pending, sample, closed_at, ODOMETER_POLICY)
 
 
 class RobustForecastTests(unittest.TestCase):

@@ -98,7 +98,9 @@ def state() -> ProfileState:
         closed_at=NOW - timedelta(hours=1),
         quality=DataQuality.COMPLETE,
     )
-    return ProfileState(revisions=(revision(),), pending_days=(pending,), actuals=(actual,))
+    return ProfileState(
+        revisions=(revision(),), pending_days=(pending,), actuals=(actual,)
+    )
 
 
 class ProfileStorageTests(unittest.TestCase):
@@ -129,7 +131,9 @@ class ProfileStorageTests(unittest.TestCase):
             reason_codes=("no_stops",),
         )
 
-        restored = decode_profile_state(encode_profile_state(ProfileState((empty,), (), ())))
+        restored = decode_profile_state(
+            encode_profile_state(ProfileState((empty,), (), ()))
+        )
 
         self.assertEqual(restored.revisions[0], empty)
         self.assertEqual(restored.revisions[0].legs, ())

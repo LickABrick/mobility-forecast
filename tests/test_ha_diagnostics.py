@@ -24,9 +24,7 @@ def snapshot() -> DiagnosticsSnapshot:
     return DiagnosticsSnapshot(
         generated_at=NOW,
         quality=DataQuality.PARTIAL,
-        filter_preview=FilterPreview(
-            3, 2, 1, ((ExclusionReason.MISSING_LOCATION, 1),)
-        ),
+        filter_preview=FilterPreview(3, 2, 1, ((ExclusionReason.MISSING_LOCATION, 1),)),
         planned_leg_count=2,
         degraded_leg_count=1,
         plan_revision_count=4,

@@ -20,9 +20,7 @@ from custom_components.mobility_forecast.domain import DataQuality, Forecast
 
 NOW = datetime(2026, 1, 15, 7, 0, tzinfo=UTC)
 INTEGRATION = (
-    Path(__file__).resolve().parents[1]
-    / "custom_components"
-    / "mobility_forecast"
+    Path(__file__).resolve().parents[1] / "custom_components" / "mobility_forecast"
 )
 SENSOR_MODULE = "custom_components.mobility_forecast.sensor"
 

@@ -37,9 +37,14 @@ The controller executes one bounded checkpoint per agent run and checks OpenAI C
   - [x] **C8d — Profile coordinator boundary**: typed read-only source and config-entry-scoped storage protocols, immutable ordered forecast snapshots, persist-before-publish refresh semantics and failure isolation; six deterministic tests and checkpoint validation passed on 2026-08-26.
   - [x] **C8e — Read-only forecast distance sensor**: one entry-scoped passive sensor projects the earliest immutable forecast's P90 distance, bounded safe attributes and explicit unavailable values; five isolated adapter/translation tests and checkpoint validation passed on 2026-08-26.
   - [x] **C8f — Home Assistant diagnostics adapter**: an entry-scoped typed runtime boundary supplies only the existing aggregate snapshot to Home Assistant diagnostics; config-entry metadata/data/options are never traversed, source failures propagate, and two adapter tests plus the 75-test suite and checkpoint validation passed on 2026-08-26.
-- [ ] **C9 — CI, quality audit and handoff**
+- [x] **C9 — CI, quality audit and handoff**
   - Ruff/pytest/type/config validation, GitHub Actions definitions, documentation consistency audit, remaining risks and phase-2 implementation backlog.
   - [x] **C9a — Deterministic CI definitions**: a least-privilege, timeout-bounded quality workflow pins action commits and Python tool versions, runs checkpoint/config validation and all 77 tests, lints the integration package, and strictly type-checks the dependency-free domain/coordinator/storage core; two contract tests and all configured checks passed locally on 2026-08-26.
+  - [x] **C9b — Repository quality audit and handoff**: CI now lints and format-checks the complete repository; all 33 initial Ruff findings were resolved without behavior changes, the explicit strict-Pyright boundary has a contract test, Home Assistant/HACS JSON and translation contracts pass isolated tests, and all configured checks plus 78 tests passed locally on 2026-08-26. A broad strict-Pyright probe remains intentionally non-gating because absent Home Assistant types and dynamic contract fixtures produce 104 findings; lifecycle work must introduce isolated typed fixtures rather than production dependencies.
+
+Phase 1 is complete. The next bounded post-phase checkpoint is the real
+`async_setup_entry`/`async_unload_entry` lifecycle and sensor-platform forwarding,
+proved only with isolated Home Assistant contract fixtures.
 
 ## Checkpoint definition of done
 

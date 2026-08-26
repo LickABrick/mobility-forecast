@@ -171,9 +171,7 @@ def classify_odometer_sample(
         ),
         observed_at=observation.observed_at,
         odometer_km=(
-            observation.odometer_km
-            if reason is OdometerSampleReason.ACCEPTED
-            else None
+            observation.odometer_km if reason is OdometerSampleReason.ACCEPTED else None
         ),
     )
 
@@ -297,9 +295,7 @@ def build_distance_forecast(
     inliers = tuple(
         ratio
         for ratio in ratios
-        if policy.minimum_correction_ratio
-        <= ratio
-        <= policy.maximum_correction_ratio
+        if policy.minimum_correction_ratio <= ratio <= policy.maximum_correction_ratio
     )
     excluded = len(inliers) != len(ratios)
     if len(inliers) < policy.minimum_history_samples:

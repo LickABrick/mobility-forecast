@@ -29,7 +29,9 @@ jobs:
       - name: Validate checkpoint configuration and unit suite
         run: python scripts/check_checkpoint.py
       - name: Lint
-        run: ruff check custom_components/mobility_forecast
+        run: ruff check .
+      - name: Check formatting
+        run: ruff format --check .
       - name: Type check
         run: pyright
       - name: Run tests with pytest

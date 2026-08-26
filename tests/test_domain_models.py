@@ -31,9 +31,11 @@ class CoordinatesTests(unittest.TestCase):
             (math.nan, 0.0),
             (0.0, math.inf),
         ):
-            with self.subTest(latitude=latitude, longitude=longitude):
-                with self.assertRaises(ValueError):
-                    Coordinates(latitude, longitude)
+            with (
+                self.subTest(latitude=latitude, longitude=longitude),
+                self.assertRaises(ValueError),
+            ):
+                Coordinates(latitude, longitude)
 
 
 class SourceEventTests(unittest.TestCase):
@@ -106,17 +108,19 @@ class MobilityValueTests(unittest.TestCase):
         self.assertEqual(route.distance_m, 12_000)
 
         for distance_m, duration_s in ((0, 1), (1, 0), (-1, 1)):
-            with self.subTest(distance_m=distance_m, duration_s=duration_s):
-                with self.assertRaises(ValueError):
-                    Route(
-                        self.origin,
-                        self.destination,
-                        distance_m,
-                        duration_s,
-                        "deterministic-fake",
-                        NOW,
-                        DataQuality.COMPLETE,
-                    )
+            with (
+                self.subTest(distance_m=distance_m, duration_s=duration_s),
+                self.assertRaises(ValueError),
+            ):
+                Route(
+                    self.origin,
+                    self.destination,
+                    distance_m,
+                    duration_s,
+                    "deterministic-fake",
+                    NOW,
+                    DataQuality.COMPLETE,
+                )
 
     def test_vehicle_observation_validates_optional_values(self) -> None:
         observation = VehicleObservation(
@@ -134,9 +138,8 @@ class MobilityValueTests(unittest.TestCase):
             ("estimated_range_km", math.nan),
         ):
             kwargs = {"observed_at": NOW, field: value}
-            with self.subTest(field=field):
-                with self.assertRaises(ValueError):
-                    VehicleObservation(**kwargs)  # type: ignore[arg-type]
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                VehicleObservation(**kwargs)  # type: ignore[arg-type]
 
     def test_trip_can_represent_partial_without_fabricating_route(self) -> None:
         trip = Trip(

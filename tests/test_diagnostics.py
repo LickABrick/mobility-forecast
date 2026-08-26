@@ -118,9 +118,8 @@ class DiagnosticsTests(unittest.TestCase):
             "training_actual_count",
             "route_cache_entry_count",
         ):
-            with self.subTest(field=field):
-                with self.assertRaises(ValueError):
-                    DiagnosticsSnapshot(**(base | {field: -1}))
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                DiagnosticsSnapshot(**(base | {field: -1}))
 
         with self.assertRaises(ValueError):
             DiagnosticsSnapshot(**(base | {"degraded_leg_count": 2}))
@@ -140,11 +139,7 @@ class DiagnosticsTests(unittest.TestCase):
             DiagnosticsSnapshot(
                 **(
                     base
-                    | {
-                        "route_failure_counts": (
-                            (RouteFailureCategory.UNAVAILABLE, 0),
-                        )
-                    }
+                    | {"route_failure_counts": ((RouteFailureCategory.UNAVAILABLE, 0),)}
                 )
             )
 

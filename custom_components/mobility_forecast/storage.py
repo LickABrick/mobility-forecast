@@ -231,9 +231,7 @@ def _quality(value: object, field_name: str) -> DataQuality:
 
 
 def _strings(value: object, field_name: str) -> tuple[str, ...]:
-    return tuple(
-        _string(item, field_name) for item in _sequence(value, field_name)
-    )
+    return tuple(_string(item, field_name) for item in _sequence(value, field_name))
 
 
 def _location_from_dict(value: object, field_name: str) -> ResolvedLocation | None:
@@ -325,9 +323,7 @@ def _leg_from_dict(value: object, index: int) -> PlannedLeg:
     field_name = f"revisions.legs[{index}]"
     item = _mapping(value, field_name)
     return PlannedLeg(
-        stop_index=_integer(
-            _required(item, "stop_index"), f"{field_name}.stop_index"
-        ),
+        stop_index=_integer(_required(item, "stop_index"), f"{field_name}.stop_index"),
         origin=_location_from_dict(_required(item, "origin"), f"{field_name}.origin"),
         destination=_location_from_dict(
             _required(item, "destination"), f"{field_name}.destination"
@@ -350,15 +346,11 @@ def _revision_from_dict(value: object) -> PlanRevision:
     )
     legs = tuple(
         _leg_from_dict(leg, index)
-        for index, leg in enumerate(
-            _sequence(_required(item, "legs"), "revision.legs")
-        )
+        for index, leg in enumerate(_sequence(_required(item, "legs"), "revision.legs"))
     )
     return PlanRevision(
         revision_id=_string(_required(item, "revision_id"), "revision.revision_id"),
-        service_date=_date(
-            _required(item, "service_date"), "revision.service_date"
-        ),
+        service_date=_date(_required(item, "service_date"), "revision.service_date"),
         created_at=_datetime(_required(item, "created_at"), "revision.created_at"),
         source_observed_at=_datetime(
             _required(item, "source_observed_at"), "revision.source_observed_at"
@@ -366,9 +358,7 @@ def _revision_from_dict(value: object) -> PlanRevision:
         stops=stops,
         legs=legs,
         quality=_quality(_required(item, "quality"), "revision.quality"),
-        reason_codes=_strings(
-            _required(item, "reason_codes"), "revision.reason_codes"
-        ),
+        reason_codes=_strings(_required(item, "reason_codes"), "revision.reason_codes"),
     )
 
 
