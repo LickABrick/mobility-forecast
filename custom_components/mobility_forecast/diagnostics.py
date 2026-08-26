@@ -10,11 +10,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Final, TypeAlias
+from typing import TYPE_CHECKING, Final, TypeAlias, cast
 
 from .domain.calendar_filters import FilterPreview
 from .domain.models import DataQuality
 from .domain.routing import RouteFailureCategory
+
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+
+    from .runtime import ProfileRuntimeData
 
 DIAGNOSTICS_SCHEMA_VERSION: Final = 1
 
@@ -86,3 +92,18 @@ def diagnostics_payload(snapshot: DiagnosticsSnapshot) -> dict[str, JsonValue]:
             for category, count in snapshot.route_failure_counts
         },
     }
+
+
+async def async_get_config_entry_diagnostics(
+    hass: HomeAssistant, entry: ConfigEntry
+) -> dict[str, JsonValue]:
+    """Return only the entry's typed aggregate diagnostics projection.
+
+    Home Assistant entry metadata, configuration, options, and coordinator state
+    are deliberately never traversed or serialized by this adapter.
+    """
+
+    del hass
+    runtime = cast("ProfileRuntimeData", entry.runtime_data)
+    snapshot = await runtime.diagnostics_source.read()
+    return diagnostics_payload(snapshot)

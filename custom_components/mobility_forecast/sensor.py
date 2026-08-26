@@ -17,6 +17,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from .coordinator import CoordinatorSnapshot, ProfileCoordinator
 from .domain.models import Forecast
+from .runtime import ProfileRuntimeData
 
 
 def _kilometres(distance_m: int | None) -> float | None:
@@ -102,5 +103,6 @@ async def async_setup_entry(
     """Add one passive distance entity for one profile config entry."""
 
     del hass
-    coordinator = cast(ProfileCoordinator, entry.runtime_data)
+    runtime = cast(ProfileRuntimeData, entry.runtime_data)
+    coordinator = runtime.coordinator
     async_add_entities([ForecastDistanceSensor(entry.entry_id, coordinator)])

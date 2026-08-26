@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-08-26 08:42 CEST
+Last updated: 2026-08-26 08:50 CEST
 
 ## Current phase
 
@@ -38,12 +38,14 @@ Phase 1 — architecture, contracts and safe development foundation.
 - C8d validates unique chronologically ordered forecast dates, persists the next state before publishing an immutable snapshot, and preserves the last published data when a source read or storage save fails.
 - C8e added one passive, entry-scoped forecast-distance sensor over the coordinator's immutable snapshot. It exposes the earliest forecast's conservative P90 distance in kilometres without implementing polling, update or action methods.
 - C8e keeps missing distance as an unknown value rather than zero and limits attributes to service date, P50 distance, quality and generation time. Arbitrary reason text and source identifiers are not projected.
+- C8f added the Home Assistant config-entry diagnostics adapter over the existing typed aggregate projection. It reads only an entry-scoped diagnostics source and never traverses config-entry metadata, data, options, coordinator state or raw storage.
+- C8f added one immutable runtime composition root so the sensor and diagnostics adapters consume separate typed read-only boundaries from the same config entry. Diagnostics source failures propagate without a fallback object dump.
 
 ## Active checkpoint
 
-C8 — Home Assistant integration skeleton (C8a diagnostics, C8b metadata/config flow, C8c storage, C8d coordinator and C8e read-only sensor complete; checkpoint remains open).
+C9 — CI, quality audit and handoff. C8 is complete through its diagnostics adapter.
 
-Next bounded checkpoint: add the Home Assistant config-entry diagnostics adapter over the existing typed aggregate projection, using synthetic Home Assistant stand-ins only.
+Next bounded checkpoint: C9a, add deterministic CI definitions for the configured Python checks and validate them without publishing, credentials or a remote.
 
 ## Verification evidence
 
@@ -248,6 +250,25 @@ All C8e entry identifiers, dates, measurements and quality values are synthetic.
 
 Configuration review for C8e: `pyproject.toml`, `.gitignore`, package inclusion/test discovery, `manifest.json`, `hacs.json`, config-entry schema version 1/minor version 1 and storage schema version 1 were reviewed and require no change. Source strings and `translations/en.json` now add only the reviewed `forecast_distance` entity name and remain exactly equal. GitHub workflows remain deferred to C9. The sensor introduces no config option, persisted field, migration, polling interval, threshold or behavioral default; P90 is explicitly the conservative primary presentation already carried by the domain forecast.
 
+C8f TDD and verification on 2026-08-26:
+
+```text
+python3 -m unittest tests.test_ha_diagnostics -v
+                                                   RED: adapter/runtime exports absent
+python3 -m unittest tests.test_ha_diagnostics -v   PASS (2 tests)
+python3 -m unittest tests.test_sensor -v           PASS (5 tests)
+python3 -m unittest discover -s tests -v           PASS (75 tests)
+python3 scripts/check_checkpoint.py                PASS (75 tests)
+python3 -m compileall -q custom_components tests  PASS
+git diff --check                                   PASS
+ruff / pyright / basedpyright / pytest / hassfest discovery
+                                                   unavailable
+```
+
+All C8f entry metadata, configuration values, timestamps and aggregate counts are synthetic. The adapter and its deterministic source fake make no production Home Assistant, filesystem, network, route-provider, vehicle-refresh, service or notification call. The privacy test places synthetic private values in config-entry metadata, data and options and proves none enter the JSON payload; source failure is tested to propagate rather than trigger an object dump. Independent diff review found no credentials, personal data, external calls or scope beyond the runtime/diagnostics adapter, the required sensor runtime-data compatibility update, tests and checkpoint documentation.
+
+Configuration review for C8f: `pyproject.toml`, `.gitignore`, package inclusion/test discovery, `manifest.json`, `hacs.json`, config-entry schema version 1/minor version 1, storage schema version 1, and source/English strings were reviewed and require no change. GitHub workflows remain deferred to C9. The diagnostics payload remains schema version 1; the runtime composition root is in-memory only. No default, config option, persisted field, migration, translation or integration metadata changed.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -270,21 +291,22 @@ Configuration review for C8e: `pyproject.toml`, `.gitignore`, package inclusion/
 - Durable state uses config-entry identifiers rather than profile titles for isolation. Storage schema version 1 round-trips validated immutable revisions, pending days and actuals; unsupported versions are rejected until explicitly migrated.
 - Coordinator refreshes are profile-scoped transactions: load prior state, read one typed source update, persist next state, then publish an immutable ordered forecast snapshot. Failed reads or saves do not replace published data.
 - The first entity is one entry-scoped passive distance sensor. It presents the earliest forecast's P90 distance, keeps unavailable distance unknown, and exposes only a fixed non-identifying attribute allowlist.
+- Home Assistant diagnostics consume only a typed entry-scoped aggregate source. Config-entry fields and runtime objects are not recursively dumped, and source failures remain explicit.
 
 ## Remaining risks and deferred details
 
 - C2–C7 define the pure value, filtering, endpoint-resolution, route/cache, itinerary/revision, passive-actual and distance-forecast contracts. Required-SOC conversion remains unimplemented and must be added behind explicit vehicle/consumption policy rather than guessed.
-- Calendar adapters must eventually normalize provider-specific online-event signals into the required `is_online` flag; adapter mapping and config-entry representation remain deferred to C8.
+- Calendar adapters must eventually normalize provider-specific online-event signals into the required `is_online` flag; adapter mapping and config-entry representation remain deferred to a later source-composition checkpoint.
 - C3 term matching is intentionally a literal case-insensitive substring contract, not regex, tokenization or location-text matching. Any broader rule language requires a separately tested and documented checkpoint.
-- C5 cache storage is an in-memory contract fake only. Persistent profile-scoped cache storage, privacy-key generation/rotation and migration behavior remain deferred to C8; no key material is logged or persisted by the domain.
+- C5 cache storage is an in-memory contract fake only. Persistent profile-scoped cache storage, privacy-key generation/rotation and migration behavior remain deferred to a later lifecycle/persistence checkpoint; no key material is logged or persisted by the domain.
 - C8c defines serialization but not a Home Assistant `Store` adapter, retention policy, transactional update behavior or recovery UI. No pre-version-1 payload exists; future schema changes require explicit forward migration and rollback tests.
-- C8d/C8e define orchestration and a passive sensor-platform adapter but not their Home Assistant `DataUpdateCoordinator`, source-composition or `Store` adapters, config-entry platform forwarding, update interval, timeout/retry policy, or unload lifecycle. Those policies must be explicit in later slices rather than silently defaulted here.
-- C8a provides the pure diagnostics projection, but the Home Assistant `async_get_config_entry_diagnostics` adapter and a separate privacy-safe logging policy remain unimplemented.
+- C8d–C8f define orchestration, runtime composition, a passive sensor-platform adapter and diagnostics adapter but not their Home Assistant `DataUpdateCoordinator`, concrete aggregate source, source-composition or `Store` adapters, config-entry platform forwarding, update interval, timeout/retry policy, or unload lifecycle. Those policies must be explicit in later slices rather than silently defaulted here.
+- A separate privacy-safe logging policy remains unimplemented; diagnostics safety does not make arbitrary logs safe.
 - C8b metadata intentionally omits documentation/issue URLs and code-owner handles because no repository remote or approved maintainer handle exists; these are release-readiness blockers to resolve before HACS publication.
 - Python 3.13 compatibility is explicit, but CI has not yet exercised Ruff or Pyright because those tools and workflows are deferred to C9.
-- C4 defines required freshness/accuracy/horizon fields but intentionally supplies no product defaults. Config-flow representation, default selection and migration policy remain C8 work.
-- Location candidates currently cover passive vehicle GPS and already-resolved event/zone coordinates. Geocoding and Home Assistant zone/entity adapters remain outside the pure C4 boundary and are deferred.
-- Config-entry schema version 1 and storage schema version 1 now exist, but options, future migrations, a Home Assistant storage adapter and the Home Assistant diagnostics adapter remain unbuilt.
+- C4 defines required freshness/accuracy/horizon fields but intentionally supplies no product defaults. Config-flow representation, default selection and migration policy remain future product work and must be reviewed before introduction.
+- Location candidates currently cover passive vehicle GPS and already-resolved event/zone coordinates. Geocoding and Home Assistant zone/entity adapters remain outside the pure C4 boundary and are deferred to source composition.
+- Config-entry schema version 1 and storage schema version 1 now exist, but options, future migrations and a Home Assistant storage adapter remain unbuilt.
 - No production Home Assistant mount or isolated HA development environment is configured.
 - No GitHub remote/authentication is available; work remains local.
 - No real route-provider credentials or calls are permitted during unattended work.

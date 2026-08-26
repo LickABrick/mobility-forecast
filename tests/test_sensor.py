@@ -106,6 +106,11 @@ class FakeConfigEntry:
         self.runtime_data = runtime_data
 
 
+class FakeRuntimeData:
+    def __init__(self, coordinator: ProfileCoordinator) -> None:
+        self.coordinator = coordinator
+
+
 class ForecastDistanceSensorTests(unittest.TestCase):
     def test_sensor_projects_first_forecast_without_private_identifiers(self) -> None:
         snapshot = CoordinatorSnapshot(
@@ -187,7 +192,9 @@ class ForecastDistanceSensorTests(unittest.TestCase):
 
     def test_platform_adds_exactly_one_entry_scoped_read_only_entity(self) -> None:
         snapshot = CoordinatorSnapshot((forecast(),), NOW)
-        entry = FakeConfigEntry("entry-synthetic", coordinator_with(snapshot))
+        entry = FakeConfigEntry(
+            "entry-synthetic", FakeRuntimeData(coordinator_with(snapshot))
+        )
         added: list[Any] = []
 
         with fake_home_assistant():
