@@ -102,6 +102,8 @@ The integration layer will provide config flow, options/migrations, coordinator 
 
 The integration layer may call only read methods on configured sources. No service registration for vehicle, charging, climate or notification actions belongs in V1. C8b adds minimal custom-integration/HACS metadata and config-entry schema version 1 (minor version 1). Its user flow requires only a profile name, uses that name solely as the entry title and stores an empty data mapping, so it establishes no calendar, location, vehicle, route or threshold default. It deliberately assigns no unique ID so multiple independently titled profile entries remain possible. The C8c codec is still a dependency-free boundary contract: a later adapter must connect it to Home Assistant storage without logging or diagnosing raw payloads.
 
+C8d adds the dependency-free coordinator contract used by that future adapter. Each coordinator is constructed with exactly one config-entry identifier, a typed source exposing only `read(previous_state)`, and typed storage whose load/save calls always require that identifier. A refresh loads immutable prior state, reads one validated update, persists its next state, and only then publishes an immutable, chronologically ordered forecast snapshot. Read or save failures propagate without replacing the last published snapshot, so entities cannot observe state that was never durably accepted. Source adapters remain responsible for composing the already-tested pure pipeline; the coordinator adds no active refresh, service, credential, notification or external-provider capability.
+
 ## Test strategy
 
 - Pure domain behavior: unit tests with typed synthetic values.

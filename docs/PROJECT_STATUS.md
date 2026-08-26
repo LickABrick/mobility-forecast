@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-08-26 08:27 CEST
+Last updated: 2026-08-26 08:34 CEST
 
 ## Current phase
 
@@ -34,12 +34,14 @@ Phase 1 — architecture, contracts and safe development foundation.
 - C8b creates each profile as a separate entry with its name used only as the title and a fresh empty data mapping. It assigns no unique ID, so multiple profiles remain supported, and introduces no calendar, location, vehicle, route, credential or threshold default.
 - C8c added frozen profile state and config-entry-scoped storage keys plus schema-version-1 JSON-safe serialization for complete immutable plan revisions, pending days and closed actuals.
 - C8c decoding rebuilds validated domain values, rejects unknown schema versions and malformed or duplicate records, and preserves unavailable plans without fabricating route or distance values.
+- C8d added a dependency-free profile coordinator over typed read-only source and config-entry-scoped storage protocols. Every load/save is explicitly addressed by config-entry identifier, while source reads receive only immutable prior state.
+- C8d validates unique chronologically ordered forecast dates, persists the next state before publishing an immutable snapshot, and preserves the last published data when a source read or storage save fails.
 
 ## Active checkpoint
 
-C8 — Home Assistant integration skeleton (C8a diagnostics, C8b metadata/config flow and C8c storage contract complete; checkpoint remains open).
+C8 — Home Assistant integration skeleton (C8a diagnostics, C8b metadata/config flow, C8c storage and C8d coordinator contracts complete; checkpoint remains open).
 
-Next bounded checkpoint: establish a profile-scoped coordinator boundary over typed read-only source and storage protocols, using deterministic fakes only. Entity platforms and the Home Assistant diagnostics adapter remain separate later slices.
+Next bounded checkpoint: add the smallest read-only entity slice over immutable coordinator snapshots, with synthetic Home Assistant stand-ins only. The Home Assistant diagnostics adapter remains a separate later slice.
 
 ## Verification evidence
 
@@ -209,6 +211,23 @@ All C8c identifiers, coordinates, provider labels, timestamps and measurements a
 
 Configuration review for C8c: `pyproject.toml`, `.gitignore`, package inclusion, test discovery, `manifest.json`, `hacs.json`, config-flow schema version 1/minor version 1, and source/English strings were reviewed and require no change. GitHub workflows remain deferred to C9. Storage schema version 1 is the first persisted-state contract and changes no existing default or config-entry data. There is therefore no legacy payload to migrate; unknown versions fail closed, and any future version must add an explicit migration and tests before acceptance.
 
+C8d TDD and verification on 2026-08-26:
+
+```text
+python3 -m unittest tests.test_coordinator -v   RED: coordinator module absent
+python3 -m unittest tests.test_coordinator -v   PASS (6 tests)
+python3 -m unittest discover -s tests -v        PASS (68 tests)
+python3 scripts/check_checkpoint.py             PASS (68 tests)
+python3 -m compileall -q custom_components tests PASS
+git diff --check                                PASS
+ruff / pyright / basedpyright / pytest / hassfest discovery
+                                                 unavailable
+```
+
+All C8d entry identifiers, forecast dates, measurements and failures are synthetic. The coordinator and its deterministic fakes make no Home Assistant, filesystem, network, route-provider, vehicle-refresh, service or notification call. Independent diff review found no credentials, personal data, external calls or scope beyond the coordinator contract, tests, architecture and checkpoint documentation.
+
+Configuration review for C8d: `pyproject.toml`, `.gitignore`, package inclusion, test discovery, `manifest.json`, `hacs.json`, config-entry schema version 1/minor version 1, storage schema version 1, and source/English strings were reviewed and require no change. GitHub workflows remain deferred to C9. The coordinator introduces no Home Assistant setting, persisted field, schema migration, translation or behavioral threshold/default; it consumes the existing typed `ProfileState` and publishes only immutable forecasts and generation time.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -229,6 +248,7 @@ Configuration review for C8c: `pyproject.toml`, `.gitignore`, package inclusion,
 - Diagnostics use a versioned aggregate allowlist rather than recursively dumping and redacting private runtime/configuration objects.
 - Config flow creates one entry per profile from a required display name, deliberately permits multiple entries and stores no behavioral settings until their defaults and migrations are separately reviewed.
 - Durable state uses config-entry identifiers rather than profile titles for isolation. Storage schema version 1 round-trips validated immutable revisions, pending days and actuals; unsupported versions are rejected until explicitly migrated.
+- Coordinator refreshes are profile-scoped transactions: load prior state, read one typed source update, persist next state, then publish an immutable ordered forecast snapshot. Failed reads or saves do not replace published data.
 
 ## Remaining risks and deferred details
 
@@ -237,6 +257,7 @@ Configuration review for C8c: `pyproject.toml`, `.gitignore`, package inclusion,
 - C3 term matching is intentionally a literal case-insensitive substring contract, not regex, tokenization or location-text matching. Any broader rule language requires a separately tested and documented checkpoint.
 - C5 cache storage is an in-memory contract fake only. Persistent profile-scoped cache storage, privacy-key generation/rotation and migration behavior remain deferred to C8; no key material is logged or persisted by the domain.
 - C8c defines serialization but not a Home Assistant `Store` adapter, retention policy, transactional update behavior or recovery UI. No pre-version-1 payload exists; future schema changes require explicit forward migration and rollback tests.
+- C8d defines orchestration protocols but not their Home Assistant `DataUpdateCoordinator`, source-composition or `Store` adapters, update interval, timeout/retry policy, or entity lifecycle. Those policies must be explicit in later C8 slices rather than silently defaulted here.
 - C8a provides the pure diagnostics projection, but the Home Assistant `async_get_config_entry_diagnostics` adapter and a separate privacy-safe logging policy remain unimplemented.
 - C8b metadata intentionally omits documentation/issue URLs and code-owner handles because no repository remote or approved maintainer handle exists; these are release-readiness blockers to resolve before HACS publication.
 - Python 3.13 compatibility is explicit, but CI has not yet exercised Ruff or Pyright because those tools and workflows are deferred to C9.
