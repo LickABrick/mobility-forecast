@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-08-26 02:54 CEST
+Last updated: 2026-08-26 03:00 CEST
 
 ## Current phase
 
@@ -28,12 +28,14 @@ Phase 1 — architecture, contracts and safe development foundation.
 - C7 added explicit passive-odometer acceptance policy for missing, future and stale samples; inclusive sample-age limits and a maximum daily-distance guard have no domain defaults.
 - C7 opens pending days only from a complete positive routed plan that existed at opening time, snapshots that immutable revision identifier and distance, and rejects stale/non-newer end samples, odometer rollback and excessive daily movement at closure.
 - C7 added a robust distance baseline that rejects duplicate or nonhistorical training actuals, excludes ratios outside explicit inclusive bounds, uses median P50 and nearest-rank P90 correction after enough inliers, and otherwise exposes an explicit partial-quality cold start. Unavailable plans retain absent percentiles rather than zero distance.
+- C8a added a frozen typed diagnostics snapshot and a versioned JSON-safe allowlist containing only aggregate counts, stable filter/route-failure categories, quality and generation time.
+- C8a prevents profile names, entity/event identifiers, event text, addresses, coordinates, provider details and credentials from entering diagnostics by construction; count consistency, immutability and timezone requirements are validated.
 
 ## Active checkpoint
 
-C8 — Home Assistant integration skeleton.
+C8 — Home Assistant integration skeleton (C8a diagnostics projection complete; checkpoint remains open).
 
-Next bounded checkpoint: use isolated synthetic fixtures to add the manifest/HACS/config-flow contract, coordinator boundary, read-only entities, translations and diagnostics redaction without installing into or contacting production Home Assistant.
+Next bounded checkpoint: establish manifest/HACS metadata and the one-entry-per-profile config-flow contract with isolated synthetic fixtures. Do not install into or contact production Home Assistant, and do not invent repository URLs or behavioral defaults.
 
 ## Verification evidence
 
@@ -153,6 +155,22 @@ All C7 revision identifiers, times, routes and odometer values are synthetic. Th
 
 Configuration review for C7: `pyproject.toml`, `.gitignore`, package layout and standard-library test discovery were reviewed and require no changes. `manifest.json`, `hacs.json`, strings/translations, GitHub workflows, config-flow schemas and storage schemas remain intentionally absent until C8/C9. C7 changes no persisted or Home Assistant schema and introduces no silent behavioral default: maximum sample age, maximum daily distance, minimum history count, lower/upper correction bounds and cold-start P90 multiplier are all required inputs. Profile-scoped serialization, schema versioning and migration remain C8 responsibilities.
 
+C8a TDD and verification on 2026-08-26:
+
+```text
+python3 -m unittest tests.test_diagnostics -v       RED: diagnostics module absent
+python3 -m unittest tests.test_diagnostics -v       PASS (3 tests)
+python3 -m unittest discover -s tests -v            PASS (53 tests)
+python3 scripts/check_checkpoint.py                 PASS (53 tests)
+python3 -m compileall -q custom_components tests   PASS
+git diff --check                                    PASS
+ruff / pyright / basedpyright / pytest discovery   unavailable
+```
+
+All C8a inputs are synthetic aggregate values. The diagnostics projection is dependency-free and has no Home Assistant, storage, network, route-provider, vehicle-refresh, service or notification path. Independent diff review found no credentials, personal data, raw private fields, external calls or scope beyond the C8 diagnostics sub-slice.
+
+Configuration review for C8a: `pyproject.toml`, `.gitignore`, package layout and standard-library test discovery were reviewed and require no changes. `manifest.json`, `hacs.json`, strings/translations, GitHub workflows, config-flow schemas and storage schemas remain absent because this bounded slice adds no loadable Home Assistant adapter, configuration or persistence. Adding metadata now would either claim a config flow that does not exist or invent unavailable repository URLs. No default or persisted schema changed. Diagnostics payload schema version 1 is an explicit output contract, not a Home Assistant config/storage schema.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -170,6 +188,7 @@ Configuration review for C7: `pyproject.toml`, `.gitignore`, package layout and 
 - Itinerary assembly uses explicit normalized deduplication keys, deterministic stop ordering and known-destination chaining. Conflicting duplicates fail closed, degraded legs remain explicit, and revision history is append-only and immutable.
 - Passive actuals capture the latest complete revision that existed when a day opened and never rematch later edits. Only fresh, monotonic and explicitly distance-bounded odometer closures become complete training actuals.
 - Forecast correction uses only unique earlier-day actuals. Explicit ratio bounds reject outliers; sufficient inliers use median P50 and nearest-rank P90, while cold start is partial and uses an explicit conservative multiplier.
+- Diagnostics use a versioned aggregate allowlist rather than recursively dumping and redacting private runtime/configuration objects.
 
 ## Remaining risks and deferred details
 
@@ -178,7 +197,7 @@ Configuration review for C7: `pyproject.toml`, `.gitignore`, package layout and 
 - C3 term matching is intentionally a literal case-insensitive substring contract, not regex, tokenization or location-text matching. Any broader rule language requires a separately tested and documented checkpoint.
 - C5 cache storage is an in-memory contract fake only. Persistent profile-scoped cache storage, privacy-key generation/rotation and migration behavior remain deferred to C8; no key material is logged or persisted by the domain.
 - C6 revision history and C7 pending/actual state are pure contracts, not persistent storage. Profile-scoped serialization, retention, schema versioning and migrations remain C8 work.
-- Domain representations reduce accidental disclosure but do not replace the dedicated diagnostics/log redaction boundary and tests required at C8.
+- C8a provides the pure diagnostics projection, but the Home Assistant `async_get_config_entry_diagnostics` adapter and a separate privacy-safe logging policy remain unimplemented.
 - Python 3.13 compatibility is explicit, but CI has not yet exercised Ruff or Pyright because those tools and workflows are deferred to C9.
 - C4 defines required freshness/accuracy/horizon fields but intentionally supplies no product defaults. Config-flow representation, default selection and migration policy remain C8 work.
 - Location candidates currently cover passive vehicle GPS and already-resolved event/zone coordinates. Geocoding and Home Assistant zone/entity adapters remain outside the pure C4 boundary and are deferred.

@@ -96,9 +96,9 @@ A failure may reduce confidence or suppress advice. It must not create a zero-di
 
 ## Home Assistant boundary
 
-The eventual integration layer will provide config flow, options/migrations, coordinator lifecycle, read-only entities, translations and redacted diagnostics. It may call only read methods on configured sources. No service registration for vehicle, charging, climate or notification actions belongs in V1.
+The integration layer will provide config flow, options/migrations, coordinator lifecycle, read-only entities, translations and redacted diagnostics. The first C8 slice establishes a versioned, JSON-safe diagnostics projection that accepts only typed aggregate counts, stable reason categories, quality and generation time. Profile names, entity/event identifiers, event text, addresses, coordinates, provider details and credentials cannot enter that projection. The later Home Assistant diagnostics adapter must construct this snapshot rather than serializing config-entry or coordinator objects directly.
 
-Home Assistant configuration/schema files do not yet exist. Their defaults and versions will be introduced at C8, after the underlying domain contracts are tested; no configuration default is established by this architecture checkpoint.
+The integration layer may call only read methods on configured sources. No service registration for vehicle, charging, climate or notification actions belongs in V1. Home Assistant configuration/schema files do not yet exist. Their defaults and versions will be introduced in the remaining C8 slices; the diagnostics slice establishes no configuration default or persisted schema.
 
 ## Test strategy
 

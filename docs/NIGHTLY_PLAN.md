@@ -31,6 +31,8 @@ The controller executes one bounded checkpoint per agent run and checks OpenAI C
   - Evidence: passive sample freshness gates, immutable revision-bound pending/actual records, rollback/daily-distance rejection, bounded median/nearest-rank correction and explicit cold start; ten deterministic tests and checkpoint validation passed on 2026-08-26.
 - [ ] **C8 — Home Assistant integration skeleton**
   - Manifest, HACS metadata, config-flow contract, coordinator boundary, read-only entities, translations and diagnostics redaction. No production installation.
+  - [x] **C8a — Privacy-safe diagnostics projection**: a frozen typed aggregate snapshot and versioned JSON-safe allowlist exclude profile names, entity/event identifiers, event text, addresses, coordinates, provider details and credentials by construction; three deterministic tests and checkpoint validation passed on 2026-08-26.
+  - [ ] Remaining C8: manifest/HACS metadata and config-flow contract; then profile-scoped storage/coordinator, read-only entities, translations and the Home Assistant diagnostics adapter.
 - [ ] **C9 — CI, quality audit and handoff**
   - Ruff/pytest/type/config validation, GitHub Actions definitions, documentation consistency audit, remaining risks and phase-2 implementation backlog.
 
