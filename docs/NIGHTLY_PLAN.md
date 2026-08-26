@@ -20,8 +20,9 @@ The controller executes one bounded checkpoint per agent run and checks OpenAI C
 - [x] **C4 — Location resolution and freshness/fallback semantics**
   - Independent start/end policies, zone/GPS/future-day behavior, unknown accuracy, stale/unavailable fallbacks and tests.
   - Evidence: required threshold fields with no numeric defaults, inclusive passive-GPS gates, event/zone destinations, explicit partial fallback and unavailable results, privacy-safe reason codes and nine deterministic tests; checkpoint validation passed on 2026-08-26.
-- [ ] **C5 — Route provider and cache contracts**
+- [x] **C5 — Route provider and cache contracts**
   - Provider protocol, typed errors, deterministic fake, directional routes, cache key/TTL/privacy behavior and tests. No live API calls.
+  - Evidence: asynchronous provider/cache protocols, five typed failure categories, exact deterministic fakes, directional HMAC-SHA-256 cache keys, explicit fresh/stale limits and refresh/fallback behavior; eight deterministic tests and checkpoint validation passed on 2026-08-26.
 - [ ] **C6 — Itinerary and planning revisions**
   - Chronological stops, multi-calendar dedupe, daily chaining, partial quality, immutable plan revisions and tests.
 - [ ] **C7 — Passive actuals and robust forecast baseline**

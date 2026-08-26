@@ -104,12 +104,13 @@ class ResolvedLocation:
 class Route:
     """Successful directional road route.
 
-    Failures are deliberately not represented as zero-valued routes; C5 will
-    add the provider failure contract and cache behavior.
+    Failures are represented by the separate provider contract and never as a
+    zero-valued route. Endpoints stay out of representations because they may
+    contain stable identifiers as well as private coordinates.
     """
 
-    origin: ResolvedLocation
-    destination: ResolvedLocation
+    origin: ResolvedLocation = field(repr=False)
+    destination: ResolvedLocation = field(repr=False)
     distance_m: int
     duration_s: int
     provider: str

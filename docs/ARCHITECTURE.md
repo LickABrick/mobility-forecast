@@ -63,9 +63,9 @@ These C4 policy values are required pure-domain inputs. Home Assistant config-fl
 
 ## Route-provider architecture
 
-The domain depends on a provider-neutral, asynchronous route protocol. Requests contain normalized endpoints and route-relevant options; results retain direction, distance, duration, provider provenance, observation time and quality. Failures use typed categories such as unavailable, invalid input, quota/rate limit and transient provider failure.
+The domain depends on a provider-neutral, asynchronous route protocol. Requests contain private normalized endpoints, an optional departure time and required toll/highway avoidance choices; no option default is established in the domain. Results retain direction, distance, duration, provider provenance, observation time and quality. Failures expose only stable privacy-safe categories: unavailable, invalid input, quota exhausted, rate limited and transient provider failure.
 
-A route from A to B is not interchangeable with B to A. Cache keys must be profile/privacy safe and include all route-affecting inputs. Cache expiry and stale-result behavior will be specified and tested in C5.
+A route from A to B is not interchangeable with B to A. Cache keys HMAC all route-affecting inputs, including a required stable non-secret provider/config namespace, with required profile-local key material. They retain no raw coordinates or endpoint identifiers and cannot be shared across profile caches. Required inclusive maximum-fresh and maximum-stale ages have no domain defaults. A fresh hit avoids a provider call; a stale hit is refreshed, falls back with explicit `stale` quality and the refresh-failure category only when refresh fails, and is discarded after the stale limit. Provider and cache direction mismatches are rejected. Only complete successful provider routes are cached; failures never become zero distance.
 
 Google Routes is the intended first production adapter, not a domain dependency. Deterministic fakes are the only route providers used during unattended development. Adding another adapter must not change calendar, itinerary or forecast logic.
 
