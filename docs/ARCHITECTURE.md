@@ -98,7 +98,7 @@ A failure may reduce confidence or suppress advice. It must not create a zero-di
 
 The integration layer will provide config flow, options/migrations, coordinator lifecycle, read-only entities, translations and redacted diagnostics. The first C8 slice establishes a versioned, JSON-safe diagnostics projection that accepts only typed aggregate counts, stable reason categories, quality and generation time. Profile names, entity/event identifiers, event text, addresses, coordinates, provider details and credentials cannot enter that projection. The later Home Assistant diagnostics adapter must construct this snapshot rather than serializing config-entry or coordinator objects directly.
 
-The integration layer may call only read methods on configured sources. No service registration for vehicle, charging, climate or notification actions belongs in V1. Home Assistant configuration/schema files do not yet exist. Their defaults and versions will be introduced in the remaining C8 slices; the diagnostics slice establishes no configuration default or persisted schema.
+The integration layer may call only read methods on configured sources. No service registration for vehicle, charging, climate or notification actions belongs in V1. C8b adds minimal custom-integration/HACS metadata and config-entry schema version 1 (minor version 1). Its user flow requires only a profile name, uses that name solely as the entry title and stores an empty data mapping, so it establishes no calendar, location, vehicle, route or threshold default. It deliberately assigns no unique ID: users may create multiple independently owned profiles. Options, migrations and persisted state remain later C8 work.
 
 ## Test strategy
 

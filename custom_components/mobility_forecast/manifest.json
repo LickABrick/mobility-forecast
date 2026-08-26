@@ -1,0 +1,7 @@
+{
+  "domain": "mobility_forecast",
+  "name": "Mobility Forecast",
+  "version": "0.0.0",
+  "config_flow": true,
+  "integration_type": "service"
+}

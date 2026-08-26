@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-08-26 03:00 CEST
+Last updated: 2026-08-26 08:18 CEST
 
 ## Current phase
 
@@ -30,12 +30,14 @@ Phase 1 — architecture, contracts and safe development foundation.
 - C7 added a robust distance baseline that rejects duplicate or nonhistorical training actuals, excludes ratios outside explicit inclusive bounds, uses median P50 and nearest-rank P90 correction after enough inliers, and otherwise exposes an explicit partial-quality cold start. Unavailable plans retain absent percentiles rather than zero distance.
 - C8a added a frozen typed diagnostics snapshot and a versioned JSON-safe allowlist containing only aggregate counts, stable filter/route-failure categories, quality and generation time.
 - C8a prevents profile names, entity/event identifiers, event text, addresses, coordinates, provider details and credentials from entering diagnostics by construction; count consistency, immutability and timezone requirements are validated.
+- C8b added minimal Home Assistant custom-integration and HACS metadata, enabled a schema-version-1 config flow, and added matching source/English strings for its single required profile-name input.
+- C8b creates each profile as a separate entry with its name used only as the title and a fresh empty data mapping. It assigns no unique ID, so multiple profiles remain supported, and introduces no calendar, location, vehicle, route, credential or threshold default.
 
 ## Active checkpoint
 
-C8 — Home Assistant integration skeleton (C8a diagnostics projection complete; checkpoint remains open).
+C8 — Home Assistant integration skeleton (C8a diagnostics and C8b metadata/config flow complete; checkpoint remains open).
 
-Next bounded checkpoint: establish manifest/HACS metadata and the one-entry-per-profile config-flow contract with isolated synthetic fixtures. Do not install into or contact production Home Assistant, and do not invent repository URLs or behavioral defaults.
+Next bounded checkpoint: establish profile-scoped, versioned storage contracts and migration-safe serialization for immutable plan revisions, pending days and actuals. Keep the implementation isolated from production Home Assistant and use only synthetic fixtures; coordinator and entities remain separate later slices.
 
 ## Verification evidence
 
@@ -171,6 +173,23 @@ All C8a inputs are synthetic aggregate values. The diagnostics projection is dep
 
 Configuration review for C8a: `pyproject.toml`, `.gitignore`, package layout and standard-library test discovery were reviewed and require no changes. `manifest.json`, `hacs.json`, strings/translations, GitHub workflows, config-flow schemas and storage schemas remain absent because this bounded slice adds no loadable Home Assistant adapter, configuration or persistence. Adding metadata now would either claim a config flow that does not exist or invent unavailable repository URLs. No default or persisted schema changed. Diagnostics payload schema version 1 is an explicit output contract, not a Home Assistant config/storage schema.
 
+C8b TDD and verification on 2026-08-26:
+
+```text
+python3 -m unittest tests.test_config_flow -v     RED: flow/metadata absent (4 errors)
+python3 -m unittest tests.test_config_flow -v     PASS (4 tests)
+python3 -m unittest discover -s tests -v          PASS (57 tests)
+python3 scripts/check_checkpoint.py               PASS (57 tests)
+python3 -m compileall -q custom_components tests PASS
+git diff --check                                  PASS
+ruff / pyright / basedpyright / pytest / hassfest discovery
+                                                    unavailable
+```
+
+The C8b flow was executed only against in-process synthetic Home Assistant and Voluptuous stand-ins; no Home Assistant installation, entity, route provider, vehicle service, notification path, credential or personal data was accessed. The two synthetic profile names are non-personal placeholders. Independent diff review found no secrets, addresses, coordinates, identifiers, external calls or scope beyond metadata, config-flow schema, strings, tests and checkpoint documentation.
+
+Configuration review for C8b: `pyproject.toml`, `.gitignore`, package inclusion and standard-library test discovery were reviewed and require no changes. `manifest.json` now declares domain/name/version `0.0.0`, config-flow support and service integration type; `hacs.json` contains only the required display name. Repository documentation and issue URLs and code-owner handles remain intentionally absent rather than invented. `strings.json` and `translations/en.json` exactly cover the one required name field. Config entries declare schema version 1/minor version 1 and persist no data yet, so no migration or behavioral default is introduced. Storage schemas and workflows remain deferred to later C8/C9 checkpoints.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -189,6 +208,7 @@ Configuration review for C8a: `pyproject.toml`, `.gitignore`, package layout and
 - Passive actuals capture the latest complete revision that existed when a day opened and never rematch later edits. Only fresh, monotonic and explicitly distance-bounded odometer closures become complete training actuals.
 - Forecast correction uses only unique earlier-day actuals. Explicit ratio bounds reject outliers; sufficient inliers use median P50 and nearest-rank P90, while cold start is partial and uses an explicit conservative multiplier.
 - Diagnostics use a versioned aggregate allowlist rather than recursively dumping and redacting private runtime/configuration objects.
+- Config flow creates one entry per profile from a required display name, deliberately permits multiple entries and stores no behavioral settings until their defaults and migrations are separately reviewed.
 
 ## Remaining risks and deferred details
 
@@ -198,10 +218,11 @@ Configuration review for C8a: `pyproject.toml`, `.gitignore`, package layout and
 - C5 cache storage is an in-memory contract fake only. Persistent profile-scoped cache storage, privacy-key generation/rotation and migration behavior remain deferred to C8; no key material is logged or persisted by the domain.
 - C6 revision history and C7 pending/actual state are pure contracts, not persistent storage. Profile-scoped serialization, retention, schema versioning and migrations remain C8 work.
 - C8a provides the pure diagnostics projection, but the Home Assistant `async_get_config_entry_diagnostics` adapter and a separate privacy-safe logging policy remain unimplemented.
+- C8b metadata intentionally omits documentation/issue URLs and code-owner handles because no repository remote or approved maintainer handle exists; these are release-readiness blockers to resolve before HACS publication.
 - Python 3.13 compatibility is explicit, but CI has not yet exercised Ruff or Pyright because those tools and workflows are deferred to C9.
 - C4 defines required freshness/accuracy/horizon fields but intentionally supplies no product defaults. Config-flow representation, default selection and migration policy remain C8 work.
 - Location candidates currently cover passive vehicle GPS and already-resolved event/zone coordinates. Geocoding and Home Assistant zone/entity adapters remain outside the pure C4 boundary and are deferred.
-- Storage/config-entry schema versions, migrations and diagnostics redaction implementation remain unbuilt.
+- Config-entry schema version 1 now exists, but options, storage schemas, migrations and the Home Assistant diagnostics adapter remain unbuilt.
 - No production Home Assistant mount or isolated HA development environment is configured.
 - No GitHub remote/authentication is available; work remains local.
 - No real route-provider credentials or calls are permitted during unattended work.
