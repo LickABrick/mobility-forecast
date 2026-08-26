@@ -46,6 +46,19 @@ Phase 1 is complete. The next bounded post-phase checkpoint is the real
 `async_setup_entry`/`async_unload_entry` lifecycle and sensor-platform forwarding,
 proved only with isolated Home Assistant contract fixtures.
 
+## Post-phase checkpoints
+
+- [x] **P1 — Config-entry lifecycle and sensor forwarding**
+  - Entry-scoped fail-closed runtimes are created before forwarding the sensor
+    platform; successful unload clears runtime data, while failed unload retains
+    it for still-loaded entities. Four isolated lifecycle tests, all 82 tests,
+    strict Pyright over the expanded lifecycle boundary, Ruff, formatting and
+    checkpoint validation passed on 2026-08-26.
+- [ ] **P2 — Config-entry-scoped Home Assistant Store adapter**
+  - Next checkpoint: replace only the pending storage boundary with a real Store
+    adapter and prove entry isolation, restart restoration and unload behavior
+    using synthetic fixtures. Do not add calendar/source composition.
+
 ## Checkpoint definition of done
 
 - Scope is coherent and no unrelated changes are included.

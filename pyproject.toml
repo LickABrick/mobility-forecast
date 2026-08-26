@@ -22,10 +22,12 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 
 [tool.pyright]
 include = [
+  "custom_components/mobility_forecast/__init__.py",
   "custom_components/mobility_forecast/domain",
   "custom_components/mobility_forecast/coordinator.py",
   "custom_components/mobility_forecast/storage.py",
 ]
+stubPath = "typings"
 pythonVersion = "3.13"
 typeCheckingMode = "strict"
 

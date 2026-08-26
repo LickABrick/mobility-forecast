@@ -68,11 +68,13 @@ class QualityWorkflowTests(unittest.TestCase):
         self.assertEqual(
             pyright["include"],
             [
+                "custom_components/mobility_forecast/__init__.py",
                 "custom_components/mobility_forecast/domain",
                 "custom_components/mobility_forecast/coordinator.py",
                 "custom_components/mobility_forecast/storage.py",
             ],
         )
+        self.assertEqual(pyright["stubPath"], "typings")
 
 
 if __name__ == "__main__":

@@ -1,10 +1,10 @@
 # Project status
 
-Last updated: 2026-08-26 16:38 CEST
+Last updated: 2026-08-26 16:46 CEST
 
 ## Current phase
 
-Phase 1 is complete. Work is at the bounded post-phase Home Assistant adapter handoff.
+Phase 1 is complete. Post-phase checkpoint P1 is complete; work is at the bounded Home Assistant Store adapter handoff.
 
 ## Completed
 
@@ -44,12 +44,15 @@ Phase 1 is complete. Work is at the bounded post-phase Home Assistant adapter ha
 - C9a pins Ruff 0.16.4, Pyright 1.1.411 and pytest 9.1.1, runs the standard-library checkpoint/config validator and all 77 tests, lints the complete integration package, and strictly type-checks the dependency-free domain/coordinator/storage core.
 - C9b expanded Ruff lint and format enforcement to every tracked Python file, resolved all 33 previously reported repository findings, and added a contract test that makes the strict Pyright boundary explicit rather than implying repository-wide type coverage.
 - C9b completed the phase-1 configuration/documentation audit without changing runtime metadata, schemas, defaults or dependencies. Existing isolated contracts continue to validate manifest/HACS metadata and exact source/English translation parity.
+- P1 added real `async_setup_entry` and `async_unload_entry` hooks that create one isolated fail-closed runtime per config entry and forward only the sensor platform.
+- P1 clears runtime data only after successful platform unload and preserves it after failed unload so still-loaded entities retain their boundary. Pending source, storage and diagnostics adapters perform no I/O and fail explicitly rather than fabricating forecasts or diagnostics.
+- P1 expanded strict Pyright coverage to the lifecycle module using minimal isolated Home Assistant contract stubs; no Home Assistant package or production instance was installed or accessed.
 
 ## Active checkpoint
 
-C9 — CI, quality audit and handoff is complete; all numbered phase-1 checkpoints are complete.
+P1 — Config-entry lifecycle and sensor forwarding is complete.
 
-Next bounded checkpoint: implement real `async_setup_entry`/`async_unload_entry` lifecycle and sensor-platform forwarding, proved with isolated Home Assistant contract fixtures only. Do not add storage, calendar/source composition or end-to-end behavior in that checkpoint.
+Next bounded checkpoint: implement the config-entry-scoped Home Assistant Store adapter with synthetic restart and unload tests. Replace only the pending storage boundary; do not add calendar/source composition or end-to-end behavior.
 
 ## Verification evidence
 
@@ -314,6 +317,24 @@ All formatting and lint changes are behavior-neutral; the controller prompt was 
 
 Configuration review for C9b: `pyproject.toml`, Python/tool versions, `requirements-dev.txt`, `.gitignore`, package/test discovery, `manifest.json`, `hacs.json`, source/English strings, config-entry schema version 1/minor version 1 and storage schema version 1 were reviewed. Only the existing quality workflow changed: Ruff now covers the repository and enforces formatting. Action pins, permissions and triggers are unchanged. No dependency, runtime metadata, translation, behavioral default, persisted field or schema version changed. Hassfest/Home Assistant validation remains unavailable without adding the intentionally absent Home Assistant development dependency; existing isolated metadata/config-flow/translation tests pass instead.
 
+P1 TDD and verification on 2026-08-26:
+
+```text
+python3 -m unittest tests.test_lifecycle -v          RED: lifecycle hooks absent
+python3 -m unittest tests.test_lifecycle -v          PASS (4 tests)
+python3 scripts/check_checkpoint.py                  PASS (82 tests included)
+PYTHONPATH=.venv/site python3 -m pytest              PASS (82 tests)
+PYTHONPATH=.venv/site python3 -m pyright             PASS (0 errors; 2 expected missing-source warnings for isolated stubs)
+PYTHONPATH=.venv/site python3 -m ruff check .        PASS
+PYTHONPATH=.venv/site python3 -m ruff format --check .
+                                                     PASS (48 files)
+git diff --check                                    PASS
+```
+
+All P1 entry identifiers and fixtures are synthetic. Lifecycle setup constructs only entry-scoped in-memory boundaries and forwards the passive sensor; it creates no refresh task, timer, update interval, filesystem access, network call, route-provider request, vehicle action, notification or credential path. Pending source, storage and diagnostics calls fail with fixed non-private errors. Independent diff review found no secret, credential, personal data, production call or scope beyond lifecycle, isolated typing fixtures, quality configuration and checkpoint documentation.
+
+Configuration review for P1: `pyproject.toml`, tool versions, `requirements-dev.txt`, `.gitignore`, package/test discovery, quality workflow, `manifest.json`, `hacs.json`, source/English strings, config-entry schema version 1/minor version 1 and storage schema version 1 were reviewed. Strict Pyright now includes the lifecycle module and resolves its Home Assistant surface through repository-local `.pyi` contracts under `typings/`; no runtime or development dependency was added. Runtime metadata, translations, config flow, defaults, persisted fields and schema versions are unchanged. The only platform list is the existing read-only sensor.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -337,6 +358,7 @@ Configuration review for C9b: `pyproject.toml`, Python/tool versions, `requireme
 - Coordinator refreshes are profile-scoped transactions: load prior state, read one typed source update, persist next state, then publish an immutable ordered forecast snapshot. Failed reads or saves do not replace published data.
 - The first entity is one entry-scoped passive distance sensor. It presents the earliest forecast's P90 distance, keeps unavailable distance unknown, and exposes only a fixed non-identifying attribute allowlist.
 - Home Assistant diagnostics consume only a typed entry-scoped aggregate source. Config-entry fields and runtime objects are not recursively dumped, and source failures remain explicit.
+- Config-entry setup owns one isolated runtime and forwards only the sensor platform. Unload releases that runtime only when platform unload succeeds; pending adapter boundaries fail closed and schedule no work.
 
 ## Remaining risks and deferred details
 
@@ -345,10 +367,10 @@ Configuration review for C9b: `pyproject.toml`, Python/tool versions, `requireme
 - C3 term matching is intentionally a literal case-insensitive substring contract, not regex, tokenization or location-text matching. Any broader rule language requires a separately tested and documented checkpoint.
 - C5 cache storage is an in-memory contract fake only. Persistent profile-scoped cache storage, privacy-key generation/rotation and migration behavior remain deferred to a later lifecycle/persistence checkpoint; no key material is logged or persisted by the domain.
 - C8c defines serialization but not a Home Assistant `Store` adapter, retention policy, transactional update behavior or recovery UI. No pre-version-1 payload exists; future schema changes require explicit forward migration and rollback tests.
-- C8d–C8f define orchestration, runtime composition, a passive sensor-platform adapter and diagnostics adapter but not their Home Assistant `DataUpdateCoordinator`, concrete aggregate source, source-composition or `Store` adapters, config-entry platform forwarding, update interval, timeout/retry policy, or unload lifecycle. Those policies must be explicit in later slices rather than silently defaulted here.
+- C8d–C8f and P1 define orchestration, fail-closed runtime composition, a passive sensor-platform adapter, diagnostics adapter and config-entry forwarding/unload lifecycle, but not a Home Assistant `DataUpdateCoordinator`, concrete aggregate source, source-composition or `Store` adapter, update interval, timeout/retry policy. Those policies must be explicit in later slices rather than silently defaulted here.
 - A separate privacy-safe logging policy remains unimplemented; diagnostics safety does not make arbitrary logs safe.
 - C8b metadata intentionally omits documentation/issue URLs and code-owner handles because no repository remote or approved maintainer handle exists; these are release-readiness blockers to resolve before HACS publication.
-- Ruff lint and formatting now cover the complete repository. Strict Pyright remains scoped to the dependency-free domain/coordinator/storage core; a broad audit reports 104 findings in Home Assistant adapters and dynamic synthetic fixtures. Expanding that boundary requires isolated typed Home Assistant contract fixtures and must not be achieved by weakening strict mode or installing into production.
+- Ruff lint and formatting cover the complete repository. Strict Pyright now also covers the lifecycle module through minimal isolated Home Assistant contracts; other adapters and dynamic fixtures remain outside that boundary. Expansion must add reviewed contract types rather than weakening strict mode or installing into production.
 - The development requirements pin direct tool versions but not hashes or every transitive dependency. Action commits are immutable; a later supply-chain audit may add a fully hashed lock when a supported dependency workflow is chosen.
 - C4 defines required freshness/accuracy/horizon fields but intentionally supplies no product defaults. Config-flow representation, default selection and migration policy remain future product work and must be reviewed before introduction.
 - Location candidates currently cover passive vehicle GPS and already-resolved event/zone coordinates. Geocoding and Home Assistant zone/entity adapters remain outside the pure C4 boundary and are deferred to source composition.
