@@ -1,11 +1,11 @@
 # Project status
 
-Last updated: 2026-09-01 14:14 CEST
+Last updated: 2026-09-01 14:23 CEST
 
 ## Current phase
 
-Phase 1 and post-phase checkpoints P1–P3 are complete. Work is at the
-deterministic synthetic calendar-to-fake-routing-to-sensor smoke-pipeline handoff.
+Phase 1 and post-phase checkpoints P1–P4 are complete. Work is at the isolated
+real Home Assistant lifecycle/config-flow/entity test handoff.
 
 ## Completed
 
@@ -59,15 +59,25 @@ deterministic synthetic calendar-to-fake-routing-to-sensor smoke-pipeline handof
   frozen domain events, keeps provider-specific online classification injected,
   and converts missing entities, identifiers, malformed events and read failures
   to stable private-data-free failures.
+- P4 added a reusable test-only deterministic composition harness that connects
+  the P3 calendar adapter to existing explicit filter, planning, fake-routing,
+  forecast, coordinator, storage-fake and passive-sensor contracts without adding
+  a production runtime source or choosing hidden policy defaults.
+- P4 proves a complete 10 km synthetic route produces the explicit cold-start
+  12.5 km P90 sensor value, while a typed transient route failure is persisted as
+  a partial immutable revision and projects unavailable/unknown distance rather
+  than zero. Sensor attributes exclude synthetic event text, location text and the
+  config-entry identifier.
 
 ## Active checkpoint
 
-P3 — Calendar/entity source adapter and config contract is complete.
+P4 — Deterministic synthetic calendar-to-sensor smoke pipeline is complete.
 
-Next bounded checkpoint: compose one deterministic synthetic
-calendar-to-fake-routing-to-sensor smoke pipeline from the existing contracts.
-Do not add live providers, polling, production installation or unrelated lifecycle
-work.
+Next bounded checkpoint: introduce one independently useful slice of isolated real
+Home Assistant 2026.8.1 lifecycle/config-flow/entity tests. Use only synthetic
+fixtures and an isolated development environment; do not install into or inspect
+production Home Assistant. Hassfest/HACS validation and the reproducible install
+ZIP plus `TESTING.md` remain later checkpoints.
 
 ## Verification evidence
 
@@ -410,6 +420,40 @@ for the new field and remain identical. `pyproject.toml` extends strict Pyright 
 the new typed adapter. Tool pins, dependencies, storage schema 1, manifest,
 `hacs.json`, workflow, sensor platform and package metadata are unchanged.
 
+P4 TDD and verification on 2026-09-01:
+
+```text
+/usr/bin/python3 -m unittest tests.test_synthetic_smoke_pipeline -v
+                                                     RED: missing synthetic harness
+/usr/bin/python3 -m unittest tests.test_synthetic_smoke_pipeline -v
+                                                     PASS (2 smoke tests)
+/usr/bin/python3 -m unittest discover -s tests -v     PASS (96 tests)
+/usr/bin/python3 scripts/check_checkpoint.py          PASS (96 tests included)
+PYTHONPATH=.venv/site python3 -m pytest                PASS (96 tests)
+PYTHONPATH=.venv/site python3 -m ruff check .          PASS
+PYTHONPATH=.venv/site python3 -m ruff format --check . PASS
+PYTHONPATH=.venv/site python3 -m pyright               PASS (0 errors; 6 expected missing-source warnings)
+git diff --check                                      PASS
+```
+
+Every P4 calendar entity, event, identifier, text value, location, coordinate,
+route, timestamp, config-entry identifier and storage value is synthetic. The
+calendar entity, route provider, storage and Home Assistant sensor contracts are
+in-process fakes with no filesystem, network, credential, production Home
+Assistant, geocoder, vehicle, physical service or notification path. The harness
+is under `tests/` and cannot be selected by runtime composition. Independent diff
+review found no secret, personal data, production call or scope beyond the smoke
+harness, its two end-to-end contract tests and checkpoint documentation.
+
+Configuration review for P4: `pyproject.toml`, Python/tool pins,
+`requirements-dev.txt`, `.gitignore`, package/test discovery, quality workflow,
+manifest, `hacs.json`, config-entry schema 1.2, storage schema 1, config flow,
+source/English translations and sensor metadata were reviewed and require no
+change. No runtime module, dependency, metadata, translation, config field,
+default, migration, persisted schema, polling behavior or physical capability was
+added. The explicit synthetic policy numbers and endpoint mappings exist only in
+test fixtures and do not establish product defaults.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -444,6 +488,10 @@ the new typed adapter. Tool pins, dependencies, storage schema 1, manifest,
   explicit aware window. It maps Home Assistant 2026.8.1 timed/all-day events to
   frozen source events, requires provider identity, injects online classification
   policy and emits stable private-data-free failures.
+- The synthetic smoke harness proves the existing calendar, filtering, planning,
+  fake-routing, forecast, coordinator, persistence and sensor contracts compose
+  across one complete path and one route-failure path. It is test-only evidence,
+  not the production runtime composition and not proof of real forecasting.
 
 ## Remaining risks and deferred details
 
@@ -461,6 +509,11 @@ the new typed adapter. Tool pins, dependencies, storage schema 1, manifest,
   calendar-to-forecast source, a Home Assistant `DataUpdateCoordinator`, concrete
   aggregate diagnostics source, update interval or timeout/retry policy. Those
   policies must be explicit in later slices rather than silently defaulted here.
+- P4 demonstrates deterministic contract composition only. Its fixed clock,
+  synthetic location-text mapping, revision identifier, filter/forecast policies
+  and route responses are fixtures, not production choices. Runtime windowing,
+  real location resolution, revision-id generation and refresh scheduling remain
+  unimplemented.
 - A separate privacy-safe logging policy remains unimplemented; diagnostics safety does not make arbitrary logs safe.
 - C8b metadata intentionally omits documentation/issue URLs and code-owner handles.
   A private GitHub remote now exists, but no public support URL or approved

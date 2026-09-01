@@ -127,6 +127,14 @@ read errors fail with stable private-data-free reason codes. The adapter does no
 yet compose the filter, location, routing, planning or forecast pipeline and does
 not schedule reads.
 
+P4 adds only a reusable synthetic smoke harness under `tests/`. It composes the
+calendar adapter, explicit filtering and fixture endpoint mapping, deterministic
+route provider, immutable revision, cold-start forecast, transactional coordinator
+and passive sensor. A complete fixture route reaches a nonzero sensor value; a
+typed route failure remains unknown rather than becoming zero. This validates
+contract compatibility but deliberately does not provide the production profile
+source, location adapter, refresh schedule or runtime policy.
+
 ## Test strategy
 
 - Pure domain behavior: unit tests with typed synthetic values.

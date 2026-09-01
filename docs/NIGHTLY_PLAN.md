@@ -68,10 +68,19 @@ proved only with isolated Home Assistant contract fixtures.
     classification policy and exposes only stable failure reasons. Five synthetic
     adapter tests, 94 total tests, strict Pyright, Ruff, formatting and checkpoint
     validation passed on 2026-09-01.
+- [x] **P4 — Deterministic synthetic calendar-to-sensor smoke pipeline**
+  - A reusable test-only harness composes the Home Assistant calendar adapter,
+    explicit filtering and synthetic location mapping, the exact in-memory route
+    fake, immutable revisions, cold-start forecasting, coordinator persistence and
+    the passive sensor. Complete routing projects 12.5 km P90, while a typed route
+    failure persists a partial revision and leaves sensor distance unknown rather
+    than zero. Two smoke tests, 96 total tests, strict Pyright, Ruff, formatting and
+    checkpoint validation passed on 2026-09-01.
 
-Next checkpoint: one deterministic synthetic calendar-to-fake-routing-to-sensor
-smoke pipeline. Keep every input synthetic, compose only existing pure contracts,
-and do not add live providers, polling or production installation.
+Next checkpoint: one bounded slice of isolated real Home Assistant
+lifecycle/config-flow/entity testing targeting Home Assistant 2026.8.1. Keep
+fixtures synthetic and do not install into production; defer Hassfest/HACS
+validation and the reproducible ZIP/`TESTING.md` artifact to their later slices.
 
 ## Checkpoint definition of done
 
