@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import struct
 import subprocess
 import sys
 import tempfile
@@ -15,9 +16,15 @@ BUILD_SCRIPT = ROOT / "scripts" / "build_test_zip.py"
 TESTING_GUIDE = ROOT / "TESTING.md"
 COMPONENT_PREFIX = "custom_components/mobility_forecast/"
 REQUIRED_PACKAGE_FILES = {
+    f"{COMPONENT_PREFIX}brand/icon.png",
+    f"{COMPONENT_PREFIX}brand/icon@2x.png",
     f"{COMPONENT_PREFIX}manifest.json",
     f"{COMPONENT_PREFIX}strings.json",
     f"{COMPONENT_PREFIX}translations/en.json",
+}
+REQUIRED_BRAND_SIZES = {
+    f"{COMPONENT_PREFIX}brand/icon.png": (256, 256),
+    f"{COMPONENT_PREFIX}brand/icon@2x.png": (512, 512),
 }
 FORBIDDEN_PARTS = {
     "__pycache__",
@@ -35,6 +42,14 @@ def _run(*arguments: str) -> subprocess.CompletedProcess[str]:
         capture_output=True,
         check=False,
     )
+
+
+def _png_header(payload: bytes) -> tuple[int, int, int, int]:
+    """Return width, height, bit depth and color type from a PNG IHDR."""
+
+    if payload[:8] != b"\x89PNG\r\n\x1a\n" or payload[12:16] != b"IHDR":
+        raise ValueError("brand asset is not a PNG with an IHDR header")
+    return struct.unpack(">IIBB", payload[16:26])
 
 
 class TestPackageTests(unittest.TestCase):
@@ -70,6 +85,13 @@ class TestPackageTests(unittest.TestCase):
                 names = [info.filename for info in infos]
                 self.assertEqual(names, sorted(tracked))
                 self.assertTrue(set(names) >= REQUIRED_PACKAGE_FILES)
+                for asset, expected_size in REQUIRED_BRAND_SIZES.items():
+                    width, height, bit_depth, color_type = _png_header(
+                        package.read(asset)
+                    )
+                    self.assertEqual((width, height), expected_size)
+                    self.assertEqual(bit_depth, 8)
+                    self.assertEqual(color_type, 6)  # RGBA
                 self.assertTrue(
                     all(name.startswith(COMPONENT_PREFIX) for name in names)
                 )

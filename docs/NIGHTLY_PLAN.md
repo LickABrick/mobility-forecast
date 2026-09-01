@@ -113,6 +113,10 @@ proved only with isolated Home Assistant contract fixtures.
     The form now contains only Home Assistant's serializable entity selector;
     non-empty validation runs after submission and returns a translated field
     error. A focused regression test plus the complete 100-test suite cover it.
+- [x] **P10 — Local Home Assistant brand icon**
+  - User-approved transparent artwork is packaged as the current Home Assistant
+    256px icon and 512px hDPI icon. Package tests verify both files are tracked,
+    exact-size 8-bit RGBA PNGs and remain inside the integration-only archive.
 
 Next checkpoint: redownload public `main` through HACS, fully restart Home
 Assistant 2026.8.3 and repeat the config-flow/lifecycle smoke test. Runtime forecast

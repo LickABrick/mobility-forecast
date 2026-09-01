@@ -669,6 +669,23 @@ entry schema 1.2, storage schema 1, manifest version 0.0.0, selected-calendar da
 runtime behavior and every read-only safety boundary remain unchanged. The public
 repository test guide now documents HACS redownload-from-main and full restart.
 
+P10 branding evidence on 2026-09-01:
+
+```text
+brand/icon.png                                        PNG RGBA 256x256
+brand/icon@2x.png                                     PNG RGBA 512x512
+light/dark Settings preview at 64px and 128px         visually approved by Guus
+package contract                                      requires dimensions, 8-bit RGBA and scope
+```
+
+The source artwork was supplied and explicitly approved by Guus. It was reframed
+on transparency, downsampled with premultiplied alpha and exported without adding
+Home Assistant branding. No logo or separate dark asset is required because Home
+Assistant falls back from logo to icon and the approved icon retains contrast in
+both tested themes. The two assets increase the deterministic package scope from
+20 to 22 tracked integration files; runtime, config, storage and safety behavior
+are unchanged.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
