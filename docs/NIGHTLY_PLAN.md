@@ -84,11 +84,17 @@ proved only with isolated Home Assistant contract fixtures.
     manager, selector schema and config-entry creation contract. The isolated
     real-HA test passed locally in a read-only Docker mount on 2026-09-01;
     the dependency-free suite remains separate and unchanged at 96 tests.
+- [x] **P6 — Real Home Assistant lifecycle and entity-state compatibility test**
+  - Home Assistant 2026.8.1 now drives a synthetic schema-1.2 config entry through
+    setup, sensor-platform forwarding, entity-registry lookup, unavailable state
+    projection and unload. The test proves the runtime is released and records
+    Home Assistant's restored unavailable placeholder after unload; both isolated
+    real-HA tests pass in a read-only, network-disabled Docker run.
 
-Next checkpoint: one bounded slice of real Home Assistant lifecycle and entity
-registration/state-machine testing targeting Home Assistant 2026.8.1. Keep
-fixtures synthetic and do not install into production; defer Hassfest/HACS
-validation and the reproducible ZIP/`TESTING.md` artifact to their later slices.
+Next checkpoint: one bounded Hassfest/HACS validation slice against the current
+repository metadata and Home Assistant 2026.8.1 compatibility target. Keep it
+isolated from production and do not begin the reproducible ZIP/`TESTING.md`
+artifact in the same invocation.
 
 ## Checkpoint definition of done
 

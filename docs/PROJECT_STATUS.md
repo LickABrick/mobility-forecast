@@ -1,11 +1,11 @@
 # Project status
 
-Last updated: 2026-09-01 14:32 CEST
+Last updated: 2026-09-01 14:45 CEST
 
 ## Current phase
 
-Phase 1 and post-phase checkpoints P1–P5 are complete. Work is at the isolated
-real Home Assistant lifecycle/entity test handoff.
+Phase 1 and post-phase checkpoints P1–P6 are complete. Work is at the isolated
+Hassfest/HACS validation handoff.
 
 ## Completed
 
@@ -75,17 +75,24 @@ real Home Assistant lifecycle/entity test handoff.
 - P5 adds a least-privilege CI compatibility job without credentials, network
   providers, production mounts or runtime service calls; its sole profile,
   calendar identifier and input text are synthetic.
+- P6 lets Home Assistant 2026.8.1 drive a synthetic current-schema config entry
+  through the real setup manager, sensor-platform forwarding, entity registry,
+  state machine and unload path instead of calling integration hooks directly.
+- P6 proves the passive sensor registers with its entry-scoped unique ID, starts
+  unavailable rather than at zero, exposes kilometres without forecast/private
+  attributes, and releases runtime data on unload. Home Assistant retains its
+  normal restored unavailable state placeholder after platform unload.
 
 ## Active checkpoint
 
-P5 — Real Home Assistant config-flow compatibility testing is complete.
+P6 — Real Home Assistant lifecycle and entity-state compatibility testing is
+complete.
 
-Next bounded checkpoint: exercise config-entry setup/unload and passive sensor
-registration/state through Home Assistant 2026.8.1's real lifecycle and state
-machine. Use only synthetic fixtures in the isolated compatibility environment;
-do not install into or inspect production Home Assistant. Hassfest/HACS
-validation and the reproducible install ZIP plus `TESTING.md` remain later
-checkpoints.
+Next bounded checkpoint: run and integrate current Hassfest/HACS validation for
+the existing metadata against the Home Assistant 2026.8.1 compatibility target.
+Keep the validation isolated and synthetic; do not install into or inspect
+production Home Assistant. The reproducible install ZIP plus `TESTING.md` remains
+the subsequent checkpoint.
 
 ## Verification evidence
 
@@ -501,6 +508,42 @@ schema 1, translations, runtime behavior, defaults and production dependencies
 are unchanged. The CI workflow retains read-only permissions, immutable action
 pins and no secret or publication path.
 
+P6 TDD and verification on 2026-09-01:
+
+```text
+docker ... pytest ... tests_real_ha/test_lifecycle_real_ha.py -vv
+                                                     RED: unload removes runtime_data attribute
+docker ... pytest ... tests_real_ha/test_lifecycle_real_ha.py -vv
+                                                     RED: HA retains restored unavailable state
+docker ... pytest ... tests_real_ha/test_lifecycle_real_ha.py -vv
+                                                     PASS (1 lifecycle/entity test)
+docker ... pytest ... tests_real_ha               PASS (2 real-HA tests)
+/usr/bin/python3 scripts/check_checkpoint.py       PASS (96 tests included)
+PYTHONPATH=.venv/site python3 -m pytest             PASS (96 tests)
+PYTHONPATH=.venv/site python3 -m ruff check .       PASS
+PYTHONPATH=.venv/site python3 -m ruff format --check .
+                                                     PASS (60 files)
+PYTHONPATH=.venv/site python3 -m pyright             PASS (0 errors; 6 expected missing-source warnings)
+```
+
+The disposable Python 3.14 container used the existing exact harness pin for
+Home Assistant 2026.8.1, a read-only repository mount, disabled bytecode/cache
+writes and no network. The config entry, profile title, calendar entity and entry
+identifier were synthetic. No production Home Assistant path, credential,
+calendar state, address, coordinate, route/geocoder, vehicle, physical service or
+notification was accessed. The test follows Home Assistant's documented test
+pattern by invoking `hass.config_entries.async_setup` and asserting through
+`hass.states`; it also discovers and records the real 2026.8.1 unload semantics
+rather than assuming entity removal.
+
+Configuration review for P6: Python/tool pins, `requirements-dev.txt`,
+`requirements-ha-test.txt`, `.gitignore`, package/test discovery, workflow,
+manifest, `hacs.json`, config schema 1.2, storage schema 1, translations and
+sensor metadata were reviewed and require no change. The existing compatibility
+job already discovers the new test. No runtime code, dependency, metadata,
+translation, config field/default, migration, persisted schema, polling behavior
+or physical capability changed.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -540,9 +583,9 @@ pins and no secret or publication path.
   across one complete path and one route-failure path. It is test-only evidence,
   not the production runtime composition and not proof of real forecasting.
 - Real Home Assistant compatibility tests are isolated from the dependency-free
-  suite and pin the matching test harness for Home Assistant 2026.8.1. The first
-  slice proves only config-flow form validation and entry creation through Home
-  Assistant's real flow manager; it does not yet prove lifecycle or entity state.
+  suite and pin the matching test harness for Home Assistant 2026.8.1. They now
+  prove config-flow creation plus one current-schema setup/entity/unload path;
+  they do not yet prove forecast refreshes or production runtime composition.
 
 ## Remaining risks and deferred details
 
@@ -577,9 +620,10 @@ pins and no secret or publication path.
   exist. The 1.1-to-1.2 migration safely marks legacy entries unconfigured, but a
   reconfiguration/repair flow is still required before those entries can use the
   future composed source; options and later migrations remain unbuilt.
-- An isolated disposable Home Assistant 2026.8.1 test environment now covers only
-  the config flow. Real config-entry lifecycle, platform forwarding, entity
-  registration/state-machine behavior and unload still lack real-HA tests.
+- The isolated disposable Home Assistant 2026.8.1 environment now covers config
+  flow plus one setup/platform/entity/unload path. It does not cover migration,
+  multiple simultaneously loaded profiles, restart restoration, diagnostics, or
+  any future production forecast refresh composition.
 - Private `origin` is configured and authorized for checkpoint pushes; repository
   visibility/settings and external publication remain out of scope.
 - No real route-provider credentials or calls are permitted during unattended work.
