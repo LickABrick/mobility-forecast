@@ -1,11 +1,12 @@
 # Project status
 
-Last updated: 2026-09-01 19:32 CEST
+Last updated: 2026-09-01 19:41 CEST
 
 ## Current phase
 
-Phase 1 and post-phase checkpoints P1–P7 are complete. Work is at the
-reproducible install ZIP and tester-instructions handoff.
+Phase 1 and post-phase checkpoints P1–P8 are complete. The reproducible manual
+test package is ready for Guus's Home Assistant 2026.8.1 smoke test; implementation
+stops at this handoff.
 
 ## Completed
 
@@ -90,15 +91,23 @@ reproducible install ZIP and tester-instructions handoff.
   empty dependencies/requirements, `local_polling` for reads from local Home
   Assistant calendar entities, private-origin documentation and issue URLs, and
   an empty code-owner list rather than assigning an unapproved maintainer.
+- P8 adds a standard-library build/check command that derives package scope from
+  Git-tracked files, writes stable uncompressed ZIP entries with fixed timestamps
+  and modes, and verifies the SHA-256 sidecar, exact member list, member bytes and
+  required manifest/translations before reporting success.
+- P8 adds `TESTING.md` with backup, checksum and archive inspection, direct
+  `/config/custom_components` installation, restart and log checks, config-flow
+  and expected unavailable-entity checks, and safe uninstall/backup rollback.
+  It explicitly identifies the artifact as pre-alpha/read-only and distinguishes
+  the synthetic fake-route test evidence from the unimplemented runtime source.
 
 ## Active checkpoint
 
-P7 — Hassfest and HACS metadata validation is complete.
+P8 — Reproducible installable ZIP and tester instructions is complete.
 
-Next bounded checkpoint: create and locally inspect one reproducible integration-
-only ZIP plus complete `TESTING.md` backup/install/restart/config-flow/entity/log/
-rollback instructions. Do not install into production Home Assistant, and do not
-claim the pending production forecast source exists.
+Next bounded checkpoint: none before Guus performs the documented manual smoke
+test. Await its redacted result; do not continue optional hardening or runtime
+forecast composition in this invocation.
 
 ## Verification evidence
 
@@ -590,6 +599,51 @@ storage schema 1, translations and runtime behavior were reviewed and otherwise
 remain unchanged. No config field/default, migration, persisted schema, polling
 schedule, network provider or physical capability was added.
 
+P8 TDD and verification on 2026-09-01:
+
+```text
+/usr/bin/python3 -m unittest tests.test_test_package -v
+                                                     RED: build script absent (2 failures)
+/usr/bin/python3 -m unittest ...test_testing_guide... -v
+                                                     RED: TESTING.md absent (1 error)
+/usr/bin/python3 -m unittest tests.test_test_package -v
+                                                     PASS (3 package tests)
+/usr/bin/python3 scripts/check_checkpoint.py          PASS (99 tests included)
+PYTHONPATH=.venv/site python3 -m pytest                PASS (99 tests)
+PYTHONPATH=.venv/site python3 -m ruff check .          PASS
+PYTHONPATH=.venv/site python3 -m ruff format --check . PASS (64 files)
+PYTHONPATH=.venv/site python3 -m pyright               PASS (0 errors; 6 expected missing-source warnings)
+git diff --cached --check                             PASS
+cached-diff secret-pattern and private-data review    PASS
+/usr/bin/python3 scripts/build_test_zip.py             PASS (post-build check)
+/usr/bin/python3 scripts/build_test_zip.py --check dist/mobility_forecast-0.0.0.zip
+                                                     PASS (SHA-256 5728cc9a58fac6cfc741adb3a67022a77163d3f753cf26fc07f1013be75a460e)
+(cd dist && sha256sum --check mobility_forecast-0.0.0.zip.sha256)
+                                                     PASS
+/usr/bin/python3 -m zipfile --list mobility_forecast-0.0.0.zip
+                                                     PASS (20 integration-only members)
+```
+
+The generated ignored artifact is 101849 bytes and contains exactly the 20
+tracked regular files under `custom_components/mobility_forecast`, including the
+manifest, source strings and English translation. It contains no tests,
+repository metadata, credentials, runtime storage, caches or symlinks. Two
+independent output directories produced byte-identical ZIPs; fixed timestamps,
+regular-file modes and the stored compression method avoid archive variance.
+Tampering is rejected before member inspection. The host lacks the optional
+`unzip` utility, so local member inspection used Python's standard-library ZIP
+reader after the independent `sha256sum` check; `TESTING.md` retains normal
+`unzip` commands for the Home Assistant file-transfer environment.
+
+Configuration review for P8: Python/tool pins, development and Home Assistant test
+dependencies, package discovery, quality workflow, manifest, `hacs.json`, config
+schema 1.2, storage schema 1, source/English translations, runtime behavior and
+read-only entity metadata were reviewed and unchanged. The build script derives
+the artifact version from the explicit manifest and introduces no config field,
+default, migration, dependency, polling schedule, runtime composition or physical
+capability. The ZIP and checksum are ignored build outputs rather than committed
+runtime data.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -634,6 +688,9 @@ schedule, network provider or physical capability was added.
   they do not yet prove forecast refreshes or production runtime composition.
 - Current Hassfest and HACS metadata schemas validate the custom integration. CI
   keeps those checks separate from the dependency-free and real-HA test jobs.
+- Manual test packages are generated, not committed: exact Git-tracked integration
+  scope, fixed archive metadata, SHA-256 verification and byte-for-byte checkout
+  comparison are required before handoff.
 
 ## Remaining risks and deferred details
 
@@ -673,6 +730,11 @@ schedule, network provider or physical capability was added.
   flow plus one setup/platform/entity/unload path. It does not cover migration,
   multiple simultaneously loaded profiles, restart restoration, diagnostics, or
   any future production forecast refresh composition.
+- The deterministic ZIP is locally verified but has not yet been installed or
+  smoke-tested by Guus in his Home Assistant environment. Its expected
+  `unavailable` sensor proves fail-safe lifecycle behavior only, not forecast
+  generation. Because the private repository cannot be consumed by HACS, this
+  checkpoint uses documented manual installation and backup-based rollback.
 - Private `origin` is configured and authorized for checkpoint pushes; repository
   visibility/settings and external publication remain out of scope.
 - No real route-provider credentials or calls are permitted during unattended work.

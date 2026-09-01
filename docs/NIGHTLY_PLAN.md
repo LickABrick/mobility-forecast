@@ -99,11 +99,18 @@ proved only with isolated Home Assistant contract fixtures.
     requirements, local polling, private-repository documentation/support URLs and
     no guessed code owner. Two focused contract tests, both validators and all
     configured local checks passed on 2026-09-01.
+- [x] **P8 — Reproducible installable ZIP and tester instructions**
+  - A standard-library build/check script packages exactly the 20 tracked files
+    below `custom_components/mobility_forecast` with fixed metadata, validates
+    every byte against the checkout and emits a SHA-256 sidecar. Three package
+    contract tests prove reproducibility, exact scope, required translations and
+    metadata, independent checking, tamper rejection and complete safe-test
+    instructions. The locally built 101849-byte artifact passed its internal
+    check and external checksum verification on 2026-09-01.
 
-Next checkpoint: one bounded reproducible installable ZIP and `TESTING.md` slice.
-The build/check script must package only `custom_components/mobility_forecast`,
-emit a checksum, inspect archive contents and exclude credentials/runtime data.
-Do not add runtime forecasting composition in the same invocation.
+Next checkpoint: stop implementation and wait for Guus's manual Home Assistant
+2026.8.1 package/config-flow/lifecycle smoke-test result. Runtime forecast
+composition remains a later checkpoint and must not be claimed by this package.
 
 ## Checkpoint definition of done
 

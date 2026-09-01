@@ -6,9 +6,9 @@ Mobility Forecast is a planned Home Assistant custom integration that turns cale
 
 The phase-1 architecture and safe development foundation are complete. Bounded
 post-phase work has added isolated Home Assistant lifecycle, storage and calendar
-source contracts; runtime forecast composition remains incomplete. Nothing in
-this repository is installed in production Home Assistant, and the project must
-not wake vehicles or execute charging actions.
+source contracts plus a reproducible manual-test ZIP; runtime forecast composition
+remains incomplete. Nothing in this repository is installed in production Home
+Assistant, and the project must not wake vehicles or execute charging actions.
 
 See:
 
@@ -17,6 +17,7 @@ See:
 - [`docs/adr/`](docs/adr/)
 - [`docs/NIGHTLY_PLAN.md`](docs/NIGHTLY_PLAN.md)
 - [`docs/PROJECT_STATUS.md`](docs/PROJECT_STATUS.md)
+- [`TESTING.md`](TESTING.md)
 - [`CONTRIBUTING.md`](CONTRIBUTING.md)
 - [`AGENTS.md`](AGENTS.md)
 
