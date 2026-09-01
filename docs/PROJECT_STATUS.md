@@ -644,6 +644,31 @@ default, migration, dependency, polling schedule, runtime composition or physica
 capability. The ZIP and checksum are ignored build outputs rather than committed
 runtime data.
 
+P9 production-debugging evidence on 2026-09-01:
+
+```text
+Home Assistant runtime                                 2026.8.3 / RUNNING
+system_log/list traceback                              ValueError: Unable to convert schema
+                                                       <function _validate_calendar_entity_ids>
+/usr/bin/python3 -m unittest tests.test_config_flow -v RED: 3 expected failures before fix
+                                                       PASS (5 tests after fix)
+PYTHONPATH=/tmp/mobility-forecast-fix-site python3 -m pytest
+                                                       PASS (100 tests)
+python3 -m ruff check .                                PASS
+python3 -m pyright                                     PASS (0 errors; 6 expected missing-source warnings)
+python3 scripts/check_checkpoint.py                    PASS
+python3 scripts/build_test_zip.py --check ...          PASS
+```
+
+The HTTP 500 occurred after flow import while Home Assistant converted the form
+schema for the frontend. `voluptuous_serialize` cannot serialize the arbitrary
+Python validator nested after the entity selector in `vol.All`. The schema now
+contains only `EntitySelector`; the same pure non-empty validator runs on submitted
+input and maps failure to the translated `calendar_required` field error. Config
+entry schema 1.2, storage schema 1, manifest version 0.0.0, selected-calendar data,
+runtime behavior and every read-only safety boundary remain unchanged. The public
+repository test guide now documents HACS redownload-from-main and full restart.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.

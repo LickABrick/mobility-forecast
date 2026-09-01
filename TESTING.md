@@ -1,9 +1,8 @@
-# Testing Mobility Forecast on Home Assistant 2026.8.1
+# Testing Mobility Forecast on Home Assistant 2026.8.x
 
-This guide is for the manually built `mobility_forecast-0.0.0.zip` test artifact.
-It does not use HACS: the repository is private, and HACS does not support private
-GitHub repositories. The ZIP is installed directly into Home Assistant's
-`/config/custom_components` directory.
+The public repository can be installed as a HACS custom integration from
+`https://github.com/LickABrick/mobility-forecast`. The manually built
+`mobility_forecast-0.0.0.zip` remains available as a checked fallback.
 
 ## Safety and current limitations
 
@@ -17,8 +16,23 @@ GitHub repositories. The ZIP is installed directly into Home Assistant's
   route-provider and real forecast output are not part of this artifact.
 - Selecting a calendar stores its entity ID in this profile. The current runtime
   does not schedule calendar reads or publish a forecast from it.
-- Test only on Home Assistant **2026.8.1**. Stop if the backup fails, the checksum
+- Test only on Home Assistant **2026.8.x**. Stop if the backup fails, the checksum
   fails, files already exist unexpectedly, or startup logs contain an exception.
+
+## Install or update from public `main` through HACS
+
+1. Add `https://github.com/LickABrick/mobility-forecast` under **HACS > Custom
+   repositories** with category **Integration**.
+2. Open Mobility Forecast in HACS and select **Download**.
+3. This pre-release repository does not have tagged releases yet and its manifest
+   version is still `0.0.0`. After a fix on `main`, HACS may not show a normal
+   version update badge; open the repository menu and use **Redownload** instead.
+4. Restart Home Assistant fully after every download or redownload. Reloading the
+   config entry alone does not reload custom-integration Python modules.
+5. Continue with the log and config-flow checks below.
+
+Do not mix a HACS installation with manual ZIP extraction. Remove or back up the
+whole existing integration directory before switching installation methods.
 
 ## Build the artifact from this checkout
 
@@ -48,7 +62,7 @@ checkout. Keep the ZIP and checksum sidecar together.
    recognizable pre-test name.
 3. Wait for the backup to finish successfully and download a copy off the Home
    Assistant host.
-4. Confirm Home Assistant reports version 2026.8.1 under **Settings > About**.
+4. Confirm Home Assistant reports a 2026.8.x version under **Settings > About**.
 5. Check whether `/config/custom_components/mobility_forecast` already exists.
    Do not overwrite it. If it is an intentional earlier test copy, stop Home
    Assistant and move that whole directory to a safe backup location first.

@@ -107,9 +107,15 @@ proved only with isolated Home Assistant contract fixtures.
     metadata, independent checking, tamper rejection and complete safe-test
     instructions. The locally built 101849-byte artifact passed its internal
     check and external checksum verification on 2026-09-01.
+- [x] **P9 — Production config-flow schema serialization hotfix**
+  - Home Assistant 2026.8.3 reproduced an HTTP 500 while serializing the user-step
+    schema because a pure Python validation function was nested in `vol.All`.
+    The form now contains only Home Assistant's serializable entity selector;
+    non-empty validation runs after submission and returns a translated field
+    error. A focused regression test plus the complete 100-test suite cover it.
 
-Next checkpoint: stop implementation and wait for Guus's manual Home Assistant
-2026.8.1 package/config-flow/lifecycle smoke-test result. Runtime forecast
+Next checkpoint: redownload public `main` through HACS, fully restart Home
+Assistant 2026.8.3 and repeat the config-flow/lifecycle smoke test. Runtime forecast
 composition remains a later checkpoint and must not be claimed by this package.
 
 ## Checkpoint definition of done

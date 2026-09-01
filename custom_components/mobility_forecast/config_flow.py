@@ -29,9 +29,8 @@ def _validate_calendar_entity_ids(value: object) -> list[str]:
 PROFILE_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_NAME): str,
-        vol.Required(CONF_CALENDAR_ENTITY_IDS): vol.All(
-            EntitySelector(EntitySelectorConfig(domain="calendar", multiple=True)),
-            _validate_calendar_entity_ids,
+        vol.Required(CONF_CALENDAR_ENTITY_IDS): EntitySelector(
+            EntitySelectorConfig(domain="calendar", multiple=True)
         ),
     }
 )
@@ -51,7 +50,16 @@ class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is None:
             return self.async_show_form(step_id="user", data_schema=PROFILE_SCHEMA)
 
-        entity_ids = _validate_calendar_entity_ids(user_input[CONF_CALENDAR_ENTITY_IDS])
+        try:
+            entity_ids = _validate_calendar_entity_ids(
+                user_input[CONF_CALENDAR_ENTITY_IDS]
+            )
+        except vol.Invalid:
+            return self.async_show_form(
+                step_id="user",
+                data_schema=PROFILE_SCHEMA,
+                errors={CONF_CALENDAR_ENTITY_IDS: "calendar_required"},
+            )
         return self.async_create_entry(
             title=user_input[CONF_NAME],
             data={CONF_CALENDAR_ENTITY_IDS: entity_ids},

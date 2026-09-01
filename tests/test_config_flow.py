@@ -130,6 +130,10 @@ class IntegrationMetadataTests(unittest.TestCase):
             set(user_step["data_description"]),
             {"name", "calendar_entity_ids"},
         )
+        self.assertEqual(
+            strings["config"]["error"]["calendar_required"],
+            "Select at least one calendar.",
+        )
 
 
 class ConfigFlowTests(unittest.TestCase):
@@ -193,13 +197,24 @@ class ConfigFlowTests(unittest.TestCase):
         self.assertEqual(set(schema.schema), {"name", "calendar_entity_ids"})
         self.assertIs(schema.schema["name"], str)
         calendar_validator = schema.schema["calendar_entity_ids"]
-        self.assertIsInstance(calendar_validator, FakeAll)
-        selector = calendar_validator.validators[0]
-        self.assertIsInstance(selector, FakeEntitySelector)
-        self.assertEqual(selector.config.domain, "calendar")
-        self.assertIs(selector.config.multiple, True)
-        with self.assertRaises(FakeInvalid):
-            calendar_validator.validators[1]([])
+        self.assertIsInstance(calendar_validator, FakeEntitySelector)
+        self.assertEqual(calendar_validator.config.domain, "calendar")
+        self.assertIs(calendar_validator.config.multiple, True)
+
+    def test_empty_calendar_selection_returns_serializable_form_error(self) -> None:
+        with fake_home_assistant():
+            module = importlib.import_module(
+                "custom_components.mobility_forecast.config_flow"
+            )
+            result = asyncio.run(
+                module.MobilityForecastConfigFlow().async_step_user(
+                    {"name": "Empty", "calendar_entity_ids": []}
+                )
+            )
+
+        self.assertEqual(result["type"], "form")
+        self.assertEqual(result["step_id"], "user")
+        self.assertEqual(result["errors"], {"calendar_entity_ids": "calendar_required"})
 
 
 if __name__ == "__main__":
