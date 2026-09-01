@@ -27,7 +27,8 @@ class QualityWorkflowTests(unittest.TestCase):
         self.assertIn("ruff check .", workflow)
         self.assertIn("ruff format --check .", workflow)
         self.assertIn("pyright", workflow)
-        self.assertIn("pytest", workflow)
+        self.assertIn("run: python -m pytest", workflow)
+        self.assertNotIn("run: pytest", workflow)
 
         action_references = re.findall(r"uses: ([^\s#]+)", workflow)
         self.assertTrue(action_references)

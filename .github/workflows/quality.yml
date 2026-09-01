@@ -35,4 +35,4 @@ jobs:
       - name: Type check
         run: pyright
       - name: Run tests with pytest
-        run: pytest
+        run: python -m pytest
