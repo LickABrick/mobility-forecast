@@ -4,7 +4,11 @@ Mobility Forecast is a planned Home Assistant custom integration that turns cale
 
 ## Status
 
-The phase-1 architecture, contracts, tests and safe development foundation are complete. Bounded post-phase work now starts with isolated Home Assistant lifecycle adapters. Nothing in this repository is installed in production Home Assistant, and the project must not wake vehicles or execute charging actions.
+The phase-1 architecture and safe development foundation are complete. Bounded
+post-phase work has added isolated Home Assistant lifecycle, storage and calendar
+source contracts; runtime forecast composition remains incomplete. Nothing in
+this repository is installed in production Home Assistant, and the project must
+not wake vehicles or execute charging actions.
 
 See:
 

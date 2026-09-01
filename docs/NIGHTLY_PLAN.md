@@ -60,10 +60,18 @@ proved only with isolated Home Assistant contract fixtures.
     rejects cross-entry access and malformed versions, survives restart and is not
     removed on unload. Four adapter tests, all 86 tests, strict Pyright, Ruff,
     formatting and checkpoint validation passed on 2026-08-26.
-- [ ] **P3 — Calendar/entity source adapter and config contract**
-  - Next checkpoint: define one bounded source/config contract and normalize only
-    synthetic Home Assistant calendar/entity fixtures. Do not add routing or the
-    end-to-end smoke pipeline.
+- [x] **P3 — Calendar/entity source adapter and config contract**
+  - Schema 1.2 requires an explicit ordered calendar selection for new profiles;
+    schema 1.1 entries migrate to a fail-closed unconfigured marker rather than a
+    guessed source. A typed read-only adapter normalizes timed/all-day Home
+    Assistant 2026.8.1 calendar events, preserves source identity, injects online
+    classification policy and exposes only stable failure reasons. Five synthetic
+    adapter tests, 94 total tests, strict Pyright, Ruff, formatting and checkpoint
+    validation passed on 2026-09-01.
+
+Next checkpoint: one deterministic synthetic calendar-to-fake-routing-to-sensor
+smoke pipeline. Keep every input synthetic, compose only existing pure contracts,
+and do not add live providers, polling or production installation.
 
 ## Checkpoint definition of done
 

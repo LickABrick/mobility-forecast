@@ -112,6 +112,21 @@ P1 adds the real config-entry setup/unload hooks and forwards only the sensor pl
 
 P2 replaces only the pending storage boundary. Each runtime constructs one Home Assistant Store from the config-entry identifier and storage schema version, with privacy and atomic-write behavior selected explicitly. An absent store decodes as immutable empty profile state; present malformed or unsupported payloads fail closed. The adapter rejects cross-entry load/save calls, survives runtime restart through the durable Store key, and is never removed during unload. The source and diagnostics boundaries remain pending, so coordinator refresh still fails before publishing a forecast and no scheduling default is introduced.
 
+P3 introduces config-entry schema version 1 minor version 2. Every newly created
+profile must explicitly select a non-empty, ordered, duplicate-free list of
+`calendar` entity identifiers; this is required profile ownership, not a hidden
+calendar default. Version 1.1 entries had empty data and migrate to an explicit
+empty legacy-unconfigured marker so no source is guessed. That marker fails the
+strict source decoder until a later reconfiguration flow is implemented. The
+read-only calendar adapter resolves only the configured entities, queries one
+explicit timezone-aware window, and maps Home Assistant `CalendarEvent` fields
+into frozen `SourceEvent` values. Provider-specific online classification remains
+an injected policy because Home Assistant 2026.8.1 exposes no provider-neutral
+online-event field. Missing entities, identifiers, invalid events and provider
+read errors fail with stable private-data-free reason codes. The adapter does not
+yet compose the filter, location, routing, planning or forecast pipeline and does
+not schedule reads.
+
 ## Test strategy
 
 - Pure domain behavior: unit tests with typed synthetic values.

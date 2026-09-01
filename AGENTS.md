@@ -33,7 +33,9 @@ These rules apply to every automated or human-assisted change in this repository
 
 ## Git workflow
 
-- Branch `main` must remain buildable. Unattended work commits directly to local `main`; no remote exists.
+- Branch `main` must remain buildable. Checkpoint work commits directly to `main`;
+  pushing to the authorized private `origin` requires explicit user approval and
+  successful verification.
 - Use Conventional Commits: `type(scope): imperative summary`.
 - Allowed types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `ci`, `build`.
 - Keep subjects under 72 characters; explain rationale and compatibility impact in the body when non-trivial.

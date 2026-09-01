@@ -20,6 +20,26 @@ class FakeSchema:
         self.schema = schema
 
 
+class FakeAll:
+    def __init__(self, *validators: object) -> None:
+        self.validators = validators
+
+
+class FakeInvalid(Exception):
+    pass
+
+
+class FakeEntitySelectorConfig:
+    def __init__(self, *, domain: str, multiple: bool) -> None:
+        self.domain = domain
+        self.multiple = multiple
+
+
+class FakeEntitySelector:
+    def __init__(self, config: FakeEntitySelectorConfig) -> None:
+        self.config = config
+
+
 class FakeConfigFlow:
     VERSION: int
     MINOR_VERSION: int
@@ -44,7 +64,13 @@ def fake_home_assistant() -> Generator[None]:
     config_entries.ConfigFlowResult = dict[str, Any]  # type: ignore[attr-defined]
     const = types.ModuleType("homeassistant.const")
     const.CONF_NAME = "name"  # type: ignore[attr-defined]
+    helpers = types.ModuleType("homeassistant.helpers")
+    selector = types.ModuleType("homeassistant.helpers.selector")
+    selector.EntitySelector = FakeEntitySelector  # type: ignore[attr-defined]
+    selector.EntitySelectorConfig = FakeEntitySelectorConfig  # type: ignore[attr-defined]
     voluptuous = types.ModuleType("voluptuous")
+    voluptuous.All = FakeAll  # type: ignore[attr-defined]
+    voluptuous.Invalid = FakeInvalid  # type: ignore[attr-defined]
     voluptuous.Required = lambda key: key  # type: ignore[attr-defined]
     voluptuous.Schema = FakeSchema  # type: ignore[attr-defined]
 
@@ -52,6 +78,8 @@ def fake_home_assistant() -> Generator[None]:
         "homeassistant": homeassistant,
         "homeassistant.config_entries": config_entries,
         "homeassistant.const": const,
+        "homeassistant.helpers": helpers,
+        "homeassistant.helpers.selector": selector,
         "voluptuous": voluptuous,
     }
     previous = {name: sys.modules.get(name) for name in modules}
@@ -82,40 +110,65 @@ class IntegrationMetadataTests(unittest.TestCase):
         self.assertNotIn("documentation", manifest)
         self.assertNotIn("issue_tracker", manifest)
 
-    def test_strings_and_translations_cover_the_only_input(self) -> None:
+    def test_strings_and_translations_cover_profile_inputs(self) -> None:
         strings = json.loads((INTEGRATION / "strings.json").read_text())
         english = json.loads((INTEGRATION / "translations" / "en.json").read_text())
 
         self.assertEqual(english, strings)
         user_step = strings["config"]["step"]["user"]
-        self.assertEqual(set(user_step["data"]), {"name"})
-        self.assertNotIn("data_description", user_step)
+        self.assertEqual(set(user_step["data"]), {"name", "calendar_entity_ids"})
+        self.assertEqual(
+            set(user_step["data_description"]),
+            {"name", "calendar_entity_ids"},
+        )
 
 
 class ConfigFlowTests(unittest.TestCase):
-    def test_user_step_creates_independent_empty_profile_entries(self) -> None:
+    def test_user_step_creates_independent_calendar_profile_entries(self) -> None:
         with fake_home_assistant():
             module = importlib.import_module(
                 "custom_components.mobility_forecast.config_flow"
             )
             flow_type = module.MobilityForecastConfigFlow
             self.assertEqual(flow_type.registered_domain, "mobility_forecast")
-            self.assertEqual((flow_type.VERSION, flow_type.MINOR_VERSION), (1, 1))
+            self.assertEqual((flow_type.VERSION, flow_type.MINOR_VERSION), (1, 2))
 
-            first = asyncio.run(flow_type().async_step_user({"name": "Commuting"}))
-            second = asyncio.run(flow_type().async_step_user({"name": "Family"}))
+            first = asyncio.run(
+                flow_type().async_step_user(
+                    {
+                        "name": "Commuting",
+                        "calendar_entity_ids": ["calendar.synthetic_work"],
+                    }
+                )
+            )
+            second = asyncio.run(
+                flow_type().async_step_user(
+                    {
+                        "name": "Family",
+                        "calendar_entity_ids": ["calendar.synthetic_family"],
+                    }
+                )
+            )
 
         self.assertEqual(
             first,
-            {"type": "create_entry", "title": "Commuting", "data": {}},
+            {
+                "type": "create_entry",
+                "title": "Commuting",
+                "data": {"calendar_entity_ids": ["calendar.synthetic_work"]},
+            },
         )
         self.assertEqual(
             second,
-            {"type": "create_entry", "title": "Family", "data": {}},
+            {
+                "type": "create_entry",
+                "title": "Family",
+                "data": {"calendar_entity_ids": ["calendar.synthetic_family"]},
+            },
         )
         self.assertIsNot(first["data"], second["data"])
 
-    def test_user_form_has_required_name_without_a_default(self) -> None:
+    def test_user_form_requires_name_and_calendar_without_defaults(self) -> None:
         with fake_home_assistant():
             module = importlib.import_module(
                 "custom_components.mobility_forecast.config_flow"
@@ -128,7 +181,16 @@ class ConfigFlowTests(unittest.TestCase):
         self.assertEqual(result["step_id"], "user")
         schema = result["data_schema"]
         self.assertIsInstance(schema, FakeSchema)
-        self.assertEqual(schema.schema, {"name": str})
+        self.assertEqual(set(schema.schema), {"name", "calendar_entity_ids"})
+        self.assertIs(schema.schema["name"], str)
+        calendar_validator = schema.schema["calendar_entity_ids"]
+        self.assertIsInstance(calendar_validator, FakeAll)
+        selector = calendar_validator.validators[0]
+        self.assertIsInstance(selector, FakeEntitySelector)
+        self.assertEqual(selector.config.domain, "calendar")
+        self.assertIs(selector.config.multiple, True)
+        with self.assertRaises(FakeInvalid):
+            calendar_validator.validators[1]([])
 
 
 if __name__ == "__main__":

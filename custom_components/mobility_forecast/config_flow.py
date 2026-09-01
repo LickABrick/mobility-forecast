@@ -7,17 +7,41 @@ from typing import Any, override
 import voluptuous as vol
 from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
 from homeassistant.const import CONF_NAME
+from homeassistant.helpers.selector import EntitySelector, EntitySelectorConfig
+
+from .ha_calendar import (
+    CONF_CALENDAR_ENTITY_IDS,
+    validate_calendar_entity_ids,
+)
 
 DOMAIN = "mobility_forecast"
 
-PROFILE_SCHEMA = vol.Schema({vol.Required(CONF_NAME): str})
+
+def _validate_calendar_entity_ids(value: object) -> list[str]:
+    """Translate the pure config validator into a Voluptuous error."""
+
+    try:
+        return validate_calendar_entity_ids(value)
+    except ValueError as err:
+        raise vol.Invalid("select at least one calendar entity") from err
+
+
+PROFILE_SCHEMA = vol.Schema(
+    {
+        vol.Required(CONF_NAME): str,
+        vol.Required(CONF_CALENDAR_ENTITY_IDS): vol.All(
+            EntitySelector(EntitySelectorConfig(domain="calendar", multiple=True)),
+            _validate_calendar_entity_ids,
+        ),
+    }
+)
 
 
 class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
     """Create one independent config entry per forecast profile."""
 
     VERSION = 1
-    MINOR_VERSION = 1
+    MINOR_VERSION = 2
 
     @override
     async def async_step_user(
@@ -27,4 +51,8 @@ class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input is None:
             return self.async_show_form(step_id="user", data_schema=PROFILE_SCHEMA)
 
-        return self.async_create_entry(title=user_input[CONF_NAME], data={})
+        entity_ids = _validate_calendar_entity_ids(user_input[CONF_CALENDAR_ENTITY_IDS])
+        return self.async_create_entry(
+            title=user_input[CONF_NAME],
+            data={CONF_CALENDAR_ENTITY_IDS: entity_ids},
+        )

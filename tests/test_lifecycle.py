@@ -18,8 +18,18 @@ class FakePlatform(StrEnum):
 
 
 class FakeConfigEntry:
-    def __init__(self, entry_id: str) -> None:
+    def __init__(
+        self,
+        entry_id: str,
+        *,
+        data: dict[str, object] | None = None,
+        version: int = 1,
+        minor_version: int = 2,
+    ) -> None:
         self.entry_id = entry_id
+        self.data = {} if data is None else data
+        self.version = version
+        self.minor_version = minor_version
         self.runtime_data: object | None = None
 
     @classmethod
@@ -36,6 +46,7 @@ class FakeConfigEntriesManager:
         self.forward_error = forward_error
         self.forwarded: list[tuple[FakeConfigEntry, tuple[FakePlatform, ...]]] = []
         self.unloaded: list[tuple[FakeConfigEntry, tuple[FakePlatform, ...]]] = []
+        self.updated: list[tuple[FakeConfigEntry, dict[str, object]]] = []
 
     async def async_forward_entry_setups(
         self, entry: FakeConfigEntry, platforms: tuple[FakePlatform, ...]
@@ -49,6 +60,13 @@ class FakeConfigEntriesManager:
     ) -> bool:
         self.unloaded.append((entry, platforms))
         return self.unload_result
+
+    def async_update_entry(self, entry: FakeConfigEntry, **changes: object) -> None:
+        self.updated.append((entry, changes))
+        if "data" in changes:
+            entry.data = changes["data"]  # type: ignore[assignment]
+        if "minor_version" in changes:
+            entry.minor_version = changes["minor_version"]  # type: ignore[assignment]
 
 
 class FakeHomeAssistant:
@@ -136,6 +154,70 @@ def load_integration() -> Any:
 
 
 class ConfigEntryLifecycleTests(unittest.TestCase):
+    def test_migrates_legacy_empty_entry_to_explicit_unconfigured_marker(self) -> None:
+        manager = FakeConfigEntriesManager()
+        hass = FakeHomeAssistant(manager)
+        entry = FakeConfigEntry("entry-a", data={}, minor_version=1)
+
+        with fake_home_assistant():
+            integration = load_integration()
+            result = asyncio.run(integration.async_migrate_entry(hass, entry))
+
+        self.assertTrue(result)
+        self.assertEqual(
+            manager.updated,
+            [
+                (
+                    entry,
+                    {
+                        "data": {"calendar_entity_ids": []},
+                        "minor_version": 2,
+                    },
+                )
+            ],
+        )
+        self.assertEqual(entry.data, {"calendar_entity_ids": []})
+
+    def test_rejects_unknown_config_entry_major_version(self) -> None:
+        manager = FakeConfigEntriesManager()
+        hass = FakeHomeAssistant(manager)
+        entry = FakeConfigEntry("entry-a", version=2, minor_version=1)
+
+        with fake_home_assistant():
+            integration = load_integration()
+            result = asyncio.run(integration.async_migrate_entry(hass, entry))
+
+        self.assertFalse(result)
+        self.assertEqual(manager.updated, [])
+
+    def test_migration_never_overwrites_current_or_unknown_legacy_data(self) -> None:
+        cases = (
+            FakeConfigEntry(
+                "entry-current",
+                data={"calendar_entity_ids": ["calendar.synthetic"]},
+                minor_version=2,
+            ),
+            FakeConfigEntry(
+                "entry-legacy-data",
+                data={"unexpected": "synthetic"},
+                minor_version=1,
+            ),
+        )
+
+        for entry in cases:
+            with self.subTest(entry_id=entry.entry_id):
+                manager = FakeConfigEntriesManager()
+                hass = FakeHomeAssistant(manager)
+                original_data = dict(entry.data)
+
+                with fake_home_assistant():
+                    integration = load_integration()
+                    result = asyncio.run(integration.async_migrate_entry(hass, entry))
+
+                self.assertEqual(result, entry.minor_version == 2)
+                self.assertEqual(entry.data, original_data)
+                self.assertEqual(manager.updated, [])
+
     def test_setup_builds_isolated_runtime_and_forwards_sensor_platform(self) -> None:
         manager = FakeConfigEntriesManager()
         hass = FakeHomeAssistant(manager)

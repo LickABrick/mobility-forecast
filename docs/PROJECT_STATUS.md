@@ -1,10 +1,11 @@
 # Project status
 
-Last updated: 2026-08-26 16:55 CEST
+Last updated: 2026-09-01 14:14 CEST
 
 ## Current phase
 
-Phase 1 is complete. Post-phase checkpoints P1–P2 are complete; work is at the bounded calendar/entity source adapter handoff.
+Phase 1 and post-phase checkpoints P1–P3 are complete. Work is at the
+deterministic synthetic calendar-to-fake-routing-to-sensor smoke-pipeline handoff.
 
 ## Completed
 
@@ -49,12 +50,24 @@ Phase 1 is complete. Post-phase checkpoints P1–P2 are complete; work is at the
 - P1 expanded strict Pyright coverage to the lifecycle module using minimal isolated Home Assistant contract stubs; no Home Assistant package or production instance was installed or accessed.
 - P2 added a config-entry-scoped Home Assistant Store adapter that wraps the existing schema-version-1 codec in a private, atomic store and rejects every mismatched entry identifier.
 - P2 treats only an absent store as explicit empty profile state; malformed and unsupported payloads fail closed without deletion or overwrite. Synthetic tests prove entry isolation, restoration through a fresh runtime/store instance after restart, and retention across lifecycle unload.
+- P3 added an explicit schema-1.2 calendar-selection contract: each new profile
+  stores a non-empty ordered list of unique `calendar` entity identifiers, while
+  schema-1.1 entries migrate to an empty legacy-unconfigured marker rather than a
+  guessed behavioral default.
+- P3 added a typed read-only Home Assistant calendar source that queries one
+  explicit aware window, normalizes timed and all-day `CalendarEvent` values into
+  frozen domain events, keeps provider-specific online classification injected,
+  and converts missing entities, identifiers, malformed events and read failures
+  to stable private-data-free failures.
 
 ## Active checkpoint
 
-P2 — Config-entry-scoped Home Assistant Store adapter is complete.
+P3 — Calendar/entity source adapter and config contract is complete.
 
-Next bounded checkpoint: implement the calendar/entity source adapter and its config contract using only synthetic fixtures. Do not add the deterministic end-to-end smoke pipeline yet.
+Next bounded checkpoint: compose one deterministic synthetic
+calendar-to-fake-routing-to-sensor smoke pipeline from the existing contracts.
+Do not add live providers, polling, production installation or unrelated lifecycle
+work.
 
 ## Verification evidence
 
@@ -359,6 +372,44 @@ All P2 entry identifiers, state, coordinates, timestamps and backing stores are 
 
 Configuration review for P2: `pyproject.toml`, Python/tool versions, `requirements-dev.txt`, `.gitignore`, package/test discovery, quality workflow, `manifest.json`, `hacs.json`, config-entry schema version 1/minor version 1, storage schema version 1, config flow and source/English strings were reviewed. Strict Pyright now includes the runtime and Store adapter through a minimal repository-local Store contract. No dependency, runtime metadata, translation, config option, behavioral threshold, persisted field or schema version changed. The adapter deliberately selects Home Assistant Store privacy and atomic-write flags; the only new initialization rule is empty immutable state when no store exists, while any present invalid payload still fails closed.
 
+P3 TDD and verification on 2026-09-01:
+
+```text
+/usr/bin/python3 -m unittest tests.test_ha_calendar_source tests.test_config_flow -v
+                                                     RED: 2 failures, 2 errors
+/usr/bin/python3 -m unittest tests.test_ha_calendar_source tests.test_config_flow tests.test_lifecycle -v
+                                                     PASS (16 focused tests)
+/usr/bin/python3 scripts/check_checkpoint.py          PASS (94 tests included)
+PYTHONPATH=.venv/site python3 -m pytest                PASS (94 tests)
+PYTHONPATH=.venv/site python3 -m ruff check .          PASS
+PYTHONPATH=.venv/site python3 -m ruff format --check . PASS (54 files)
+PYTHONPATH=.venv/site python3 -m pyright               PASS (0 errors; 6 expected missing-source warnings for isolated stubs)
+git diff --check                                      PASS
+```
+
+All P3 profile names, entity identifiers, event identifiers, text, locations and
+timestamps are synthetic. Tests use in-process calendar/entity contracts and do
+not import or access a production Home Assistant instance, filesystem state,
+calendar content, credentials, network, route provider, vehicle, physical service
+or notification path. The adapter exposes only calendar reads; it has no write or
+service method and adds no task, polling interval or runtime refresh. Home
+Assistant compatibility was checked against the official developer documentation
+and the `CalendarEvent`, `CalendarEntity`, `ConfigEntry` and selector source at the
+Home Assistant 2026.8.1 tag.
+
+Configuration review for P3: config-entry schema version 1 advances from minor
+version 1 to 2 because a required persisted `calendar_entity_ids` list is added.
+The field is required because each profile owns its sources; requiring explicit
+selection avoids a hidden calendar default. New entries validate a non-empty,
+ordered, duplicate-free list in the `calendar` domain. Existing 1.1 entries had
+empty data and migrate only to an explicit empty legacy-unconfigured marker; no
+calendar can be inferred safely, and strict source decoding rejects that marker.
+A reconfiguration/repair flow for legacy entries remains required before runtime
+source composition. Source and English translations add labels and descriptions
+for the new field and remain identical. `pyproject.toml` extends strict Pyright to
+the new typed adapter. Tool pins, dependencies, storage schema 1, manifest,
+`hacs.json`, workflow, sensor platform and package metadata are unchanged.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -377,31 +428,54 @@ Configuration review for P2: `pyproject.toml`, Python/tool versions, `requiremen
 - Passive actuals capture the latest complete revision that existed when a day opened and never rematch later edits. Only fresh, monotonic and explicitly distance-bounded odometer closures become complete training actuals.
 - Forecast correction uses only unique earlier-day actuals. Explicit ratio bounds reject outliers; sufficient inliers use median P50 and nearest-rank P90, while cold start is partial and uses an explicit conservative multiplier.
 - Diagnostics use a versioned aggregate allowlist rather than recursively dumping and redacting private runtime/configuration objects.
-- Config flow creates one entry per profile from a required display name, deliberately permits multiple entries and stores no behavioral settings until their defaults and migrations are separately reviewed.
+- Config flow creates one entry per profile from a required display name and an
+  explicit non-empty ordered calendar selection, deliberately permits multiple
+  entries and introduces no source or threshold default.
 - Durable state uses config-entry identifiers rather than profile titles for isolation. Storage schema version 1 round-trips validated immutable revisions, pending days and actuals; unsupported versions are rejected until explicitly migrated.
 - Coordinator refreshes are profile-scoped transactions: load prior state, read one typed source update, persist next state, then publish an immutable ordered forecast snapshot. Failed reads or saves do not replace published data.
 - The first entity is one entry-scoped passive distance sensor. It presents the earliest forecast's P90 distance, keeps unavailable distance unknown, and exposes only a fixed non-identifying attribute allowlist.
 - Home Assistant diagnostics consume only a typed entry-scoped aggregate source. Config-entry fields and runtime objects are not recursively dumped, and source failures remain explicit.
 - Config-entry setup owns one isolated runtime and forwards only the sensor platform. Unload releases that runtime only when platform unload succeeds; pending adapter boundaries fail closed and schedule no work.
 - Durable runtime state uses one private, atomic Home Assistant Store keyed only by config-entry identifier. Missing storage starts from explicit empty state; restart restores decoded immutable state, cross-entry calls fail, and unload retains persisted data.
+- Config-entry schema 1.2 requires every new profile to explicitly select one or
+  more ordered unique calendar entities. Schema-1.1 entries migrate to a
+  deliberately invalid empty marker rather than guessing a source.
+- Calendar normalization reads only configured `CalendarEntity` objects for an
+  explicit aware window. It maps Home Assistant 2026.8.1 timed/all-day events to
+  frozen source events, requires provider identity, injects online classification
+  policy and emits stable private-data-free failures.
 
 ## Remaining risks and deferred details
 
 - C2–C7 define the pure value, filtering, endpoint-resolution, route/cache, itinerary/revision, passive-actual and distance-forecast contracts. Required-SOC conversion remains unimplemented and must be added behind explicit vehicle/consumption policy rather than guessed.
-- Calendar adapters must eventually normalize provider-specific online-event signals into the required `is_online` flag; adapter mapping and config-entry representation remain deferred to a later source-composition checkpoint.
+- The calendar adapter now accepts an injected provider-specific online-event
+  classifier, but no concrete provider mapping exists. The synthetic smoke
+  pipeline must inject an explicit fake policy; real mappings require separate
+  reviewed tests and must not infer from private event text by hidden convention.
 - C3 term matching is intentionally a literal case-insensitive substring contract, not regex, tokenization or location-text matching. Any broader rule language requires a separately tested and documented checkpoint.
 - C5 cache storage is an in-memory contract fake only. Persistent profile-scoped cache storage, privacy-key generation/rotation and migration behavior remain deferred to a later lifecycle/persistence checkpoint; no key material is logged or persisted by the domain.
 - C8c/P2 define serialization and the Home Assistant `Store` adapter, but not retention pruning, transactional recovery UI or migration beyond schema version 1. No pre-version-1 payload exists; future schema changes require explicit forward migration and rollback tests.
-- C8d–C8f and P1–P2 define orchestration, durable state, fail-closed source composition, a passive sensor-platform adapter, diagnostics adapter and config-entry forwarding/unload lifecycle, but not a Home Assistant `DataUpdateCoordinator`, concrete aggregate source, update interval, timeout/retry policy. Those policies must be explicit in later slices rather than silently defaulted here.
+- C8d–C8f and P1–P3 define orchestration, durable state, calendar normalization,
+  fail-closed runtime composition, a passive sensor-platform adapter, diagnostics
+  adapter and config-entry forwarding/unload lifecycle, but not the composed
+  calendar-to-forecast source, a Home Assistant `DataUpdateCoordinator`, concrete
+  aggregate diagnostics source, update interval or timeout/retry policy. Those
+  policies must be explicit in later slices rather than silently defaulted here.
 - A separate privacy-safe logging policy remains unimplemented; diagnostics safety does not make arbitrary logs safe.
-- C8b metadata intentionally omits documentation/issue URLs and code-owner handles because no repository remote or approved maintainer handle exists; these are release-readiness blockers to resolve before HACS publication.
+- C8b metadata intentionally omits documentation/issue URLs and code-owner handles.
+  A private GitHub remote now exists, but no public support URL or approved
+  maintainer handle has been selected; these remain publication-readiness blockers.
 - Ruff lint and formatting cover the complete repository. Strict Pyright now also covers the lifecycle module through minimal isolated Home Assistant contracts; other adapters and dynamic fixtures remain outside that boundary. Expansion must add reviewed contract types rather than weakening strict mode or installing into production.
 - The development requirements pin direct tool versions but not hashes or every transitive dependency. Action commits are immutable; a later supply-chain audit may add a fully hashed lock when a supported dependency workflow is chosen.
 - C4 defines required freshness/accuracy/horizon fields but intentionally supplies no product defaults. Config-flow representation, default selection and migration policy remain future product work and must be reviewed before introduction.
 - Location candidates currently cover passive vehicle GPS and already-resolved event/zone coordinates. Geocoding and Home Assistant zone/entity adapters remain outside the pure C4 boundary and are deferred to source composition.
-- Config-entry schema version 1 and storage schema version 1 now exist, but options and future migrations remain unbuilt.
+- Config-entry schema version 1 minor version 2 and storage schema version 1 now
+  exist. The 1.1-to-1.2 migration safely marks legacy entries unconfigured, but a
+  reconfiguration/repair flow is still required before those entries can use the
+  future composed source; options and later migrations remain unbuilt.
 - No production Home Assistant mount or isolated HA development environment is configured.
-- No GitHub remote/authentication is available; work remains local.
+- Private `origin` is configured and authorized for checkpoint pushes; repository
+  visibility/settings and external publication remain out of scope.
 - No real route-provider credentials or calls are permitted during unattended work.
 - Exact Home Assistant entity selections and personal data are deliberately absent from the repository.
 

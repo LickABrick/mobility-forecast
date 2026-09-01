@@ -5,7 +5,12 @@
         "title": "Create a Mobility Forecast profile",
         "description": "Each profile is configured and updated independently.",
         "data": {
-          "name": "Profile name"
+          "name": "Profile name",
+          "calendar_entity_ids": "Calendars"
+        },
+        "data_description": {
+          "name": "A display name for this independent forecast profile.",
+          "calendar_entity_ids": "Select one or more calendars to read. Their order is preserved."
         }
       }
     }

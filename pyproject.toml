@@ -28,6 +28,7 @@ include = [
   "custom_components/mobility_forecast/storage.py",
   "custom_components/mobility_forecast/runtime.py",
   "custom_components/mobility_forecast/ha_storage.py",
+  "custom_components/mobility_forecast/ha_calendar.py",
 ]
 stubPath = "typings"
 pythonVersion = "3.13"
