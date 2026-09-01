@@ -1,11 +1,11 @@
 # Project status
 
-Last updated: 2026-09-01 14:45 CEST
+Last updated: 2026-09-01 19:32 CEST
 
 ## Current phase
 
-Phase 1 and post-phase checkpoints P1–P6 are complete. Work is at the isolated
-Hassfest/HACS validation handoff.
+Phase 1 and post-phase checkpoints P1–P7 are complete. Work is at the
+reproducible install ZIP and tester-instructions handoff.
 
 ## Completed
 
@@ -82,17 +82,23 @@ Hassfest/HACS validation handoff.
   unavailable rather than at zero, exposes kilometres without forecast/private
   attributes, and releases runtime data on unload. Home Assistant retains its
   normal restored unavailable state placeholder after platform unload.
+- P7 adds separate timeout-bounded Hassfest and HACS metadata jobs to the existing
+  least-privilege workflow. Action references and validator container content are
+  pinned immutably; the HACS schema run mounts the checkout read-only and disables
+  networking.
+- P7 completes the current manifest fields required by both validators: explicit
+  empty dependencies/requirements, `local_polling` for reads from local Home
+  Assistant calendar entities, private-origin documentation and issue URLs, and
+  an empty code-owner list rather than assigning an unapproved maintainer.
 
 ## Active checkpoint
 
-P6 — Real Home Assistant lifecycle and entity-state compatibility testing is
-complete.
+P7 — Hassfest and HACS metadata validation is complete.
 
-Next bounded checkpoint: run and integrate current Hassfest/HACS validation for
-the existing metadata against the Home Assistant 2026.8.1 compatibility target.
-Keep the validation isolated and synthetic; do not install into or inspect
-production Home Assistant. The reproducible install ZIP plus `TESTING.md` remains
-the subsequent checkpoint.
+Next bounded checkpoint: create and locally inspect one reproducible integration-
+only ZIP plus complete `TESTING.md` backup/install/restart/config-flow/entity/log/
+rollback instructions. Do not install into production Home Assistant, and do not
+claim the pending production forecast source exists.
 
 ## Verification evidence
 
@@ -544,6 +550,46 @@ job already discovers the new test. No runtime code, dependency, metadata,
 translation, config field/default, migration, persisted schema, polling behavior
 or physical capability changed.
 
+P7 TDD and verification on 2026-09-01:
+
+```text
+/usr/bin/python3 -m unittest tests.test_ci_configuration tests.test_config_flow -v
+                                                     PASS (7 focused tests)
+docker run --rm --network=none ... ghcr.io/hacs/action@sha256:dc92... validate_hacs.py
+                                                     PASS (both bundled schemas)
+docker run --rm --network=none ... ghcr.io/home-assistant/hassfest@sha256:f904...
+                                                     PASS (1 integration; 0 invalid)
+/usr/bin/python3 scripts/check_checkpoint.py          PASS (96 tests included)
+PYTHONPATH=.venv/site python3 -m pytest                PASS (96 tests)
+PYTHONPATH=.venv/site python3 -m ruff check .          PASS
+PYTHONPATH=.venv/site python3 -m ruff format --check . PASS (61 files)
+PYTHONPATH=.venv/site python3 -m pyright               PASS (0 errors; 6 expected missing-source warnings)
+git diff --check                                      PASS
+```
+
+The HACS validator is the exact current HACS Action image digest and imports only
+that image's bundled `hacs.json` and integration-manifest schemas. It runs with
+networking disabled and the checkout mounted read-only. Local Hassfest validation
+used the current official image resolved to digest
+`sha256:f90467b3315dfb0dcda90d4c25c01f7f97041866ce205877a8ff09a87858674c`,
+also with networking disabled and a read-only checkout. CI invokes the official
+Hassfest composite action at commit
+`a7c616ce81ccda50150bf1595786c71b1883fabb` and reproduces the digest-pinned HACS
+schema check. Neither validator accessed production Home Assistant, credentials,
+calendar data, addresses, coordinates, route/geocoder providers, vehicles,
+physical services or notifications.
+
+Configuration review for P7: the manifest now supplies the fields required by
+current Hassfest/HACS for this custom integration: explicit empty dependencies,
+requirements and code owners; `local_polling` because the future source reads
+local Home Assistant calendar entities; and the authorized private origin's
+documentation and issue URLs. The workflow retains read-only permissions,
+immutable action references, bounded timeouts and no secret or publication path.
+Python/tool pins, package/test discovery, `hacs.json`, config-entry schema 1.2,
+storage schema 1, translations and runtime behavior were reviewed and otherwise
+remain unchanged. No config field/default, migration, persisted schema, polling
+schedule, network provider or physical capability was added.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -586,6 +632,8 @@ or physical capability changed.
   suite and pin the matching test harness for Home Assistant 2026.8.1. They now
   prove config-flow creation plus one current-schema setup/entity/unload path;
   they do not yet prove forecast refreshes or production runtime composition.
+- Current Hassfest and HACS metadata schemas validate the custom integration. CI
+  keeps those checks separate from the dependency-free and real-HA test jobs.
 
 ## Remaining risks and deferred details
 
@@ -609,9 +657,10 @@ or physical capability changed.
   real location resolution, revision-id generation and refresh scheduling remain
   unimplemented.
 - A separate privacy-safe logging policy remains unimplemented; diagnostics safety does not make arbitrary logs safe.
-- C8b metadata intentionally omits documentation/issue URLs and code-owner handles.
-  A private GitHub remote now exists, but no public support URL or approved
-  maintainer handle has been selected; these remain publication-readiness blockers.
+- The manifest now points documentation and issue support at the authorized private
+  origin and intentionally declares no code owner. Those links work only for users
+  who can access the private repository; public publication and an approved
+  maintainer handle remain out of scope.
 - Ruff lint and formatting cover the complete repository. Strict Pyright now also covers the lifecycle module through minimal isolated Home Assistant contracts; other adapters, real-HA tests and dynamic fixtures remain outside that boundary. Expansion must add reviewed contract types rather than weakening strict mode or conflating installed runtime types with the dependency-free check.
 - The development and real-HA requirements pin direct tool versions but not hashes or every transitive dependency. The real-HA harness pin currently requires Home Assistant 2026.8.1 exactly, and its test asserts that installed version. Action commits are immutable; a later supply-chain audit may add a fully hashed lock when a supported dependency workflow is chosen.
 - C4 defines required freshness/accuracy/horizon fields but intentionally supplies no product defaults. Config-flow representation, default selection and migration policy remain future product work and must be reviewed before introduction.

@@ -53,3 +53,27 @@ jobs:
         run: python -m pip install -r requirements-ha-test.txt
       - name: Test against real Home Assistant contracts
         run: python -m pytest -o asyncio_mode=auto tests_real_ha
+
+  hassfest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Validate Home Assistant integration metadata
+        uses: home-assistant/actions/hassfest@a7c616ce81ccda50150bf1595786c71b1883fabb
+
+  hacs-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Validate local metadata with current HACS schemas
+        run: >-
+          docker run --rm --network=none
+          --entrypoint python3
+          -e PYTHONPATH=/hacs
+          -v "$PWD:/github/workspace:ro"
+          ghcr.io/hacs/action@sha256:dc92fdad2f6ffbe74bffb7269d781ea8e064f52d9bb486cdf3925d74e7ab6ebf
+          /github/workspace/scripts/validate_hacs.py

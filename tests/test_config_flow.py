@@ -105,10 +105,19 @@ class IntegrationMetadataTests(unittest.TestCase):
         self.assertEqual(manifest["version"], "0.0.0")
         self.assertIs(manifest["config_flow"], True)
         self.assertEqual(manifest["integration_type"], "service")
+        self.assertEqual(
+            manifest["issue_tracker"],
+            "https://github.com/LickABrick/mobility-forecast/issues",
+        )
+        self.assertEqual(manifest["iot_class"], "local_polling")
+        self.assertEqual(manifest["codeowners"], [])
+        self.assertEqual(manifest["dependencies"], [])
+        self.assertEqual(manifest["requirements"], [])
+        self.assertEqual(
+            manifest["documentation"],
+            "https://github.com/LickABrick/mobility-forecast",
+        )
         self.assertEqual(hacs, {"name": "Mobility Forecast"})
-        self.assertNotIn("requirements", manifest)
-        self.assertNotIn("documentation", manifest)
-        self.assertNotIn("issue_tracker", manifest)
 
     def test_strings_and_translations_cover_profile_inputs(self) -> None:
         strings = json.loads((INTEGRATION / "strings.json").read_text())

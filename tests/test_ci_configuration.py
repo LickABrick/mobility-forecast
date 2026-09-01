@@ -36,6 +36,21 @@ class QualityWorkflowTests(unittest.TestCase):
         self.assertIn("python -m pip install -r requirements-ha-test.txt", workflow)
         self.assertIn("python -m pytest -o asyncio_mode=auto tests_real_ha", workflow)
 
+        self.assertIn("hassfest:", workflow)
+        self.assertIn(
+            "home-assistant/actions/hassfest@a7c616ce81ccda50150bf1595786c71b1883fabb",
+            workflow,
+        )
+        self.assertIn("hacs-validation:", workflow)
+        self.assertIn(
+            "ghcr.io/hacs/action@"
+            "sha256:dc92fdad2f6ffbe74bffb7269d781ea8e064f52d9bb486cdf3925d74e7ab6ebf",
+            workflow,
+        )
+        self.assertIn("scripts/validate_hacs.py", workflow)
+        self.assertIn("--network=none", workflow)
+        self.assertNotIn("uses: hacs/action@", workflow)
+
         action_references = re.findall(r"uses: ([^\s#]+)", workflow)
         self.assertTrue(action_references)
         self.assertTrue(

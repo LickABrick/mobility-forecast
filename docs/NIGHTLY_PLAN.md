@@ -90,11 +90,20 @@ proved only with isolated Home Assistant contract fixtures.
     projection and unload. The test proves the runtime is released and records
     Home Assistant's restored unavailable placeholder after unload; both isolated
     real-HA tests pass in a read-only, network-disabled Docker run.
+- [x] **P7 — Hassfest and HACS metadata validation**
+  - Current Hassfest validates the complete custom integration with zero invalid
+    integrations. A network-disabled validator using the exact current HACS Action
+    image digest validates `hacs.json` and the integration manifest against HACS's
+    bundled schemas; CI reproduces both checks with immutable action/image pins.
+    Required manifest metadata now explicitly declares empty dependencies and
+    requirements, local polling, private-repository documentation/support URLs and
+    no guessed code owner. Two focused contract tests, both validators and all
+    configured local checks passed on 2026-09-01.
 
-Next checkpoint: one bounded Hassfest/HACS validation slice against the current
-repository metadata and Home Assistant 2026.8.1 compatibility target. Keep it
-isolated from production and do not begin the reproducible ZIP/`TESTING.md`
-artifact in the same invocation.
+Next checkpoint: one bounded reproducible installable ZIP and `TESTING.md` slice.
+The build/check script must package only `custom_components/mobility_forecast`,
+emit a checksum, inspect archive contents and exclude credentials/runtime data.
+Do not add runtime forecasting composition in the same invocation.
 
 ## Checkpoint definition of done
 

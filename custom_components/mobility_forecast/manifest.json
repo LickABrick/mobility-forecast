@@ -1,7 +1,13 @@
 {
   "domain": "mobility_forecast",
   "name": "Mobility Forecast",
-  "version": "0.0.0",
+  "codeowners": [],
   "config_flow": true,
-  "integration_type": "service"
+  "dependencies": [],
+  "documentation": "https://github.com/LickABrick/mobility-forecast",
+  "integration_type": "service",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/LickABrick/mobility-forecast/issues",
+  "requirements": [],
+  "version": "0.0.0"
 }
