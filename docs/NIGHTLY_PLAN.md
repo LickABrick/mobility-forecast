@@ -77,8 +77,16 @@ proved only with isolated Home Assistant contract fixtures.
     than zero. Two smoke tests, 96 total tests, strict Pyright, Ruff, formatting and
     checkpoint validation passed on 2026-09-01.
 
-Next checkpoint: one bounded slice of isolated real Home Assistant
-lifecycle/config-flow/entity testing targeting Home Assistant 2026.8.1. Keep
+- [x] **P5 — Real Home Assistant config-flow compatibility test**
+  - A separate Python 3.14 CI job installs the exactly pinned
+    `pytest-homeassistant-custom-component` release for Home Assistant 2026.8.1
+    and drives the synthetic profile form through Home Assistant's real flow
+    manager, selector schema and config-entry creation contract. The isolated
+    real-HA test passed locally in a read-only Docker mount on 2026-09-01;
+    the dependency-free suite remains separate and unchanged at 96 tests.
+
+Next checkpoint: one bounded slice of real Home Assistant lifecycle and entity
+registration/state-machine testing targeting Home Assistant 2026.8.1. Keep
 fixtures synthetic and do not install into production; defer Hassfest/HACS
 validation and the reproducible ZIP/`TESTING.md` artifact to their later slices.
 

@@ -10,6 +10,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "quality.yml"
 REQUIREMENTS = ROOT / "requirements-dev.txt"
+HA_REQUIREMENTS = ROOT / "requirements-ha-test.txt"
 PYPROJECT = ROOT / "pyproject.toml"
 
 
@@ -29,6 +30,11 @@ class QualityWorkflowTests(unittest.TestCase):
         self.assertIn("pyright", workflow)
         self.assertIn("run: python -m pytest", workflow)
         self.assertNotIn("run: pytest", workflow)
+
+        self.assertIn("ha-compatibility:", workflow)
+        self.assertIn('python-version: "3.14"', workflow)
+        self.assertIn("python -m pip install -r requirements-ha-test.txt", workflow)
+        self.assertIn("python -m pytest -o asyncio_mode=auto tests_real_ha", workflow)
 
         action_references = re.findall(r"uses: ([^\s#]+)", workflow)
         self.assertTrue(action_references)
@@ -58,6 +64,11 @@ class QualityWorkflowTests(unittest.TestCase):
         )
         self.assertTrue(
             all(re.fullmatch(r"[a-z]+==[0-9.]+", line) for line in requirements)
+        )
+
+        self.assertEqual(
+            HA_REQUIREMENTS.read_text(encoding="utf-8").splitlines(),
+            ["pytest-homeassistant-custom-component==0.13.355"],
         )
 
     def test_strict_typing_boundary_is_explicit(self) -> None:

@@ -1,11 +1,11 @@
 # Project status
 
-Last updated: 2026-09-01 14:23 CEST
+Last updated: 2026-09-01 14:32 CEST
 
 ## Current phase
 
-Phase 1 and post-phase checkpoints P1–P4 are complete. Work is at the isolated
-real Home Assistant lifecycle/config-flow/entity test handoff.
+Phase 1 and post-phase checkpoints P1–P5 are complete. Work is at the isolated
+real Home Assistant lifecycle/entity test handoff.
 
 ## Completed
 
@@ -68,16 +68,24 @@ real Home Assistant lifecycle/config-flow/entity test handoff.
   a partial immutable revision and projects unavailable/unknown distance rather
   than zero. Sensor attributes exclude synthetic event text, location text and the
   config-entry identifier.
+- P5 adds an isolated real Home Assistant compatibility suite separate from the
+  dependency-free tests. Its exactly pinned harness installs Home Assistant
+  2026.8.1 on Python 3.14 and drives the user config flow through the real flow
+  manager and entity-selector schema before asserting schema-1.2 entry creation.
+- P5 adds a least-privilege CI compatibility job without credentials, network
+  providers, production mounts or runtime service calls; its sole profile,
+  calendar identifier and input text are synthetic.
 
 ## Active checkpoint
 
-P4 — Deterministic synthetic calendar-to-sensor smoke pipeline is complete.
+P5 — Real Home Assistant config-flow compatibility testing is complete.
 
-Next bounded checkpoint: introduce one independently useful slice of isolated real
-Home Assistant 2026.8.1 lifecycle/config-flow/entity tests. Use only synthetic
-fixtures and an isolated development environment; do not install into or inspect
-production Home Assistant. Hassfest/HACS validation and the reproducible install
-ZIP plus `TESTING.md` remain later checkpoints.
+Next bounded checkpoint: exercise config-entry setup/unload and passive sensor
+registration/state through Home Assistant 2026.8.1's real lifecycle and state
+machine. Use only synthetic fixtures in the isolated compatibility environment;
+do not install into or inspect production Home Assistant. Hassfest/HACS
+validation and the reproducible install ZIP plus `TESTING.md` remain later
+checkpoints.
 
 ## Verification evidence
 
@@ -454,6 +462,45 @@ default, migration, persisted schema, polling behavior or physical capability wa
 added. The explicit synthetic policy numbers and endpoint mappings exist only in
 test fixtures and do not establish product defaults.
 
+P5 TDD and verification on 2026-09-01:
+
+```text
+/usr/bin/python3 -m unittest tests.test_ci_configuration.QualityWorkflowTests.test_quality_workflow_runs_every_configured_check -v
+                                                     RED: real-HA CI job absent
+/usr/bin/python3 -m unittest tests.test_ci_configuration -v
+                                                     PASS (3 contract tests)
+docker run ... python:3.14-slim ... pytest ... tests_real_ha
+                                                     PASS (1 test; HA 2026.8.1)
+/usr/bin/python3 scripts/check_checkpoint.py          PASS (96 tests included)
+PYTHONPATH=.venv/site python3 -m pytest                PASS (96 tests)
+PYTHONPATH=.venv/site python3 -m ruff check .          PASS
+PYTHONPATH=.venv/site python3 -m ruff format --check . PASS (59 files)
+PYTHONPATH=.venv/site python3 -m pyright               PASS (0 errors; 6 expected missing-source warnings)
+git diff --check                                      PASS
+```
+
+The compatibility test runs in a disposable Python 3.14 container with the
+repository mounted read-only and `PYTHONDONTWRITEBYTECODE=1`. Release 0.13.355 of
+`pytest-homeassistant-custom-component` requires Home Assistant 2026.8.1 exactly;
+the test independently asserts the installed distribution version before using
+Home Assistant's real config-flow manager, `EntitySelector` validation and config
+entry result. The input contains only a synthetic profile name and synthetic
+calendar entity identifier. No production Home Assistant path, credential,
+calendar state, address, coordinate, route/geocoder, vehicle, physical service,
+notification or external runtime provider was accessed.
+
+Configuration review for P5: `requirements-ha-test.txt` adds one exact direct test
+harness pin in a dependency-isolated CI job on Python 3.14, because Home Assistant
+2026.8.1 and its matching harness require Python 3.14 while the dependency-free
+quality job remains on Python 3.13. The compatibility suite is outside default
+pytest discovery, so `/usr/bin/python3 scripts/check_checkpoint.py` and the pinned
+local quality equivalents remain independent of Home Assistant. A namespace
+`custom_components/__init__.py` is test-import scaffolding and is outside the
+future integration-only ZIP. Manifest, HACS metadata, config schema 1.2, storage
+schema 1, translations, runtime behavior, defaults and production dependencies
+are unchanged. The CI workflow retains read-only permissions, immutable action
+pins and no secret or publication path.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -492,6 +539,10 @@ test fixtures and do not establish product defaults.
   fake-routing, forecast, coordinator, persistence and sensor contracts compose
   across one complete path and one route-failure path. It is test-only evidence,
   not the production runtime composition and not proof of real forecasting.
+- Real Home Assistant compatibility tests are isolated from the dependency-free
+  suite and pin the matching test harness for Home Assistant 2026.8.1. The first
+  slice proves only config-flow form validation and entry creation through Home
+  Assistant's real flow manager; it does not yet prove lifecycle or entity state.
 
 ## Remaining risks and deferred details
 
@@ -518,15 +569,17 @@ test fixtures and do not establish product defaults.
 - C8b metadata intentionally omits documentation/issue URLs and code-owner handles.
   A private GitHub remote now exists, but no public support URL or approved
   maintainer handle has been selected; these remain publication-readiness blockers.
-- Ruff lint and formatting cover the complete repository. Strict Pyright now also covers the lifecycle module through minimal isolated Home Assistant contracts; other adapters and dynamic fixtures remain outside that boundary. Expansion must add reviewed contract types rather than weakening strict mode or installing into production.
-- The development requirements pin direct tool versions but not hashes or every transitive dependency. Action commits are immutable; a later supply-chain audit may add a fully hashed lock when a supported dependency workflow is chosen.
+- Ruff lint and formatting cover the complete repository. Strict Pyright now also covers the lifecycle module through minimal isolated Home Assistant contracts; other adapters, real-HA tests and dynamic fixtures remain outside that boundary. Expansion must add reviewed contract types rather than weakening strict mode or conflating installed runtime types with the dependency-free check.
+- The development and real-HA requirements pin direct tool versions but not hashes or every transitive dependency. The real-HA harness pin currently requires Home Assistant 2026.8.1 exactly, and its test asserts that installed version. Action commits are immutable; a later supply-chain audit may add a fully hashed lock when a supported dependency workflow is chosen.
 - C4 defines required freshness/accuracy/horizon fields but intentionally supplies no product defaults. Config-flow representation, default selection and migration policy remain future product work and must be reviewed before introduction.
 - Location candidates currently cover passive vehicle GPS and already-resolved event/zone coordinates. Geocoding and Home Assistant zone/entity adapters remain outside the pure C4 boundary and are deferred to source composition.
 - Config-entry schema version 1 minor version 2 and storage schema version 1 now
   exist. The 1.1-to-1.2 migration safely marks legacy entries unconfigured, but a
   reconfiguration/repair flow is still required before those entries can use the
   future composed source; options and later migrations remain unbuilt.
-- No production Home Assistant mount or isolated HA development environment is configured.
+- An isolated disposable Home Assistant 2026.8.1 test environment now covers only
+  the config flow. Real config-entry lifecycle, platform forwarding, entity
+  registration/state-machine behavior and unload still lack real-HA tests.
 - Private `origin` is configured and authorized for checkpoint pushes; repository
   visibility/settings and external publication remain out of scope.
 - No real route-provider credentials or calls are permitted during unattended work.

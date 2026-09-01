@@ -36,3 +36,20 @@ jobs:
         run: pyright
       - name: Run tests with pytest
         run: python -m pytest
+
+  ha-compatibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements-ha-test.txt
+      - name: Install Home Assistant 2026.8.1 test harness
+        run: python -m pip install -r requirements-ha-test.txt
+      - name: Test against real Home Assistant contracts
+        run: python -m pytest -o asyncio_mode=auto tests_real_ha
