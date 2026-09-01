@@ -54,10 +54,16 @@ proved only with isolated Home Assistant contract fixtures.
     it for still-loaded entities. Four isolated lifecycle tests, all 82 tests,
     strict Pyright over the expanded lifecycle boundary, Ruff, formatting and
     checkpoint validation passed on 2026-08-26.
-- [ ] **P2 — Config-entry-scoped Home Assistant Store adapter**
-  - Next checkpoint: replace only the pending storage boundary with a real Store
-    adapter and prove entry isolation, restart restoration and unload behavior
-    using synthetic fixtures. Do not add calendar/source composition.
+- [x] **P2 — Config-entry-scoped Home Assistant Store adapter**
+  - A private, atomic Store per config-entry identifier now round-trips the existing
+    schema-version-1 payload, returns explicit empty state only for a missing store,
+    rejects cross-entry access and malformed versions, survives restart and is not
+    removed on unload. Four adapter tests, all 86 tests, strict Pyright, Ruff,
+    formatting and checkpoint validation passed on 2026-08-26.
+- [ ] **P3 — Calendar/entity source adapter and config contract**
+  - Next checkpoint: define one bounded source/config contract and normalize only
+    synthetic Home Assistant calendar/entity fixtures. Do not add routing or the
+    end-to-end smoke pipeline.
 
 ## Checkpoint definition of done
 

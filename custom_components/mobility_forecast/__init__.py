@@ -8,7 +8,7 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
 
-from .runtime import ProfileRuntimeData, build_pending_runtime
+from .runtime import ProfileRuntimeData, build_runtime
 
 PLATFORMS: Final = ("sensor",)
 
@@ -18,7 +18,7 @@ async def async_setup_entry(
 ) -> bool:
     """Set up one isolated profile runtime and its read-only platforms."""
 
-    entry.runtime_data = build_pending_runtime(entry.entry_id)
+    entry.runtime_data = build_runtime(hass, entry.entry_id)
     try:
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     except Exception:

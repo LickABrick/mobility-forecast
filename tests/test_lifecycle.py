@@ -8,7 +8,7 @@ import unittest
 from collections.abc import Generator
 from contextlib import contextmanager
 from enum import StrEnum
-from typing import Any
+from typing import Any, ClassVar
 
 INTEGRATION_MODULE = "custom_components.mobility_forecast"
 
@@ -54,6 +54,45 @@ class FakeConfigEntriesManager:
 class FakeHomeAssistant:
     def __init__(self, manager: FakeConfigEntriesManager) -> None:
         self.config_entries = manager
+        self.storage_backing: dict[str, object] = {}
+
+
+class FakeStore:
+    instances: ClassVar[list[FakeStore]] = []
+
+    def __init__(
+        self,
+        hass: FakeHomeAssistant,
+        version: int,
+        key: str,
+        private: bool = False,
+        *,
+        atomic_writes: bool = False,
+    ) -> None:
+        self.hass = hass
+        self.version = version
+        self.key = key
+        self.private = private
+        self.atomic_writes = atomic_writes
+        self.load_calls = 0
+        self.remove_calls = 0
+        self.__class__.instances.append(self)
+
+    @classmethod
+    def __class_getitem__(cls, item: object) -> type[FakeStore]:
+        del item
+        return cls
+
+    async def async_load(self) -> object | None:
+        self.load_calls += 1
+        return self.hass.storage_backing.get(self.key)
+
+    async def async_save(self, data: object) -> None:
+        self.hass.storage_backing[self.key] = data
+
+    async def async_remove(self) -> None:
+        self.remove_calls += 1
+        self.hass.storage_backing.pop(self.key, None)
 
 
 @contextmanager
@@ -65,15 +104,21 @@ def fake_home_assistant() -> Generator[None]:
     const.Platform = FakePlatform  # type: ignore[attr-defined]
     core = types.ModuleType("homeassistant.core")
     core.HomeAssistant = FakeHomeAssistant  # type: ignore[attr-defined]
+    helpers = types.ModuleType("homeassistant.helpers")
+    storage = types.ModuleType("homeassistant.helpers.storage")
+    storage.Store = FakeStore  # type: ignore[attr-defined]
 
     modules = {
         "homeassistant": homeassistant,
         "homeassistant.config_entries": config_entries,
         "homeassistant.const": const,
         "homeassistant.core": core,
+        "homeassistant.helpers": helpers,
+        "homeassistant.helpers.storage": storage,
     }
     previous = {name: sys.modules.get(name) for name in modules}
     sys.modules.update(modules)
+    FakeStore.instances.clear()
     try:
         yield
     finally:
@@ -83,6 +128,7 @@ def fake_home_assistant() -> Generator[None]:
             else:
                 sys.modules[name] = old_module
         sys.modules.pop(INTEGRATION_MODULE, None)
+        sys.modules.pop("custom_components.mobility_forecast.ha_storage", None)
 
 
 def load_integration() -> Any:
@@ -129,12 +175,17 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
             integration = load_integration()
             asyncio.run(integration.async_setup_entry(hass, entry))
             runtime = entry.runtime_data
+            with self.assertRaisesRegex(RuntimeError, "source adapter"):
+                asyncio.run(runtime.coordinator.refresh())  # type: ignore[union-attr]
             result = asyncio.run(integration.async_unload_entry(hass, entry))
 
         self.assertTrue(result)
         self.assertEqual(manager.unloaded, [(entry, (FakePlatform.SENSOR,))])
         self.assertIsNotNone(runtime)
         self.assertIsNone(entry.runtime_data)
+        self.assertEqual(len(FakeStore.instances), 1)
+        self.assertEqual(FakeStore.instances[0].load_calls, 1)
+        self.assertEqual(FakeStore.instances[0].remove_calls, 0)
 
     def test_failed_platform_forwarding_releases_unloaded_runtime(self) -> None:
         manager = FakeConfigEntriesManager(

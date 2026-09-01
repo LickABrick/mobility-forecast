@@ -7,11 +7,14 @@ specific read-only boundaries each adapter needs.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import TYPE_CHECKING, Protocol
 
 from .coordinator import ProfileCoordinator, ProfileUpdate
 from .diagnostics import DiagnosticsSnapshot
 from .storage import ProfileState
+
+if TYPE_CHECKING:
+    from homeassistant.core import HomeAssistant
 
 
 class DiagnosticsSource(Protocol):
@@ -38,18 +41,6 @@ class _PendingProfileSource:
         raise RuntimeError("profile source adapter is not configured")
 
 
-class _PendingProfileStorage:
-    """Fail closed until the Home Assistant Store checkpoint is complete."""
-
-    async def load(self, config_entry_id: str) -> ProfileState:
-        del config_entry_id
-        raise RuntimeError("profile storage adapter is not configured")
-
-    async def save(self, config_entry_id: str, state: ProfileState) -> None:
-        del config_entry_id, state
-        raise RuntimeError("profile storage adapter is not configured")
-
-
 class _PendingDiagnosticsSource:
     """Avoid fabricating diagnostics before aggregate source composition exists."""
 
@@ -57,19 +48,21 @@ class _PendingDiagnosticsSource:
         raise RuntimeError("profile diagnostics source is not configured")
 
 
-def build_pending_runtime(config_entry_id: str) -> ProfileRuntimeData:
-    """Build an isolated fail-closed runtime for the lifecycle-only checkpoint.
+def build_runtime(hass: HomeAssistant, config_entry_id: str) -> ProfileRuntimeData:
+    """Build an isolated runtime with durable state and pending read sources.
 
-    Platform setup can safely expose an unavailable passive sensor now. Later
-    adapter checkpoints replace these boundaries; this factory performs no I/O
-    and establishes no source, storage, refresh, or scheduling default.
+    Constructing the Home Assistant Store performs no I/O. Source and diagnostics
+    remain fail-closed until their own checkpoints, and no refresh or scheduling
+    behavior is introduced here.
     """
+
+    from .ha_storage import HomeAssistantProfileStorage
 
     return ProfileRuntimeData(
         coordinator=ProfileCoordinator(
             config_entry_id,
             source=_PendingProfileSource(),
-            storage=_PendingProfileStorage(),
+            storage=HomeAssistantProfileStorage(hass, config_entry_id),
         ),
         diagnostics_source=_PendingDiagnosticsSource(),
     )
