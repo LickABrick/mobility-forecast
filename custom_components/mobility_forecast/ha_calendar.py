@@ -13,6 +13,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Protocol, cast
+from urllib.parse import urlsplit
 
 from .domain.models import SourceEvent
 
@@ -63,6 +64,52 @@ class CalendarComponentContract(Protocol):
 
 
 OnlineEventClassifier = Callable[[CalendarEventContract], bool]
+
+_ONLINE_MEETING_HOSTS = frozenset(
+    {
+        "meet.google.com",
+        "teams.live.com",
+        "teams.microsoft.com",
+    }
+)
+_ONLINE_MEETING_HOST_SUFFIXES = (".webex.com", ".zoom.us")
+
+
+def classify_online_event(event: CalendarEventContract) -> bool:
+    """Classify only unambiguous standalone HTTPS meeting locations.
+
+    Home Assistant 2026.8.1 exposes no provider-neutral online-event field. This
+    conservative adapter therefore inspects only the location field and accepts a
+    finite reviewed host allowlist. It never scans summary/description text, treats
+    arbitrary URLs as physical locations, or sends the private value anywhere.
+    """
+
+    location = event.location
+    if not isinstance(location, str):
+        return False
+    candidate = location.strip()
+    if not candidate or any(character.isspace() for character in candidate):
+        return False
+    try:
+        parsed = urlsplit(candidate)
+        host = parsed.hostname
+        port = parsed.port
+        has_user_info = parsed.username is not None or parsed.password is not None
+    except ValueError:
+        return False
+    if (
+        parsed.scheme.casefold() != "https"
+        or host is None
+        or port not in (None, 443)
+        or has_user_info
+        or not parsed.path
+        or parsed.path == "/"
+    ):
+        return False
+    normalized_host = host.casefold()
+    return normalized_host in _ONLINE_MEETING_HOSTS or normalized_host.endswith(
+        _ONLINE_MEETING_HOST_SUFFIXES
+    )
 
 
 @dataclass(frozen=True, slots=True)

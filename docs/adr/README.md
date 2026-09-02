@@ -7,5 +7,6 @@ Accepted decisions for the phase-1 architecture:
 3. [ADR 0003 — Keep V1 advisory-only](0003-advisory-only-v1.md)
 4. [ADR 0004 — Resolve dynamic vehicle location passively](0004-passive-dynamic-vehicle-location.md)
 5. [ADR 0005 — Isolate route providers behind a typed protocol](0005-provider-neutral-routing.md)
+6. [ADR 0006 — Require explicit privacy-bounded provider selection](0006-explicit-provider-selection.md)
 
 New decisions should use the next four-digit number and record status, context, decision and consequences. Accepted records are superseded by a new record rather than rewritten to hide history.

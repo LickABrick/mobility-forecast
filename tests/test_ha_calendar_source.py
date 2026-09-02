@@ -10,6 +10,7 @@ from custom_components.mobility_forecast.ha_calendar import (
     CalendarSourceConfig,
     CalendarSourceUnavailable,
     HomeAssistantCalendarSource,
+    classify_online_event,
 )
 
 
@@ -102,6 +103,55 @@ class CalendarSourceConfigTests(unittest.TestCase):
 
 
 class HomeAssistantCalendarSourceTests(unittest.TestCase):
+    def test_online_classifier_accepts_only_reviewed_meeting_locations(self) -> None:
+        accepted = (
+            "https://meet.google.com/synthetic-room",
+            "https://tenant.zoom.us/j/123456789",
+            "https://teams.microsoft.com/l/meetup-join/synthetic",
+            "https://tenant.webex.com/meet/synthetic",
+        )
+
+        for location in accepted:
+            with self.subTest(location=location):
+                self.assertTrue(
+                    classify_online_event(
+                        SyntheticCalendarEvent(
+                            start=datetime(2032, 4, 5, tzinfo=UTC),
+                            end=datetime(2032, 4, 5, 1, tzinfo=UTC),
+                            summary="Synthetic appointment",
+                            location=location,
+                            uid="synthetic-online",
+                        )
+                    )
+                )
+
+    def test_online_classifier_rejects_text_urls_and_host_lookalikes(self) -> None:
+        rejected = (
+            None,
+            "",
+            "Online meeting",
+            "Join at https://meet.google.com/synthetic-room",
+            "https://meet.google.com.evil.invalid/synthetic-room",
+            "https://maps.google.com/synthetic-place",
+            "https://user@meet.google.com/synthetic-room",
+            "https://meet.google.com:8443/synthetic-room",
+            "https://meet.google.com:invalid/synthetic-room",
+        )
+
+        for location in rejected:
+            with self.subTest(location=location):
+                self.assertFalse(
+                    classify_online_event(
+                        SyntheticCalendarEvent(
+                            start=datetime(2032, 4, 5, tzinfo=UTC),
+                            end=datetime(2032, 4, 5, 1, tzinfo=UTC),
+                            summary="Synthetic appointment",
+                            location=location,
+                            uid="synthetic-not-online",
+                        )
+                    )
+                )
+
     def test_reads_configured_entities_and_normalizes_timed_and_all_day_events(
         self,
     ) -> None:

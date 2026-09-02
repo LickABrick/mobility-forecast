@@ -9,8 +9,10 @@ The public repository can be installed as a HACS custom integration from
 - This integration is **pre-alpha and read-only**. It has no vehicle wake, climate,
   charging, lock, plug, notification, or other physical-service path.
 - The current package reads selected calendars immediately and every 15 minutes,
-  and publishes date-only unknown forecasts. Endpoint resolution and road routing
-  are not implemented yet, so it cannot publish kilometres.
+  classifies reviewed standalone meeting URLs locally, applies the profile's explicit
+  structural policy and publishes date-only unknown forecasts for included events.
+  Event-location resolution and road routing are not implemented yet, so it cannot
+  publish kilometres.
 - The existing end-to-end forecast evidence uses only synthetic calendar data,
   synthetic locations, and a deterministic fake route provider in tests. Real
   route-provider and real forecast output are not part of this artifact.

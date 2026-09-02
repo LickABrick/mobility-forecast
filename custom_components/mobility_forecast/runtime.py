@@ -14,7 +14,11 @@ from typing import TYPE_CHECKING, Protocol, cast
 from .calendar_profile_source import CalendarIngestionProfileSource
 from .coordinator import ProfileCoordinator
 from .diagnostics import DiagnosticsSnapshot
-from .ha_calendar import CalendarSourceConfig, HomeAssistantCalendarSource
+from .ha_calendar import (
+    CalendarSourceConfig,
+    HomeAssistantCalendarSource,
+    classify_online_event,
+)
 from .ha_zone_anchors import HomeAssistantZoneAnchorResolver
 from .profile_config import ProfilePlanningConfig
 
@@ -97,19 +101,17 @@ def build_runtime(
     from .ha_storage import HomeAssistantProfileStorage
 
     config_entry_id = entry.entry_id
+    planning_config = ProfilePlanningConfig.from_entry_data(entry.data)
     component = cast("CalendarComponentContract", hass.data[DATA_COMPONENT])
     calendar_source = HomeAssistantCalendarSource(
         hass=hass,
         component=component,
         config=CalendarSourceConfig.from_entry_data(entry.data),
-        # This ingestion-only slice does not filter or plan events. Therefore an
-        # online classification cannot affect behavior until explicit policy is
-        # configured in the next checkpoint.
-        classify_online=lambda event: False,
+        classify_online=classify_online_event,
     )
     zone_anchor_resolver = HomeAssistantZoneAnchorResolver(
         hass.states,
-        ProfilePlanningConfig.from_entry_data(entry.data),
+        planning_config,
     )
     return ProfileRuntimeData(
         coordinator=ProfileCoordinator(
@@ -117,6 +119,7 @@ def build_runtime(
             source=CalendarIngestionProfileSource(
                 calendar_source=calendar_source,
                 zone_anchor_resolver=zone_anchor_resolver,
+                event_filter_policy=planning_config.event_filter_policy,
                 now=dt_util.now,
                 horizon=CALENDAR_HORIZON,
             ),

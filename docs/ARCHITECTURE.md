@@ -69,7 +69,16 @@ The domain depends on a provider-neutral, asynchronous route protocol. Requests 
 
 A route from A to B is not interchangeable with B to A. Cache keys HMAC all route-affecting inputs, including a required stable non-secret provider/config namespace, with required profile-local key material. They retain no raw coordinates or endpoint identifiers and cannot be shared across profile caches. Required inclusive maximum-fresh and maximum-stale ages have no domain defaults. A fresh hit avoids a provider call; a stale hit is refreshed, falls back with explicit `stale` quality and the refresh-failure category only when refresh fails, and is discarded after the stale limit. Provider and cache direction mismatches are rejected. Only complete successful provider routes are cached; failures never become zero distance.
 
-Google Routes is the intended first production adapter, not a domain dependency. Deterministic fakes are the only route providers used during unattended development. Adding another adapter must not change calendar, itinerary or forecast logic.
+OpenRouteService is the recommended production provider family, not a domain
+dependency. Hosted mode pairs the free ORS routing API with its hosted Pelias
+geocoder using one explicit user-supplied API key and consent to send calendar
+locations to both named endpoints. Advanced mode configures a self-hosted ORS routing
+base URL and a separate self-hosted Pelias, Photon or Nominatim geocoder base URL;
+self-hosted ORS does not bundle geocoding. Geoapify and Google Routes+Geocoding remain
+optional adapters. Selection is explicit, provider fallback is forbidden, and every
+location recipient must be disclosed. Deterministic fakes are the only providers used
+during unattended development; hard budgets, bounded retries and privacy-safe
+geocode/route caches are prerequisites for network transport.
 
 ## State and revision flow
 
@@ -149,16 +158,18 @@ online events remain exempt from a physical-location requirement.
 Version 1.2 entries retain their validated calendar selection during migration but
 receive no guessed anchors or event behavior. Home Assistant's reconfigure flow can
 add or replace the six planning fields while preserving calendars and reloading the
-entry. The production date-ingestion source deliberately does not consume these
-fields yet: provider-neutral online classification, zone/event endpoint adapters
-and a configured route provider are still absent. It reports
-`forecast_pipeline_unconfigured` and no kilometres rather than claiming policy has
-already produced a routed forecast. No external provider or physical-action path
-is introduced by P12.
+entry. P16 consumes those fields in production date ingestion: a conservative local
+classifier marks only standalone HTTPS meeting links on reviewed hosts as online,
+then the pure structural filter runs before service-date projection. Included dates
+still report `forecast_pipeline_unconfigured` and no kilometres because event
+locations and routing remain absent. No external provider or physical-action path is
+introduced by this composition.
 
 P13 advances config-entry schema 1.3 to 1.4 with an explicit Google Routes provider,
 private credential and toll/highway choices. Its adapter stops at an injected typed
-transport, so no HTTP implementation or unattended provider call exists.
+transport, so no HTTP implementation or unattended provider call exists. This
+Google-only configuration predates the approved provider-neutral ORS-recommended
+direction and must be migrated before any transport is enabled.
 
 P14 adds a read-only Home Assistant state-machine boundary for the two configured
 zone anchors. Each refresh looks up exactly those selected zone entities and reads
@@ -169,8 +180,8 @@ snapshot and error representations. Missing state, missing coordinates, nonnumer
 values and out-of-range values fail closed with stable role-specific reasons before
 calendar ingestion, which makes the latest entity update unavailable while retaining
 prior immutable coordinator data. The resolved coordinates are not persisted or
-projected. Event-location geocoding, structural filtering, route transport and road
-kilometres remain uncomposed.
+projected. P16 now applies structural filtering after anchor resolution;
+event-location geocoding, route transport and road kilometres remain uncomposed.
 
 ## Test strategy
 

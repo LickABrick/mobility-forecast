@@ -1,6 +1,6 @@
 # ADR 0005: Isolate route providers behind a typed protocol
 
-- Status: Accepted
+- Status: Superseded in part by [ADR 0006](0006-explicit-provider-selection.md)
 - Date: 2026-08-25
 
 ## Context

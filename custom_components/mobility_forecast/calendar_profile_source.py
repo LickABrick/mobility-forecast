@@ -1,11 +1,11 @@
 """Privacy-bounded calendar ingestion for one forecast profile.
 
 This production source reads the explicitly selected Home Assistant calendars
-inside one bounded future window and publishes only unavailable distance forecasts
-for dates that contain events. Event content is not persisted or projected.
-Configured zone anchors are resolved as a fail-closed prerequisite. Structural
-filters, event destinations, and routing remain uncomposed, so distance stays
-unknown rather than becoming zero.
+inside one bounded future window, applies the profile's explicit structural filter,
+and publishes only unavailable distance forecasts for included service dates. Event
+content is not persisted or projected. Configured zone anchors are resolved as a
+fail-closed prerequisite. Event destinations and routing remain uncomposed, so
+distance stays unknown rather than becoming zero.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from .coordinator import ProfileUpdate
+from .domain.calendar_filters import EventFilterPolicy, classify_event
 from .domain.models import DataQuality, Forecast
 from .ha_calendar import HomeAssistantCalendarSource
 from .ha_zone_anchors import ZoneAnchorResolver
@@ -27,6 +28,7 @@ class CalendarIngestionProfileSource:
 
     calendar_source: HomeAssistantCalendarSource
     zone_anchor_resolver: ZoneAnchorResolver
+    event_filter_policy: EventFilterPolicy
     now: Callable[[], datetime]
     horizon: timedelta
 
@@ -35,7 +37,7 @@ class CalendarIngestionProfileSource:
             raise ValueError("calendar horizon must be positive")
 
     async def read(self, previous_state: ProfileState) -> ProfileUpdate:
-        """Return date-only unavailable forecasts until planning is configured."""
+        """Return filtered date-only forecasts until route planning is composed."""
 
         generated_at = self.now()
         if generated_at.tzinfo is None or generated_at.utcoffset() is None:
@@ -47,7 +49,15 @@ class CalendarIngestionProfileSource:
         events = await self.calendar_source.async_read(
             generated_at, generated_at + self.horizon
         )
-        service_dates = tuple(sorted({event.starts_at.date() for event in events}))
+        service_dates = tuple(
+            sorted(
+                {
+                    event.starts_at.date()
+                    for event in events
+                    if classify_event(event, self.event_filter_policy).included
+                }
+            )
+        )
         forecasts = tuple(
             Forecast(
                 service_date=service_date,

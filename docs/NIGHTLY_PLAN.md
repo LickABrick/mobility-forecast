@@ -165,13 +165,25 @@ proved only with isolated Home Assistant contract fixtures.
     credential, cache or network path. Six new synthetic tests bring the
     dependency-free suite to 135 tests; all configured local gates passed on
     2026-09-02.
+- [x] **P16 — Production structural-filter composition**
+  - Runtime calendar ingestion now applies each profile's explicit structural policy
+    after conservative local online-meeting classification. Only standalone HTTPS
+    links on reviewed Google Meet, Microsoft Teams, Zoom and Webex hosts classify as
+    online; malformed, credential-bearing, non-default-port and lookalike URLs fail
+    closed as physical. Excluded events produce no service date, and all included
+    dates retain unavailable distance without any geocoder or route call. Three new
+    deterministic tests bring the dependency-free suite to 138 tests; all configured
+    local gates passed on 2026-09-02.
 
-Next checkpoint: **P16 — Production structural-filter composition**. Replace the
-runtime's ingestion-only classification placeholder with an explicit reviewed online
-classification strategy, apply the stored profile filter before creating forecast
-service dates, and retain unknown distance without invoking geocoding or routing.
-Live event-location and route transports remain blocked on reviewed provider,
-credential, timeout and cache-retention decisions; no public/paid call is authorized.
+Next checkpoint: **P17 — Provider-neutral configuration correction**. Replace the
+schema-1.4 Google-only configuration with an explicitly selected, consented provider
+family and no silent default. Recommend hosted OpenRouteService plus hosted Pelias
+with one supplied key; keep self-hosted ORS routing and a separately selected Pelias,
+Photon or Nominatim geocoder as independently configured endpoints. Geoapify and
+Google Routes+Geocoding remain optional adapters. This checkpoint must define and
+test endpoint disclosure, hard budgets, bounded retries and privacy-safe cache
+retention before any network transport is enabled; tests use injected transports and
+synthetic fixtures only.
 
 ## Checkpoint definition of done
 

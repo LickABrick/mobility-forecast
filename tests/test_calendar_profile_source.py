@@ -6,9 +6,13 @@ from datetime import UTC, datetime, timedelta
 from custom_components.mobility_forecast.calendar_profile_source import (
     CalendarIngestionProfileSource,
 )
+from custom_components.mobility_forecast.domain.calendar_filters import (
+    EventFilterPolicy,
+)
 from custom_components.mobility_forecast.ha_calendar import (
     CalendarSourceConfig,
     HomeAssistantCalendarSource,
+    classify_online_event,
 )
 from custom_components.mobility_forecast.ha_zone_anchors import (
     HomeAssistantZoneAnchorResolver,
@@ -29,6 +33,7 @@ from tests.test_ha_zone_anchors import SyntheticState, SyntheticStates
 
 NOW = datetime(2032, 4, 5, 7, 0, tzinfo=UTC)
 EMPTY_STATE = ProfileState(revisions=(), pending_days=(), actuals=())
+ALLOW_ALL_EVENTS = EventFilterPolicy((), (), True, True, True, False)
 
 
 def zone_anchor_resolver(
@@ -85,6 +90,7 @@ class CalendarIngestionProfileSourceTests(unittest.IsolatedAsyncioTestCase):
         source = CalendarIngestionProfileSource(
             calendar_source=calendar_source,
             zone_anchor_resolver=zone_anchor_resolver(),
+            event_filter_policy=ALLOW_ALL_EVENTS,
             now=lambda: NOW,
             horizon=timedelta(days=7),
         )
@@ -117,6 +123,7 @@ class CalendarIngestionProfileSourceTests(unittest.IsolatedAsyncioTestCase):
                 classify_online=lambda event: False,
             ),
             zone_anchor_resolver=zone_anchor_resolver(),
+            event_filter_policy=ALLOW_ALL_EVENTS,
             now=lambda: NOW,
             horizon=timedelta(days=1),
         )
@@ -137,6 +144,7 @@ class CalendarIngestionProfileSourceTests(unittest.IsolatedAsyncioTestCase):
             CalendarIngestionProfileSource(
                 calendar_source=calendar_source,
                 zone_anchor_resolver=zone_anchor_resolver(),
+                event_filter_policy=ALLOW_ALL_EVENTS,
                 now=lambda: NOW,
                 horizon=timedelta(0),
             )
@@ -151,6 +159,7 @@ class CalendarIngestionProfileSourceTests(unittest.IsolatedAsyncioTestCase):
                 classify_online=lambda event: False,
             ),
             zone_anchor_resolver=zone_anchor_resolver(include_end=False),
+            event_filter_policy=ALLOW_ALL_EVENTS,
             now=lambda: NOW,
             horizon=timedelta(days=1),
         )
@@ -164,6 +173,62 @@ class CalendarIngestionProfileSourceTests(unittest.IsolatedAsyncioTestCase):
         )
         self.assertEqual(entity.calls, [])
         self.assertNotIn("synthetic", repr(caught.exception))
+
+    async def test_applies_stored_structural_policy_before_projecting_dates(
+        self,
+    ) -> None:
+        entity = SyntheticCalendarEntity(
+            [
+                SyntheticCalendarEvent(
+                    start=NOW + timedelta(hours=1),
+                    end=NOW + timedelta(hours=2),
+                    summary="Synthetic physical appointment",
+                    location="Synthetic destination",
+                    uid="synthetic-physical",
+                ),
+                SyntheticCalendarEvent(
+                    start=NOW + timedelta(days=1),
+                    end=NOW + timedelta(days=1, hours=1),
+                    summary="Synthetic online appointment",
+                    location="https://meet.google.com/synthetic-room",
+                    uid="synthetic-online",
+                ),
+                SyntheticCalendarEvent(
+                    start=(NOW + timedelta(days=2)).date(),
+                    end=(NOW + timedelta(days=3)).date(),
+                    summary="Synthetic all-day appointment",
+                    location="Synthetic destination",
+                    uid="synthetic-all-day",
+                ),
+                SyntheticCalendarEvent(
+                    start=NOW + timedelta(days=3),
+                    end=NOW + timedelta(days=3, hours=1),
+                    summary="Synthetic no-location appointment",
+                    uid="synthetic-no-location",
+                ),
+            ]
+        )
+        source = CalendarIngestionProfileSource(
+            calendar_source=HomeAssistantCalendarSource(
+                hass=object(),
+                component=SyntheticCalendarComponent({"calendar.synthetic": entity}),
+                config=CalendarSourceConfig(("calendar.synthetic",)),
+                classify_online=classify_online_event,
+            ),
+            zone_anchor_resolver=zone_anchor_resolver(),
+            event_filter_policy=EventFilterPolicy((), (), True, False, False, True),
+            now=lambda: NOW,
+            horizon=timedelta(days=7),
+        )
+
+        update = await source.read(EMPTY_STATE)
+
+        self.assertEqual(
+            tuple(forecast.service_date for forecast in update.forecasts),
+            (NOW.date(),),
+        )
+        self.assertIsNone(update.forecasts[0].distance_p90_m)
+        self.assertEqual(update.forecasts[0].quality.value, "unavailable")
 
 
 if __name__ == "__main__":

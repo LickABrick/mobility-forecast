@@ -6,10 +6,10 @@ Mobility Forecast is a planned Home Assistant custom integration that turns cale
 
 The phase-1 architecture and safe development foundation are complete. Bounded
 post-phase work now provides selected-calendar refreshes, explicit profile zone
-anchors and structural event policy, isolated Home Assistant contracts and a
-reproducible test ZIP. Endpoint and route-provider runtime composition remains
-incomplete, so kilometres stay unknown. The project must not wake vehicles or
-execute charging actions.
+anchors, conservative local online-event classification, applied structural policy,
+isolated Home Assistant contracts and a reproducible test ZIP. Event-location and
+route-provider runtime composition remain incomplete, so kilometres stay unknown.
+The project must not wake vehicles or execute charging actions.
 
 See:
 
