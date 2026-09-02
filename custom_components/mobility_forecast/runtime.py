@@ -15,6 +15,8 @@ from .calendar_profile_source import CalendarIngestionProfileSource
 from .coordinator import ProfileCoordinator
 from .diagnostics import DiagnosticsSnapshot
 from .ha_calendar import CalendarSourceConfig, HomeAssistantCalendarSource
+from .ha_zone_anchors import HomeAssistantZoneAnchorResolver
+from .profile_config import ProfilePlanningConfig
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -105,11 +107,16 @@ def build_runtime(
         # configured in the next checkpoint.
         classify_online=lambda event: False,
     )
+    zone_anchor_resolver = HomeAssistantZoneAnchorResolver(
+        hass.states,
+        ProfilePlanningConfig.from_entry_data(entry.data),
+    )
     return ProfileRuntimeData(
         coordinator=ProfileCoordinator(
             config_entry_id,
             source=CalendarIngestionProfileSource(
                 calendar_source=calendar_source,
+                zone_anchor_resolver=zone_anchor_resolver,
                 now=dt_util.now,
                 horizon=CALENDAR_HORIZON,
             ),

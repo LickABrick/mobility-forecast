@@ -29,7 +29,21 @@ class FakeConfigEntry:
     ) -> None:
         self.entry_id = entry_id
         self.data = (
-            {"calendar_entity_ids": ["calendar.synthetic"]} if data is None else data
+            {
+                "calendar_entity_ids": ["calendar.synthetic"],
+                "start_anchor_entity_id": "zone.synthetic_start",
+                "end_anchor_entity_id": "zone.synthetic_end",
+                "physical_event_policy": "include",
+                "online_event_policy": "exclude",
+                "all_day_event_policy": "exclude",
+                "no_location_event_policy": "exclude",
+                "route_provider": "google_routes",
+                "route_provider_api_key": "synthetic-test-key",
+                "toll_policy": "avoid",
+                "highway_policy": "allow",
+            }
+            if data is None
+            else data
         )
         self.version = version
         self.minor_version = minor_version
@@ -79,8 +93,31 @@ class FakeHomeAssistant:
         self.data: dict[str, object] = {
             "calendar": FakeCalendarComponent(FakeCalendarEntity())
         }
+        self.states = FakeStates(
+            {
+                "zone.synthetic_start": FakeState(
+                    {"latitude": 12.5, "longitude": -34.25}
+                ),
+                "zone.synthetic_end": FakeState({"latitude": -20.0, "longitude": 40.0}),
+            }
+        )
         self.intervals: list[tuple[object, object]] = []
         self.cancelled_intervals = 0
+
+
+class FakeState:
+    def __init__(self, attributes: dict[str, object]) -> None:
+        self.attributes = attributes
+
+
+class FakeStates:
+    def __init__(self, states: dict[str, FakeState]) -> None:
+        self.states = states
+        self.lookups: list[str] = []
+
+    def get(self, entity_id: str) -> FakeState | None:
+        self.lookups.append(entity_id)
+        return self.states.get(entity_id)
 
 
 class FakeCalendarEntity:
@@ -355,12 +392,40 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
         self.assertIsNotNone(first.runtime_data.coordinator.data)  # type: ignore[union-attr]
         self.assertTrue(first.runtime_data.coordinator.last_update_success)  # type: ignore[union-attr]
         self.assertEqual(len(hass.intervals), 2)
+        self.assertEqual(
+            hass.states.lookups,
+            [
+                "zone.synthetic_start",
+                "zone.synthetic_end",
+                "zone.synthetic_start",
+                "zone.synthetic_end",
+            ],
+        )
         self.assertTrue(
             all(
                 interval == timedelta(minutes=15)
                 for _callback, interval in hass.intervals
             )
         )
+
+    def test_missing_selected_zone_keeps_latest_runtime_update_unavailable(
+        self,
+    ) -> None:
+        manager = FakeConfigEntriesManager()
+        hass = FakeHomeAssistant(manager)
+        hass.states.states.pop("zone.synthetic_end")
+        entry = FakeConfigEntry("entry-a")
+
+        with fake_home_assistant():
+            integration = load_integration()
+            result = asyncio.run(integration.async_setup_entry(hass, entry))
+
+        self.assertTrue(result)
+        self.assertIsNotNone(entry.runtime_data)
+        self.assertFalse(entry.runtime_data.coordinator.last_update_success)  # type: ignore[union-attr]
+        self.assertIsNone(entry.runtime_data.coordinator.data)  # type: ignore[union-attr]
+        calendar = hass.data["calendar"]
+        self.assertEqual(calendar.entity.calls, [])  # type: ignore[union-attr]
 
     def test_successful_unload_clears_runtime_after_platform_unload(self) -> None:
         manager = FakeConfigEntriesManager()

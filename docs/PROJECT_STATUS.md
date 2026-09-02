@@ -1,15 +1,14 @@
 # Project status
 
-Last updated: 2026-09-02 13:25 CEST
+Last updated: 2026-09-02 13:43 CEST
 
 ## Current phase
 
-Phase 1 and post-phase checkpoints P1–P13 are complete. Production runtime reads
-each profile's selected Home Assistant calendars on a bounded schedule, and users
-can now configure independent zone anchors, structural event handling and explicit
-Google Routes credentials/preferences. Distance remains explicitly unknown until
-those policies are composed with private endpoint resolution and a reviewed live
-transport; this checkpoint adds no HTTP or geocoding implementation.
+Phase 1 and post-phase checkpoints P1–P14 are complete. Production runtime reads
+each profile's selected Home Assistant calendars on a bounded schedule and now
+resolves its two explicitly selected local zone anchors before calendar ingestion.
+Distance remains explicitly unknown until event locations and a reviewed route
+transport are composed; this checkpoint adds no HTTP or geocoding implementation.
 
 ## Completed
 
@@ -138,15 +137,24 @@ transport; this checkpoint adds no HTTP or geocoding implementation.
   categories, and coordinate-bearing queries omit coordinates from representations.
   No HTTP client, endpoint, credential use, geocoder call or runtime composition was
   added, so installed entities remain truthfully unavailable for distance.
+- P14 adds a read-only zone-state resolver that reads only latitude/longitude from
+  exactly the configured start/end Home Assistant zone entities on every refresh.
+- P14 returns independent complete typed endpoints with opaque role identifiers and
+  keeps selected entity IDs and coordinates out of adapter, snapshot and error
+  representations. It neither persists nor projects the resolved coordinates.
+- P14 fails before calendar ingestion for missing states, missing coordinates,
+  nonnumeric values or invalid WGS84 ranges. Stable role-specific reasons propagate
+  through the coordinator so the latest entity update remains unavailable rather
+  than becoming a zero route or a successful stale result.
 
 ## Active checkpoint
 
-P13 — Route-provider configuration boundary is complete.
+P14 — Home Assistant zone-anchor resolution boundary is complete.
 
-Next bounded checkpoint: P14 — resolve explicitly selected local Home Assistant
-zone anchors behind a privacy-safe typed adapter. Do not add event-location
-geocoding or a live route transport in that checkpoint; missing or malformed zone
-state must keep distance unavailable.
+Next bounded checkpoint: P15 — define a provider-neutral privacy-safe event-location
+resolver contract and deterministic fake. Do not choose or call a public/paid
+geocoder unattended. Live kilometres still require a reviewed geocoder provider,
+credential handling and cache-retention decision plus the separate route transport.
 
 ## Verification evidence
 
@@ -837,6 +845,48 @@ the documented intended first provider; this checkpoint fixes only its selection
 credential/preference shape and deliberately defers HTTP details, credential use and
 runtime calls.
 
+P14 TDD and verification on 2026-09-02:
+
+```text
+/usr/bin/python3 -m unittest tests.test_ha_zone_anchors -v
+                                                            RED: adapter module absent
+                                                            PASS (4 adapter tests)
+/usr/bin/python3 -m unittest ... focused adapter/source/lifecycle tests
+                                                            PASS (18 tests)
+/usr/bin/python3 scripts/check_checkpoint.py                PASS (129 tests included)
+PYTHONPATH=.venv/site /usr/bin/python3 -m pytest             PASS (129 tests)
+PYTHONPATH=.venv/site /usr/bin/python3 -m ruff check .       PASS
+PYTHONPATH=.venv/site /usr/bin/python3 -m ruff format --check .
+                                                            PASS (80 files)
+PYTHONPATH=.venv/site /usr/bin/python3 -m pyright            PASS (0 errors; 11 expected missing-source warnings)
+Docker Python 3.14.7 / Home Assistant 2026.8.1 suite         PASS (3 tests; network disabled)
+Hassfest pinned image                                       PASS (1 integration; 0 invalid)
+HACS pinned image local schemas                             PASS
+/usr/bin/python3 scripts/build_test_zip.py --check ...       PASS (SHA-256 fe7f47913ce27ffa93e730c1291098a545a48afe19a8d70aac7c9179ba5e6676)
+sha256sum --check                                           PASS
+git diff --cached --check                                  PASS
+```
+
+All P14 zone identifiers, coordinates, calendar entities, credential placeholders
+and state values are synthetic. The production adapter reads only the two configured
+local Home Assistant states and only their latitude/longitude attributes. It exposes
+no service, write, network, vehicle, notification, geocoder or route-provider path.
+The real-HA and both validator runs were network-disabled; dependency installation
+was isolated under ignored checkpoint runtime data. No production Home Assistant,
+credential, address, calendar text, GPS state or device was accessed. Diff/privacy
+review found no personal data, secret, coordinate logging or scope outside P14.
+
+Configuration review for P14: config-entry schema remains 1.4 and storage remains
+schema 1; the existing start/end zone selections are consumed without adding a field,
+default or migration. Strict Pyright adds the new adapter and a minimal read-only
+Home Assistant State/StateMachine contract. The generated 338659-byte package now
+contains 27 tracked integration files and passed byte-for-byte verification. Python
+and tool pins, requirements, manifest/HACS metadata, source/English translations,
+workflow permissions/actions, refresh limits and route-provider configuration are
+unchanged. No geocoder or runtime network dependency was added. A geocoder provider,
+credential policy and cache-retention policy must be reviewed before live event
+locations can be resolved.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -869,13 +919,15 @@ runtime calls.
 - Home Assistant diagnostics consume only a typed entry-scoped aggregate source. Config-entry fields and runtime objects are not recursively dumped, and source failures remain explicit.
 - Config-entry setup owns one isolated runtime and forwards only the sensor
   platform. It reads selected calendars immediately and every 15 minutes over an
-  exact seven-day window; successful unload cancels the interval. Calendar-derived
-  distance remains unknown until policy, endpoint and routing adapters are composed.
+  exact seven-day window and first resolves both selected local zone anchors;
+  successful unload cancels the interval. Calendar-derived distance remains unknown
+  until structural policy, event destinations and routing are composed.
 - Durable runtime state uses one private, atomic Home Assistant Store keyed only by config-entry identifier. Missing storage starts from explicit empty state; restart restores decoded immutable state, cross-entry calls fail, and unload retains persisted data.
-- Config-entry schema 1.3 requires every new profile to explicitly select one or
-  more ordered unique calendar entities, independent zone anchors and structural
-  event policy. Schema-1.1 entries retain a deliberately invalid empty calendar
-  marker, while 1.2 entries retain calendars without guessed planning values.
+- Config-entry schema 1.4 requires every new profile to explicitly select one or
+  more ordered unique calendar entities, independent zone anchors, structural event
+  policy and route-provider configuration. Schema-1.1 entries retain a deliberately
+  invalid empty calendar marker; 1.2/1.3 migrations preserve existing data without
+  guessing the fields introduced later.
 - Calendar normalization reads only configured `CalendarEntity` objects for an
   explicit aware window. It maps Home Assistant 2026.8.1 timed/all-day events to
   frozen source events, requires provider identity, injects online classification
@@ -912,9 +964,10 @@ runtime calls.
   persist-before-publish transaction and exposes the latest failure to entity
   availability.
 - P4 demonstrates full planning composition only with deterministic fakes. P11
-  performs real local calendar ingestion and P12 stores explicit structural policy,
-  but online classification, location resolution, revision-id generation, policy
-  application and routing remain unimplemented in production.
+  performs real local calendar ingestion, P12 stores explicit structural policy and
+  P14 resolves configured zone anchors, but online classification, event-location
+  resolution, revision-id generation, policy application and routing remain
+  unimplemented in production.
 - A separate privacy-safe logging policy remains unimplemented; diagnostics safety does not make arbitrary logs safe.
 - The manifest now points documentation and issue support at the authorized private
   origin and intentionally declares no code owner. Those links work only for users
@@ -923,7 +976,9 @@ runtime calls.
 - Ruff lint and formatting cover the complete repository. Strict Pyright now also covers the lifecycle module through minimal isolated Home Assistant contracts; other adapters, real-HA tests and dynamic fixtures remain outside that boundary. Expansion must add reviewed contract types rather than weakening strict mode or conflating installed runtime types with the dependency-free check.
 - The development and real-HA requirements pin direct tool versions but not hashes or every transitive dependency. The real-HA harness pin currently requires Home Assistant 2026.8.1 exactly, and its test asserts that installed version. Action commits are immutable; a later supply-chain audit may add a fully hashed lock when a supported dependency workflow is chosen.
 - C4 defines required freshness/accuracy/horizon fields but intentionally supplies no product defaults. Their config-flow representation and migration policy remain future product work and must be reviewed before introduction.
-- Location candidates currently cover passive vehicle GPS and already-resolved event/zone coordinates. Geocoding and Home Assistant zone/entity adapters remain outside the pure C4 boundary and are deferred to source composition.
+- Location candidates cover passive vehicle GPS and already-resolved event/zone
+  coordinates. P14 now supplies the Home Assistant zone adapter; event-location
+  geocoding and its provider/cache policy remain deferred.
 - Config-entry schema version 1 minor version 4 and storage schema version 1 now
   exist. The 1.1 empty-calendar marker and 1.2 calendar-preserving migration guess
   no planning data; 1.3 planning entries retain their data but guess no provider or
@@ -944,7 +999,7 @@ runtime calls.
 - The Google Routes transport remains intentionally unimplemented. Before real
   kilometres, a reviewed checkpoint must define timeout/error mapping, API request
   and response fields, credential injection and network tests that cannot run
-  unattended; local zone resolution and event-location policy must also be composed.
+  unattended; event-location resolution and structural policy must also be composed.
 - Exact Home Assistant entity selections and personal data are deliberately absent from the repository.
 
 ## Nightly runtime

@@ -3,8 +3,9 @@
 This production source reads the explicitly selected Home Assistant calendars
 inside one bounded future window and publishes only unavailable distance forecasts
 for dates that contain events. Event content is not persisted or projected.
-Configured anchors and structural filters remain unconsumed until endpoint and
-routing adapters are composed; distance stays unknown rather than becoming zero.
+Configured zone anchors are resolved as a fail-closed prerequisite. Structural
+filters, event destinations, and routing remain uncomposed, so distance stays
+unknown rather than becoming zero.
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from datetime import datetime, timedelta
 from .coordinator import ProfileUpdate
 from .domain.models import DataQuality, Forecast
 from .ha_calendar import HomeAssistantCalendarSource
+from .ha_zone_anchors import ZoneAnchorResolver
 from .storage import ProfileState
 
 
@@ -24,6 +26,7 @@ class CalendarIngestionProfileSource:
     """Read a bounded calendar window without retaining private event content."""
 
     calendar_source: HomeAssistantCalendarSource
+    zone_anchor_resolver: ZoneAnchorResolver
     now: Callable[[], datetime]
     horizon: timedelta
 
@@ -37,6 +40,10 @@ class CalendarIngestionProfileSource:
         generated_at = self.now()
         if generated_at.tzinfo is None or generated_at.utcoffset() is None:
             raise ValueError("calendar source clock must be timezone-aware")
+        # Both explicit anchors must currently resolve before this refresh can
+        # publish. Failures propagate to the coordinator, keeping the entity
+        # unavailable without persisting coordinates or fabricating distance.
+        self.zone_anchor_resolver.resolve()
         events = await self.calendar_source.async_read(
             generated_at, generated_at + self.horizon
         )

@@ -154,6 +154,22 @@ and a configured route provider are still absent. It reports
 already produced a routed forecast. No external provider or physical-action path
 is introduced by P12.
 
+P13 advances config-entry schema 1.3 to 1.4 with an explicit Google Routes provider,
+private credential and toll/highway choices. Its adapter stops at an injected typed
+transport, so no HTTP implementation or unattended provider call exists.
+
+P14 adds a read-only Home Assistant state-machine boundary for the two configured
+zone anchors. Each refresh looks up exactly those selected zone entities and reads
+only their latitude/longitude attributes. Valid coordinates become independent
+complete `ResolvedLocation` values with opaque `anchor:start` and `anchor:end`
+identifiers; the selected entity IDs and coordinate values are hidden from adapter,
+snapshot and error representations. Missing state, missing coordinates, nonnumeric
+values and out-of-range values fail closed with stable role-specific reasons before
+calendar ingestion, which makes the latest entity update unavailable while retaining
+prior immutable coordinator data. The resolved coordinates are not persisted or
+projected. Event-location geocoding, structural filtering, route transport and road
+kilometres remain uncomposed.
+
 ## Test strategy
 
 - Pure domain behavior: unit tests with typed synthetic values.

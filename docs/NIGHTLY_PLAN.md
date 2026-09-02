@@ -147,10 +147,22 @@ proved only with isolated Home Assistant contract fixtures.
     Pyright, Ruff, formatting, checkpoint/package checks, Hassfest and HACS
     validation passed on 2026-09-02.
 
-Next checkpoint: **P14 — Home Assistant zone-anchor resolution boundary**. Resolve
-only the explicitly selected local zone entities into private typed endpoints and
-compose no event-location geocoder or live route transport yet. Missing or malformed
-zone state must remain unavailable rather than producing a route or zero distance.
+- [x] **P14 — Home Assistant zone-anchor resolution boundary**
+  - Every refresh resolves exactly the configured start/end local Home Assistant
+    zone states into complete typed endpoints using only latitude/longitude. Runtime
+    endpoint identifiers are opaque role labels; selected entity IDs and coordinates
+    are absent from adapter/snapshot/error representations. Missing or malformed
+    state fails with role-specific stable reasons before calendar ingestion, keeping
+    the sensor unavailable and never producing a route or zero distance. Six new
+    deterministic tests bring the dependency-free suite to 129 tests; three real-HA
+    tests, strict Pyright, Ruff, formatting, checkpoint/package checks, Hassfest and
+    HACS validation passed on 2026-09-02.
+
+Next checkpoint: **P15 — Event-location resolver contract and deterministic fake**.
+Define a provider-neutral privacy-safe geocoding boundary, typed failure states and
+synthetic fixtures without choosing or calling a public/paid provider. A reviewed
+provider/credential/cache-retention decision remains required before live event
+locations can produce road kilometres.
 
 ## Checkpoint definition of done
 
