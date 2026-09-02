@@ -1,13 +1,14 @@
 # Project status
 
-Last updated: 2026-09-02 08:05 CEST
+Last updated: 2026-09-02 08:50 CEST
 
 ## Current phase
 
-Phase 1 and post-phase checkpoints P1–P11 are complete. Production runtime now
-reads each profile's selected Home Assistant calendars on a bounded schedule, but
-distance remains explicitly unknown until profile location/filter policies and a
-configured route provider are added.
+Phase 1 and post-phase checkpoints P1–P12 are complete. Production runtime reads
+each profile's selected Home Assistant calendars on a bounded schedule, and users
+can now configure independent zone anchors and structural event handling. Distance
+remains explicitly unknown until those policies are composed with endpoint and
+route-provider adapters.
 
 ## Completed
 
@@ -110,14 +111,28 @@ configured route provider are added.
 - P11 notifies the sensor after successful and failed transactions, marks a failed
   latest read unavailable while preserving the last immutable snapshot, and
   cancels the profile refresh interval on successful unload.
+- P12 advances config-entry schema 1.2 to 1.3. New profiles require independent
+  start/end Home Assistant zone anchors and explicit include/exclude choices for
+  physical, online, all-day and physical events without a location; none has a
+  default.
+- P12 adds a frozen strict planning-config decoder whose representation omits
+  operational zone identifiers. Its structural projection adds an explicit
+  physical-event filter reason and preserves the rule that online events do not
+  require a physical location.
+- P12 migrates schema-1.2 calendar selections unchanged and guesses no planning
+  value. The Home Assistant reconfigure flow adds or replaces all six policy fields
+  while preserving selected calendars and reloading the installed profile.
+- P12 keeps production kilometres unavailable with the truthful stable reason
+  `forecast_pipeline_unconfigured`; configured policies are deliberately not
+  consumed until online classification, endpoint and route adapters are composed.
 
 ## Active checkpoint
 
-P11 — Production calendar ingestion and entity refresh lifecycle is complete.
+P12 — Explicit profile planning policies is complete.
 
-Next bounded checkpoint: P12 — explicit begin/end anchors and physical, online,
-all-day and no-location profile policy (mission B). No route-provider selection or
-external call belongs in that checkpoint.
+Next bounded checkpoint: P13 — provider-neutral route-provider configuration and
+synthetic adapter contracts (mission D). No live route or geocoder call belongs in
+that checkpoint; unresolved provider/credential decisions must remain fail closed.
 
 ## Verification evidence
 
@@ -729,6 +744,42 @@ requires a separate schema/migration checkpoint. `pyproject.toml` expands strict
 typing to the new ingestion source and uses minimal isolated Home Assistant stubs.
 Tool pins, workflow, HACS metadata, translations and entity metadata are unchanged.
 
+P12 TDD and verification on 2026-09-02:
+
+```text
+/usr/bin/python3 -m unittest ... focused policy tests  PASS (30 tests)
+/usr/bin/python3 scripts/check_checkpoint.py           PASS (113 tests included)
+PYTHONPATH=.venv/site python3 -m pytest                 PASS (113 tests)
+PYTHONPATH=.venv/site python3 -m ruff check .           PASS
+PYTHONPATH=.venv/site python3 -m ruff format --check .  PASS (74 files)
+PYTHONPATH=.venv/site python3 -m pyright                PASS (0 errors; 11 expected missing-source warnings)
+Docker Python 3.14 / Home Assistant 2026.8.1 suite      PASS (3 tests)
+Hassfest pinned image                                   PASS (1 integration; 0 invalid)
+HACS pinned image local schemas                         PASS
+/usr/bin/python3 scripts/build_test_zip.py --check ...  PASS (SHA-256 c028c2823e78e5fedcd5e40d48a0713d01b94636f068947bb354c419a28f4739)
+sha256sum --check                                       PASS
+git diff --check                                        PASS
+```
+
+The recovered P12 tests were written before the implementation and initially
+failed because the planning-config module, physical-event filter field, schema-1.3
+flow and reconfigure behavior did not exist. All fixtures contain only synthetic
+entity IDs and choices. The dependency-free and real-HA suites ran without network
+access to providers and without production Home Assistant state, credentials,
+calendar text, addresses, coordinates or vehicle services. The package, Hassfest
+and HACS validators include no provider request or physical-action path.
+
+Configuration review for P12: config-entry schema 1 advances from minor version 2
+to 3 because six required planning fields are added for new entries. The 1.2-to-1.3
+migration preserves a validated calendar selection but deliberately adds none of
+those fields; Home Assistant's reconfigure flow is the explicit completion path.
+Source and English strings remain identical. Strict Pyright adds the dependency-free
+planning decoder, and the reproducible package now includes it. Storage schema 1,
+manifest/HACS metadata, Python/tool pins, workflow permissions/actions, refresh
+limits and runtime dependencies are unchanged. No route provider, credential,
+geocoder, vehicle source, service, notification or hidden behavioral default was
+introduced.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -747,9 +798,10 @@ Tool pins, workflow, HACS metadata, translations and entity metadata are unchang
 - Passive actuals capture the latest complete revision that existed when a day opened and never rematch later edits. Only fresh, monotonic and explicitly distance-bounded odometer closures become complete training actuals.
 - Forecast correction uses only unique earlier-day actuals. Explicit ratio bounds reject outliers; sufficient inliers use median P50 and nearest-rank P90, while cold start is partial and uses an explicit conservative multiplier.
 - Diagnostics use a versioned aggregate allowlist rather than recursively dumping and redacting private runtime/configuration objects.
-- Config flow creates one entry per profile from a required display name and an
-  explicit non-empty ordered calendar selection, deliberately permits multiple
-  entries and introduces no source or threshold default.
+- Config flow creates one entry per profile from a required display name, explicit
+  non-empty ordered calendar selection, independent start/end zone anchors and four
+  required structural event choices. It permits multiple entries and introduces no
+  source, policy or threshold default.
 - Durable state uses config-entry identifiers rather than profile titles for isolation. Storage schema version 1 round-trips validated immutable revisions, pending days and actuals; unsupported versions are rejected until explicitly migrated.
 - Coordinator refreshes are profile-scoped transactions: load prior state, read one typed source update, persist next state, then publish an immutable ordered forecast snapshot. Failed reads or saves do not replace published data.
 - The first entity is one entry-scoped passive distance sensor. It presents the earliest forecast's P90 distance, keeps unavailable distance unknown, and exposes only a fixed non-identifying attribute allowlist.
@@ -757,11 +809,12 @@ Tool pins, workflow, HACS metadata, translations and entity metadata are unchang
 - Config-entry setup owns one isolated runtime and forwards only the sensor
   platform. It reads selected calendars immediately and every 15 minutes over an
   exact seven-day window; successful unload cancels the interval. Calendar-derived
-  distance remains unknown until planning policy is explicitly configured.
+  distance remains unknown until policy, endpoint and routing adapters are composed.
 - Durable runtime state uses one private, atomic Home Assistant Store keyed only by config-entry identifier. Missing storage starts from explicit empty state; restart restores decoded immutable state, cross-entry calls fail, and unload retains persisted data.
-- Config-entry schema 1.2 requires every new profile to explicitly select one or
-  more ordered unique calendar entities. Schema-1.1 entries migrate to a
-  deliberately invalid empty marker rather than guessing a source.
+- Config-entry schema 1.3 requires every new profile to explicitly select one or
+  more ordered unique calendar entities, independent zone anchors and structural
+  event policy. Schema-1.1 entries retain a deliberately invalid empty calendar
+  marker, while 1.2 entries retain calendars without guessed planning values.
 - Calendar normalization reads only configured `CalendarEntity` objects for an
   explicit aware window. It maps Home Assistant 2026.8.1 timed/all-day events to
   frozen source events, requires provider identity, injects online classification
@@ -771,9 +824,9 @@ Tool pins, workflow, HACS metadata, translations and entity metadata are unchang
   across one complete path and one route-failure path. It is test-only evidence,
   not the production runtime composition and not proof of real forecasting.
 - Real Home Assistant compatibility tests are isolated from the dependency-free
-  suite and pin the matching test harness for Home Assistant 2026.8.1. They now
-  prove config-flow creation plus one current-schema setup/entity/unload path;
-  they do not yet prove forecast refreshes or production runtime composition.
+  suite and pin the matching test harness for Home Assistant 2026.8.1. They prove
+  config-flow creation, planning-policy reconfiguration and one current-schema
+  setup/entity/unload path; they do not yet prove routed forecast composition.
 - Current Hassfest and HACS metadata schemas validate the custom integration. CI
   keeps those checks separate from the dependency-free and real-HA test jobs.
 - Manual test packages are generated, not committed: exact Git-tracked integration
@@ -798,8 +851,9 @@ Tool pins, workflow, HACS metadata, translations and entity metadata are unchang
   persist-before-publish transaction and exposes the latest failure to entity
   availability.
 - P4 demonstrates full planning composition only with deterministic fakes. P11
-  performs real local calendar ingestion, but location resolution, revision-id
-  generation, filtering and routing remain unimplemented in production.
+  performs real local calendar ingestion and P12 stores explicit structural policy,
+  but online classification, location resolution, revision-id generation, policy
+  application and routing remain unimplemented in production.
 - A separate privacy-safe logging policy remains unimplemented; diagnostics safety does not make arbitrary logs safe.
 - The manifest now points documentation and issue support at the authorized private
   origin and intentionally declares no code owner. Those links work only for users
@@ -807,16 +861,16 @@ Tool pins, workflow, HACS metadata, translations and entity metadata are unchang
   maintainer handle remain out of scope.
 - Ruff lint and formatting cover the complete repository. Strict Pyright now also covers the lifecycle module through minimal isolated Home Assistant contracts; other adapters, real-HA tests and dynamic fixtures remain outside that boundary. Expansion must add reviewed contract types rather than weakening strict mode or conflating installed runtime types with the dependency-free check.
 - The development and real-HA requirements pin direct tool versions but not hashes or every transitive dependency. The real-HA harness pin currently requires Home Assistant 2026.8.1 exactly, and its test asserts that installed version. Action commits are immutable; a later supply-chain audit may add a fully hashed lock when a supported dependency workflow is chosen.
-- C4 defines required freshness/accuracy/horizon fields but intentionally supplies no product defaults. Config-flow representation, default selection and migration policy remain future product work and must be reviewed before introduction.
+- C4 defines required freshness/accuracy/horizon fields but intentionally supplies no product defaults. Their config-flow representation and migration policy remain future product work and must be reviewed before introduction.
 - Location candidates currently cover passive vehicle GPS and already-resolved event/zone coordinates. Geocoding and Home Assistant zone/entity adapters remain outside the pure C4 boundary and are deferred to source composition.
-- Config-entry schema version 1 minor version 2 and storage schema version 1 now
-  exist. The 1.1-to-1.2 migration safely marks legacy entries unconfigured, but a
-  reconfiguration/repair flow is still required before those entries can use the
-  future composed source; options and later migrations remain unbuilt.
+- Config-entry schema version 1 minor version 3 and storage schema version 1 now
+  exist. The 1.1 empty-calendar marker and 1.2 calendar-preserving migration guess
+  no planning data. Policy reconfiguration exists, but profiles with an empty legacy
+  calendar still need a future source-repair flow; options remain unbuilt.
 - The isolated disposable Home Assistant 2026.8.1 environment now covers config
-  flow plus one setup/platform/entity/unload path. It does not cover migration,
-  multiple simultaneously loaded profiles, restart restoration, diagnostics, or
-  any future production forecast refresh composition.
+  flow, planning reconfiguration and one setup/platform/entity/unload path. It does
+  not cover migration, multiple simultaneously loaded profiles, restart restoration,
+  diagnostics or future routed forecast composition.
 - The deterministic ZIP is locally verified but has not yet been installed or
   smoke-tested by Guus in his Home Assistant environment. Its expected
   `unavailable` sensor proves fail-safe lifecycle behavior only, not forecast

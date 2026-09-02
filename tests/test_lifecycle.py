@@ -25,7 +25,7 @@ class FakeConfigEntry:
         *,
         data: dict[str, object] | None = None,
         version: int = 1,
-        minor_version: int = 2,
+        minor_version: int = 3,
     ) -> None:
         self.entry_id = entry_id
         self.data = (
@@ -225,12 +225,40 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
                     entry,
                     {
                         "data": {"calendar_entity_ids": []},
-                        "minor_version": 2,
+                        "minor_version": 3,
                     },
                 )
             ],
         )
         self.assertEqual(entry.data, {"calendar_entity_ids": []})
+
+    def test_migrates_calendar_entry_without_guessing_planning_policy(self) -> None:
+        manager = FakeConfigEntriesManager()
+        hass = FakeHomeAssistant(manager)
+        entry = FakeConfigEntry(
+            "entry-a",
+            data={"calendar_entity_ids": ["calendar.synthetic"]},
+            minor_version=2,
+        )
+
+        with fake_home_assistant():
+            integration = load_integration()
+            result = asyncio.run(integration.async_migrate_entry(hass, entry))
+
+        self.assertTrue(result)
+        self.assertEqual(
+            manager.updated,
+            [
+                (
+                    entry,
+                    {
+                        "data": {"calendar_entity_ids": ["calendar.synthetic"]},
+                        "minor_version": 3,
+                    },
+                )
+            ],
+        )
+        self.assertNotIn("start_anchor_entity_id", entry.data)
 
     def test_rejects_unknown_config_entry_major_version(self) -> None:
         manager = FakeConfigEntriesManager()
@@ -249,7 +277,7 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
             FakeConfigEntry(
                 "entry-current",
                 data={"calendar_entity_ids": ["calendar.synthetic"]},
-                minor_version=2,
+                minor_version=3,
             ),
             FakeConfigEntry(
                 "entry-legacy-data",
@@ -268,7 +296,7 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
                     integration = load_integration()
                     result = asyncio.run(integration.async_migrate_entry(hass, entry))
 
-                self.assertEqual(result, entry.minor_version == 2)
+                self.assertEqual(result, entry.minor_version == 3)
                 self.assertEqual(entry.data, original_data)
                 self.assertEqual(manager.updated, [])
 

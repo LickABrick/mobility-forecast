@@ -44,13 +44,14 @@ class EventFilterPolicyTests(unittest.TestCase):
                 EventFilterPolicy(
                     include_terms=terms,
                     exclude_terms=(),
+                    allow_physical=True,
                     allow_online=False,
                     allow_all_day=False,
                     require_location=True,
                 )
 
     def test_policy_is_immutable(self) -> None:
-        policy = EventFilterPolicy((), (), False, False, True)
+        policy = EventFilterPolicy((), (), True, False, False, True)
 
         with self.assertRaises(FrozenInstanceError):
             policy.allow_online = True  # type: ignore[misc]
@@ -61,6 +62,7 @@ class EventClassificationTests(unittest.TestCase):
         self.policy = EventFilterPolicy(
             include_terms=("client",),
             exclude_terms=("cancelled",),
+            allow_physical=True,
             allow_online=False,
             allow_all_day=False,
             require_location=True,
@@ -115,6 +117,7 @@ class EventClassificationTests(unittest.TestCase):
         policy = EventFilterPolicy(
             include_terms=(),
             exclude_terms=(),
+            allow_physical=True,
             allow_online=True,
             allow_all_day=False,
             require_location=True,
@@ -125,6 +128,21 @@ class EventClassificationTests(unittest.TestCase):
         )
 
         self.assertTrue(decision.included)
+
+    def test_disallowed_physical_event_has_a_stable_reason(self) -> None:
+        policy = EventFilterPolicy(
+            include_terms=(),
+            exclude_terms=(),
+            allow_physical=False,
+            allow_online=True,
+            allow_all_day=True,
+            require_location=False,
+        )
+
+        decision = classify_event(event("physical"), policy)
+
+        self.assertFalse(decision.included)
+        self.assertEqual(decision.exclusion_reason, ExclusionReason.PHYSICAL)
 
 
 class FilterPreviewTests(unittest.TestCase):
@@ -142,7 +160,7 @@ class FilterPreviewTests(unittest.TestCase):
             event("all-day-private-id", all_day=True),
             event("missing-private-id", location_text=None),
         )
-        policy = EventFilterPolicy((), (), False, False, True)
+        policy = EventFilterPolicy((), (), True, False, False, True)
 
         preview = preview_events(candidates, policy)
 

@@ -13,8 +13,22 @@ from .ha_calendar import (
     CONF_CALENDAR_ENTITY_IDS,
     validate_calendar_entity_ids,
 )
+from .profile_config import (
+    CONF_ALL_DAY_EVENT_POLICY,
+    CONF_END_ANCHOR_ENTITY_ID,
+    CONF_NO_LOCATION_EVENT_POLICY,
+    CONF_ONLINE_EVENT_POLICY,
+    CONF_PHYSICAL_EVENT_POLICY,
+    CONF_START_ANCHOR_ENTITY_ID,
+    EventHandling,
+    ProfilePlanningConfig,
+)
 
 DOMAIN = "mobility_forecast"
+_POLICY_CHOICES = {
+    EventHandling.INCLUDE.value: "Include",
+    EventHandling.EXCLUDE.value: "Exclude",
+}
 
 
 def _validate_calendar_entity_ids(value: object) -> list[str]:
@@ -26,27 +40,56 @@ def _validate_calendar_entity_ids(value: object) -> list[str]:
         raise vol.Invalid("select at least one calendar entity") from err
 
 
+def _planning_schema_fields() -> dict[object, object]:
+    """Build required serializable planning fields without defaults."""
+
+    return {
+        vol.Required(CONF_START_ANCHOR_ENTITY_ID): EntitySelector(
+            EntitySelectorConfig(domain="zone")
+        ),
+        vol.Required(CONF_END_ANCHOR_ENTITY_ID): EntitySelector(
+            EntitySelectorConfig(domain="zone")
+        ),
+        vol.Required(CONF_PHYSICAL_EVENT_POLICY): vol.In(_POLICY_CHOICES),
+        vol.Required(CONF_ONLINE_EVENT_POLICY): vol.In(_POLICY_CHOICES),
+        vol.Required(CONF_ALL_DAY_EVENT_POLICY): vol.In(_POLICY_CHOICES),
+        vol.Required(CONF_NO_LOCATION_EVENT_POLICY): vol.In(_POLICY_CHOICES),
+    }
+
+
+PLANNING_SCHEMA = vol.Schema(_planning_schema_fields())
 PROFILE_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_NAME): str,
         vol.Required(CONF_CALENDAR_ENTITY_IDS): EntitySelector(
             EntitySelectorConfig(domain="calendar", multiple=True)
         ),
+        **_planning_schema_fields(),
     }
 )
 
 
+def _validated_planning_data(user_input: dict[str, Any]) -> dict[str, str]:
+    """Return strict JSON-safe planning data or raise a fixed validation error."""
+
+    try:
+        return ProfilePlanningConfig.from_entry_data(user_input).as_entry_data()
+    except ValueError as err:
+        raise vol.Invalid("invalid planning policy") from err
+
+
 class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
-    """Create one independent config entry per forecast profile."""
+    """Create and reconfigure independent forecast profiles."""
 
     VERSION = 1
-    MINOR_VERSION = 2
+    MINOR_VERSION = 3
 
     @override
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Create a profile without introducing behavioral defaults."""
+        """Create a profile from explicit source, anchor and event choices."""
+
         if user_input is None:
             return self.async_show_form(step_id="user", data_schema=PROFILE_SCHEMA)
 
@@ -60,7 +103,37 @@ class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
                 data_schema=PROFILE_SCHEMA,
                 errors={CONF_CALENDAR_ENTITY_IDS: "calendar_required"},
             )
+        try:
+            planning_data = _validated_planning_data(user_input)
+        except vol.Invalid:
+            return self.async_show_form(
+                step_id="user",
+                data_schema=PROFILE_SCHEMA,
+                errors={"base": "invalid_planning_policy"},
+            )
         return self.async_create_entry(
             title=user_input[CONF_NAME],
-            data={CONF_CALENDAR_ENTITY_IDS: entity_ids},
+            data={CONF_CALENDAR_ENTITY_IDS: entity_ids, **planning_data},
+        )
+
+    @override
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Add or replace planning choices while preserving selected calendars."""
+
+        if user_input is None:
+            return self.async_show_form(
+                step_id="reconfigure", data_schema=PLANNING_SCHEMA
+            )
+        try:
+            planning_data = _validated_planning_data(user_input)
+        except vol.Invalid:
+            return self.async_show_form(
+                step_id="reconfigure",
+                data_schema=PLANNING_SCHEMA,
+                errors={"base": "invalid_planning_policy"},
+            )
+        return self.async_update_reload_and_abort(
+            self._get_reconfigure_entry(), data_updates=planning_data
         )

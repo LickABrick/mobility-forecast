@@ -12,6 +12,14 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.mobility_forecast.config_flow import DOMAIN
 from custom_components.mobility_forecast.ha_calendar import CONF_CALENDAR_ENTITY_IDS
+from custom_components.mobility_forecast.profile_config import (
+    CONF_ALL_DAY_EVENT_POLICY,
+    CONF_END_ANCHOR_ENTITY_ID,
+    CONF_NO_LOCATION_EVENT_POLICY,
+    CONF_ONLINE_EVENT_POLICY,
+    CONF_PHYSICAL_EVENT_POLICY,
+    CONF_START_ANCHOR_ENTITY_ID,
+)
 
 
 async def test_entry_lifecycle_registers_unavailable_read_only_sensor(
@@ -23,9 +31,17 @@ async def test_entry_lifecycle_registers_unavailable_read_only_sensor(
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Synthetic lifecycle profile",
-        data={CONF_CALENDAR_ENTITY_IDS: ["calendar.synthetic_lifecycle"]},
+        data={
+            CONF_CALENDAR_ENTITY_IDS: ["calendar.synthetic_lifecycle"],
+            CONF_START_ANCHOR_ENTITY_ID: "zone.synthetic_start",
+            CONF_END_ANCHOR_ENTITY_ID: "zone.synthetic_end",
+            CONF_PHYSICAL_EVENT_POLICY: "include",
+            CONF_ONLINE_EVENT_POLICY: "exclude",
+            CONF_ALL_DAY_EVENT_POLICY: "exclude",
+            CONF_NO_LOCATION_EVENT_POLICY: "exclude",
+        },
         version=1,
-        minor_version=2,
+        minor_version=3,
     )
     entry.add_to_hass(hass)
 

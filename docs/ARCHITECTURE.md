@@ -135,6 +135,25 @@ typed route failure remains unknown rather than becoming zero. This validates
 contract compatibility but deliberately does not provide the production profile
 source, location adapter, refresh schedule or runtime policy.
 
+P11 connects each entry's selected calendars to bounded production refreshes but
+continues to publish date-only unavailable-distance forecasts. P12 advances config
+entry schema 1.2 to 1.3 and requires new profiles to select independent start and
+end Home Assistant zone anchors plus explicit include/exclude choices for physical,
+online, all-day and physical no-location events. The choices have no boolean or
+anchor defaults. A frozen decoder omits operational zone identifiers from its
+representation and maps structural choices to the pure event-filter contract;
+online events remain exempt from a physical-location requirement.
+
+Version 1.2 entries retain their validated calendar selection during migration but
+receive no guessed anchors or event behavior. Home Assistant's reconfigure flow can
+add or replace the six planning fields while preserving calendars and reloading the
+entry. The production date-ingestion source deliberately does not consume these
+fields yet: provider-neutral online classification, zone/event endpoint adapters
+and a configured route provider are still absent. It reports
+`forecast_pipeline_unconfigured` and no kilometres rather than claiming policy has
+already produced a routed forecast. No external provider or physical-action path
+is introduced by P12.
+
 ## Test strategy
 
 - Pure domain behavior: unit tests with typed synthetic values.

@@ -1,10 +1,10 @@
 """Privacy-bounded calendar ingestion for one forecast profile.
 
-This is the first production profile-source slice. It reads the explicitly selected
-Home Assistant calendars inside one bounded future window and publishes only
-unavailable distance forecasts for dates that contain events. Event content is not
-persisted or projected. Location, filtering, and routing policy remain separate
-checkpoints; until they exist, distance must stay unknown rather than becoming zero.
+This production source reads the explicitly selected Home Assistant calendars
+inside one bounded future window and publishes only unavailable distance forecasts
+for dates that contain events. Event content is not persisted or projected.
+Configured anchors and structural filters remain unconsumed until endpoint and
+routing adapters are composed; distance stays unknown rather than becoming zero.
 """
 
 from __future__ import annotations
@@ -49,7 +49,7 @@ class CalendarIngestionProfileSource:
                 required_soc_p50_percent=None,
                 required_soc_p90_percent=None,
                 quality=DataQuality.UNAVAILABLE,
-                reason_codes=("planning_policy_unconfigured",),
+                reason_codes=("forecast_pipeline_unconfigured",),
             )
             for service_date in service_dates
         )

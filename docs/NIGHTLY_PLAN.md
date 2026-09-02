@@ -127,12 +127,22 @@ proved only with isolated Home Assistant contract fixtures.
     until explicit planning policies exist. All 105 tests, both real-HA tests,
     Ruff, format, strict Pyright, package check, Hassfest and HACS validation passed
     on 2026-09-02.
+- [x] **P12 — Explicit profile planning policies**
+  - Config-entry schema 1.3 requires independent start/end Home Assistant zone
+    anchors and explicit include/exclude choices for physical, online, all-day and
+    physical no-location events. Schema-1.2 migration preserves calendars without
+    guessing policy, and a real Home Assistant reconfigure flow adds the policy to
+    installed profiles. Structural filtering gains an explicit physical-event
+    decision. Eight new deterministic tests bring the dependency-free suite to
+    113 tests; three real-HA tests, strict Pyright, Ruff, formatting, checkpoint,
+    package, Hassfest and HACS validation passed on 2026-09-02.
 
-Next checkpoint: **P12 — Explicit profile planning policies**. Add configurable
-begin/end anchors and physical, online, all-day and no-location handling without
-adding a route provider or any physical action. A manual Home Assistant smoke test
-remains useful, but production calendar ingestion is now covered by isolated and
-real-HA lifecycle checks and must not be described as a distance forecast yet.
+Next checkpoint: **P13 — Route-provider configuration boundary**. Add an explicit
+provider-neutral selection/config contract and a synthetic adapter test surface.
+Do not make live provider or geocoder calls; if the first provider or credential
+shape needs a product decision, preserve a fail-closed unconfigured state and
+document that decision instead of inventing a default. Production ingestion still
+must not be described as a distance forecast.
 
 ## Checkpoint definition of done
 

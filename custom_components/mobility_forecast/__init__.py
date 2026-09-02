@@ -8,33 +8,49 @@ if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
     from homeassistant.core import HomeAssistant
 
-from .ha_calendar import CONF_CALENDAR_ENTITY_IDS
+from .ha_calendar import CONF_CALENDAR_ENTITY_IDS, validate_calendar_entity_ids
 from .runtime import ProfileRuntimeData, build_runtime
 
 PLATFORMS: Final = ("sensor",)
 CONFIG_ENTRY_VERSION: Final = 1
-CONFIG_ENTRY_MINOR_VERSION: Final = 2
+CONFIG_ENTRY_MINOR_VERSION: Final = 3
 
 
 async def async_migrate_entry(
     hass: HomeAssistant, entry: ConfigEntry[ProfileRuntimeData]
 ) -> bool:
-    """Migrate the pre-calendar config contract without guessing a source.
+    """Migrate earlier config contracts without guessing sources or policy.
 
     Version 1.1 entries contained no behavioral data. The empty list is an
     explicit legacy-unconfigured marker, not a calendar default; strict source
     decoding rejects it until a calendar is selected by a later user flow.
+    Version 1.2 entries keep their calendar selection but gain no guessed
+    anchors or event handling; users configure those through reconfigure.
     """
 
     if entry.version != CONFIG_ENTRY_VERSION:
         return False
     if entry.minor_version == CONFIG_ENTRY_MINOR_VERSION:
         return True
-    if entry.minor_version != 1 or entry.data:
+    if entry.minor_version == 1:
+        if entry.data:
+            return False
+        data: dict[str, object] = {CONF_CALENDAR_ENTITY_IDS: []}
+    elif entry.minor_version == 2:
+        if set(entry.data) != {CONF_CALENDAR_ENTITY_IDS}:
+            return False
+        raw_entity_ids = entry.data[CONF_CALENDAR_ENTITY_IDS]
+        if raw_entity_ids != []:
+            try:
+                validate_calendar_entity_ids(raw_entity_ids)
+            except ValueError:
+                return False
+        data = dict(entry.data)
+    else:
         return False
     hass.config_entries.async_update_entry(
         entry,
-        data={CONF_CALENDAR_ENTITY_IDS: []},
+        data=data,
         minor_version=CONFIG_ENTRY_MINOR_VERSION,
     )
     return True

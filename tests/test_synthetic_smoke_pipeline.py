@@ -152,6 +152,7 @@ def pipeline_source(
         filter_policy=EventFilterPolicy(
             include_terms=(),
             exclude_terms=(),
+            allow_physical=True,
             allow_online=False,
             allow_all_day=False,
             require_location=True,

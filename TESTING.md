@@ -8,14 +8,14 @@ The public repository can be installed as a HACS custom integration from
 
 - This integration is **pre-alpha and read-only**. It has no vehicle wake, climate,
   charging, lock, plug, notification, or other physical-service path.
-- The current package validates installation, config flow, lifecycle, persistence
-  boundaries, and an unavailable sensor. Production calendar-to-route-to-forecast
-  runtime composition is not implemented yet.
+- The current package reads selected calendars immediately and every 15 minutes,
+  and publishes date-only unknown forecasts. Endpoint resolution and road routing
+  are not implemented yet, so it cannot publish kilometres.
 - The existing end-to-end forecast evidence uses only synthetic calendar data,
   synthetic locations, and a deterministic fake route provider in tests. Real
   route-provider and real forecast output are not part of this artifact.
-- Selecting a calendar stores its entity ID in this profile. The current runtime
-  does not schedule calendar reads or publish a forecast from it.
+- Calendar and zone entity IDs are stored only in the profile config entry. Event
+  text, locations and coordinates are not persisted or exposed by the sensor.
 - Test only on Home Assistant **2026.8.x**. Stop if the backup fails, the checksum
   fails, files already exist unexpectedly, or startup logs contain an exception.
 
@@ -122,7 +122,8 @@ https://developers.home-assistant.io/docs/creating_integration_file_structure/
 3. Open **Settings > System > Logs** and search for `mobility_forecast` and
    `Mobility Forecast`.
 4. Expected result: no import error, manifest error, config-flow error, setup
-   traceback, or repeated retry loop. This package creates no polling task.
+   traceback, or repeated retry loop. The package performs only bounded local
+   calendar reads; it makes no route-provider or vehicle request.
 5. If there is an exception, copy only the relevant redacted traceback for the
    test report. Do not include calendar event text, addresses, coordinates,
    tokens, or full entity/state dumps.
@@ -137,9 +138,15 @@ Do not continue to config flow if Home Assistant does not return cleanly.
 4. Select one or more calendars. Prefer a disposable Local Calendar containing
    only synthetic test events; an empty synthetic calendar is sufficient for this
    lifecycle checkpoint. Calendar order is retained per profile.
-5. Submit the form.
-6. Expected result: one new Mobility Forecast config entry is created and loads.
-7. Optionally repeat with another synthetic profile to confirm profiles are
+5. Select separate start and end Home Assistant zones. Synthetic test zones may be
+   the same, but each choice is stored independently.
+6. Explicitly choose Include or Exclude for physical, online, all-day and
+   no-location events. These choices have no hidden defaults.
+7. Submit the form.
+8. Expected result: one new Mobility Forecast config entry is created and loads.
+9. After updating an older profile, use **Reconfigure** on its integration entry
+   to add the new anchors and event policy without replacing its calendars.
+10. Optionally repeat with another synthetic profile to confirm profiles are
    independent. This is not required for the minimum smoke test.
 
 Failure indicators are a missing integration, a form that cannot list calendar
@@ -151,7 +158,7 @@ Open the created Mobility Forecast entry and its entities. It should expose one
 read-only sensor named **Forecast distance** (Home Assistant may derive the exact
 entity ID from the profile/device naming context).
 
-For this package, the expected state is:
+With an empty or unavailable calendar, the expected state is:
 
 ```text
 State: unavailable
@@ -159,8 +166,10 @@ Unit: km
 Forecast attributes: absent
 ```
 
-`unavailable` is intentional and safer than a fabricated zero: runtime forecast
-composition and refresh scheduling are not present. The entity must not expose
+With a valid synthetic future event, the state can be `unknown` with service date,
+quality and generation-time attributes; distance remains absent. Both states are
+intentional and safer than a fabricated zero because endpoint and routing runtime
+composition is not present. The entity must not expose
 calendar text, addresses, coordinates, calendar entity IDs, route-provider data,
 or credentials. No Mobility Forecast service, button, switch, or action entity
 should exist.
@@ -184,8 +193,8 @@ Normal uninstall:
 6. Start Home Assistant, check the logs, and confirm Mobility Forecast is no
    longer listed.
 
-The current artifact does not trigger a refresh, so it should not create profile
-forecast state. Do not hand-edit Home Assistant's `.storage` files. If startup,
-config entries, or unrelated state do not return to the pre-test condition, use
-Home Assistant's supported backup restore flow with the backup created in step 1
-instead of manually modifying internal storage.
+The current artifact performs read-only local calendar refreshes but cannot create
+routed plan revisions. Do not hand-edit Home Assistant's `.storage` files. If
+startup, config entries, or unrelated state do not return to the pre-test
+condition, use Home Assistant's supported backup restore flow with the backup
+created in step 1 instead of manually modifying internal storage.

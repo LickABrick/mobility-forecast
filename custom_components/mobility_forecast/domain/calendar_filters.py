@@ -15,6 +15,7 @@ class ExclusionReason(StrEnum):
 
     EXCLUDE_TERM = "exclude_term"
     ONLINE = "online"
+    PHYSICAL = "physical"
     ALL_DAY = "all_day"
     MISSING_LOCATION = "missing_location"
     INCLUDE_MISMATCH = "include_mismatch"
@@ -31,6 +32,7 @@ class EventFilterPolicy:
 
     include_terms: tuple[str, ...]
     exclude_terms: tuple[str, ...]
+    allow_physical: bool
     allow_online: bool
     allow_all_day: bool
     require_location: bool
@@ -85,6 +87,8 @@ def classify_event(
         reason = ExclusionReason.EXCLUDE_TERM
     elif event.is_online and not policy.allow_online:
         reason = ExclusionReason.ONLINE
+    elif not event.is_online and not policy.allow_physical:
+        reason = ExclusionReason.PHYSICAL
     elif event.all_day and not policy.allow_all_day:
         reason = ExclusionReason.ALL_DAY
     elif (

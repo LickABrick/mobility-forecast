@@ -67,6 +67,7 @@ class CalendarIngestionProfileSourceTests(unittest.IsolatedAsyncioTestCase):
             self.assertIsNone(forecast.distance_p50_m)
             self.assertIsNone(forecast.distance_p90_m)
             self.assertEqual(forecast.quality.value, "unavailable")
+            self.assertEqual(forecast.reason_codes, ("forecast_pipeline_unconfigured",))
         projection = repr(update)
         self.assertNotIn(private_summary, projection)
         self.assertNotIn(private_location, projection)

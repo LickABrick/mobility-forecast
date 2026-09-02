@@ -1,7 +1,11 @@
 {
   "config": {
+    "abort": {
+      "reconfigure_successful": "Profile planning policy updated."
+    },
     "error": {
-      "calendar_required": "Select at least one calendar."
+      "calendar_required": "Select at least one calendar.",
+      "invalid_planning_policy": "Select valid anchors and event handling choices."
     },
     "step": {
       "user": {
@@ -9,11 +13,43 @@
         "description": "Each profile is configured and updated independently.",
         "data": {
           "name": "Profile name",
-          "calendar_entity_ids": "Calendars"
+          "calendar_entity_ids": "Calendars",
+          "start_anchor_entity_id": "Start anchor",
+          "end_anchor_entity_id": "End anchor",
+          "physical_event_policy": "Physical events",
+          "online_event_policy": "Online events",
+          "all_day_event_policy": "All-day events",
+          "no_location_event_policy": "Events without a location"
         },
         "data_description": {
           "name": "A display name for this independent forecast profile.",
-          "calendar_entity_ids": "Select one or more calendars to read. Their order is preserved."
+          "calendar_entity_ids": "Select one or more calendars to read. Their order is preserved.",
+          "start_anchor_entity_id": "Select the Home Assistant zone where a forecast day begins.",
+          "end_anchor_entity_id": "Select the Home Assistant zone where a forecast day ends. This is independent from the start anchor.",
+          "physical_event_policy": "Explicitly include or exclude events classified as physical.",
+          "online_event_policy": "Explicitly include or exclude events classified as online.",
+          "all_day_event_policy": "Explicitly include or exclude all-day events.",
+          "no_location_event_policy": "Explicitly include or exclude physical events without a location. Online events never require a physical location."
+        }
+      },
+      "reconfigure": {
+        "title": "Configure planning policy",
+        "description": "Choose independent day anchors and explicit structural event handling. Calendar selection is preserved.",
+        "data": {
+          "start_anchor_entity_id": "Start anchor",
+          "end_anchor_entity_id": "End anchor",
+          "physical_event_policy": "Physical events",
+          "online_event_policy": "Online events",
+          "all_day_event_policy": "All-day events",
+          "no_location_event_policy": "Events without a location"
+        },
+        "data_description": {
+          "start_anchor_entity_id": "Select the Home Assistant zone where a forecast day begins.",
+          "end_anchor_entity_id": "Select the Home Assistant zone where a forecast day ends. This is independent from the start anchor.",
+          "physical_event_policy": "Explicitly include or exclude events classified as physical.",
+          "online_event_policy": "Explicitly include or exclude events classified as online.",
+          "all_day_event_policy": "Explicitly include or exclude all-day events.",
+          "no_location_event_policy": "Explicitly include or exclude physical events without a location. Online events never require a physical location."
         }
       }
     }
