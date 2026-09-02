@@ -20,6 +20,12 @@ from custom_components.mobility_forecast.profile_config import (
     CONF_PHYSICAL_EVENT_POLICY,
     CONF_START_ANCHOR_ENTITY_ID,
 )
+from custom_components.mobility_forecast.route_provider_config import (
+    CONF_HIGHWAY_POLICY,
+    CONF_ROUTE_PROVIDER,
+    CONF_ROUTE_PROVIDER_API_KEY,
+    CONF_TOLL_POLICY,
+)
 
 
 async def test_entry_lifecycle_registers_unavailable_read_only_sensor(
@@ -39,9 +45,13 @@ async def test_entry_lifecycle_registers_unavailable_read_only_sensor(
             CONF_ONLINE_EVENT_POLICY: "exclude",
             CONF_ALL_DAY_EVENT_POLICY: "exclude",
             CONF_NO_LOCATION_EVENT_POLICY: "exclude",
+            CONF_ROUTE_PROVIDER: "google_routes",
+            CONF_ROUTE_PROVIDER_API_KEY: "synthetic-test-key",
+            CONF_TOLL_POLICY: "avoid",
+            CONF_HIGHWAY_POLICY: "allow",
         },
         version=1,
-        minor_version=3,
+        minor_version=4,
     )
     entry.add_to_hass(hass)
 

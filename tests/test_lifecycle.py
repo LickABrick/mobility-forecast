@@ -25,7 +25,7 @@ class FakeConfigEntry:
         *,
         data: dict[str, object] | None = None,
         version: int = 1,
-        minor_version: int = 3,
+        minor_version: int = 4,
     ) -> None:
         self.entry_id = entry_id
         self.data = (
@@ -225,7 +225,7 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
                     entry,
                     {
                         "data": {"calendar_entity_ids": []},
-                        "minor_version": 3,
+                        "minor_version": 4,
                     },
                 )
             ],
@@ -253,12 +253,36 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
                     entry,
                     {
                         "data": {"calendar_entity_ids": ["calendar.synthetic"]},
-                        "minor_version": 3,
+                        "minor_version": 4,
                     },
                 )
             ],
         )
         self.assertNotIn("start_anchor_entity_id", entry.data)
+
+    def test_migrates_planning_entry_without_guessing_route_provider(self) -> None:
+        manager = FakeConfigEntriesManager()
+        hass = FakeHomeAssistant(manager)
+        data: dict[str, object] = {
+            "calendar_entity_ids": ["calendar.synthetic"],
+            "start_anchor_entity_id": "zone.synthetic_start",
+            "end_anchor_entity_id": "zone.synthetic_end",
+            "physical_event_policy": "include",
+            "online_event_policy": "exclude",
+            "all_day_event_policy": "exclude",
+            "no_location_event_policy": "exclude",
+        }
+        entry = FakeConfigEntry("entry-a", data=data, minor_version=3)
+
+        with fake_home_assistant():
+            integration = load_integration()
+            result = asyncio.run(integration.async_migrate_entry(hass, entry))
+
+        self.assertTrue(result)
+        self.assertEqual(entry.minor_version, 4)
+        self.assertEqual(entry.data, data)
+        self.assertNotIn("route_provider", entry.data)
+        self.assertNotIn("route_provider_api_key", entry.data)
 
     def test_rejects_unknown_config_entry_major_version(self) -> None:
         manager = FakeConfigEntriesManager()
@@ -277,7 +301,7 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
             FakeConfigEntry(
                 "entry-current",
                 data={"calendar_entity_ids": ["calendar.synthetic"]},
-                minor_version=3,
+                minor_version=4,
             ),
             FakeConfigEntry(
                 "entry-legacy-data",
@@ -296,7 +320,7 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
                     integration = load_integration()
                     result = asyncio.run(integration.async_migrate_entry(hass, entry))
 
-                self.assertEqual(result, entry.minor_version == 3)
+                self.assertEqual(result, entry.minor_version == 4)
                 self.assertEqual(entry.data, original_data)
                 self.assertEqual(manager.updated, [])
 

@@ -1,11 +1,12 @@
 {
   "config": {
     "abort": {
-      "reconfigure_successful": "Profile planning policy updated."
+      "reconfigure_successful": "Profile planning and routing configuration updated."
     },
     "error": {
       "calendar_required": "Select at least one calendar.",
-      "invalid_planning_policy": "Select valid anchors and event handling choices."
+      "invalid_planning_policy": "Select valid anchors and event handling choices.",
+      "invalid_route_provider": "Select a valid route provider, credential and route preferences."
     },
     "step": {
       "user": {
@@ -19,7 +20,11 @@
           "physical_event_policy": "Physical events",
           "online_event_policy": "Online events",
           "all_day_event_policy": "All-day events",
-          "no_location_event_policy": "Events without a location"
+          "no_location_event_policy": "Events without a location",
+          "route_provider": "Route provider",
+          "route_provider_api_key": "Route provider API key",
+          "toll_policy": "Tolls",
+          "highway_policy": "Highways"
         },
         "data_description": {
           "name": "A display name for this independent forecast profile.",
@@ -29,19 +34,27 @@
           "physical_event_policy": "Explicitly include or exclude events classified as physical.",
           "online_event_policy": "Explicitly include or exclude events classified as online.",
           "all_day_event_policy": "Explicitly include or exclude all-day events.",
-          "no_location_event_policy": "Explicitly include or exclude physical events without a location. Online events never require a physical location."
+          "no_location_event_policy": "Explicitly include or exclude physical events without a location. Online events never require a physical location.",
+          "route_provider": "Select the provider for future road-distance requests. No request is made while creating the profile.",
+          "route_provider_api_key": "Stored as private Home Assistant configuration and never included in entity attributes or diagnostics.",
+          "toll_policy": "Explicitly allow or avoid toll roads.",
+          "highway_policy": "Explicitly allow or avoid highways."
         }
       },
       "reconfigure": {
-        "title": "Configure planning policy",
-        "description": "Choose independent day anchors and explicit structural event handling. Calendar selection is preserved.",
+        "title": "Configure planning and routing",
+        "description": "Choose independent day anchors, structural event handling and route-provider settings. Calendar selection is preserved.",
         "data": {
           "start_anchor_entity_id": "Start anchor",
           "end_anchor_entity_id": "End anchor",
           "physical_event_policy": "Physical events",
           "online_event_policy": "Online events",
           "all_day_event_policy": "All-day events",
-          "no_location_event_policy": "Events without a location"
+          "no_location_event_policy": "Events without a location",
+          "route_provider": "Route provider",
+          "route_provider_api_key": "Route provider API key",
+          "toll_policy": "Tolls",
+          "highway_policy": "Highways"
         },
         "data_description": {
           "start_anchor_entity_id": "Select the Home Assistant zone where a forecast day begins.",
@@ -49,7 +62,11 @@
           "physical_event_policy": "Explicitly include or exclude events classified as physical.",
           "online_event_policy": "Explicitly include or exclude events classified as online.",
           "all_day_event_policy": "Explicitly include or exclude all-day events.",
-          "no_location_event_policy": "Explicitly include or exclude physical events without a location. Online events never require a physical location."
+          "no_location_event_policy": "Explicitly include or exclude physical events without a location. Online events never require a physical location.",
+          "route_provider": "Select the provider for future road-distance requests. Reconfiguring does not call it.",
+          "route_provider_api_key": "Stored as private Home Assistant configuration and never included in entity attributes or diagnostics.",
+          "toll_policy": "Explicitly allow or avoid toll roads.",
+          "highway_policy": "Explicitly allow or avoid highways."
         }
       }
     }

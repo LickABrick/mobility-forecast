@@ -1,14 +1,15 @@
 # Project status
 
-Last updated: 2026-09-02 08:50 CEST
+Last updated: 2026-09-02 13:25 CEST
 
 ## Current phase
 
-Phase 1 and post-phase checkpoints P1–P12 are complete. Production runtime reads
+Phase 1 and post-phase checkpoints P1–P13 are complete. Production runtime reads
 each profile's selected Home Assistant calendars on a bounded schedule, and users
-can now configure independent zone anchors and structural event handling. Distance
-remains explicitly unknown until those policies are composed with endpoint and
-route-provider adapters.
+can now configure independent zone anchors, structural event handling and explicit
+Google Routes credentials/preferences. Distance remains explicitly unknown until
+those policies are composed with private endpoint resolution and a reviewed live
+transport; this checkpoint adds no HTTP or geocoding implementation.
 
 ## Completed
 
@@ -125,14 +126,27 @@ route-provider adapters.
 - P12 keeps production kilometres unavailable with the truthful stable reason
   `forecast_pipeline_unconfigured`; configured policies are deliberately not
   consumed until online classification, endpoint and route adapters are composed.
+- P13 advances config-entry schema 1.3 to 1.4. New and reconfigured profiles require
+  an explicit Google Routes provider, non-blank private API credential and separate
+  allow/avoid choices for tolls and highways; the password selector supplies no
+  hidden value or route preference default.
+- P13 migrates valid schema-1.3 planning data unchanged and guesses no route
+  provider or credential. Its provider-neutral immutable decoder omits credentials
+  from representations and projects the explicit choices into domain route options.
+- P13 adds a Google Routes adapter over an injected typed transport only. Synthetic
+  responses become complete directional routes, typed failures retain only stable
+  categories, and coordinate-bearing queries omit coordinates from representations.
+  No HTTP client, endpoint, credential use, geocoder call or runtime composition was
+  added, so installed entities remain truthfully unavailable for distance.
 
 ## Active checkpoint
 
-P12 — Explicit profile planning policies is complete.
+P13 — Route-provider configuration boundary is complete.
 
-Next bounded checkpoint: P13 — provider-neutral route-provider configuration and
-synthetic adapter contracts (mission D). No live route or geocoder call belongs in
-that checkpoint; unresolved provider/credential decisions must remain fail closed.
+Next bounded checkpoint: P14 — resolve explicitly selected local Home Assistant
+zone anchors behind a privacy-safe typed adapter. Do not add event-location
+geocoding or a live route transport in that checkpoint; missing or malformed zone
+state must keep distance unavailable.
 
 ## Verification evidence
 
@@ -780,6 +794,49 @@ limits and runtime dependencies are unchanged. No route provider, credential,
 geocoder, vehicle source, service, notification or hidden behavioral default was
 introduced.
 
+P13 recovery, TDD and verification on 2026-09-02:
+
+```text
+interrupted child diff order                                tests before production modules
+original interrupted-child RED command output              not retained
+/usr/bin/python3 -m unittest tests.test_route_provider_config tests.test_google_routes_adapter tests.test_config_flow tests.test_lifecycle -v
+                                                            PASS (25 focused tests)
+/usr/bin/python3 scripts/check_checkpoint.py                PASS (123 tests included)
+PYTHONPATH=.venv/site /usr/bin/python3 -m pytest             PASS (123 tests)
+PYTHONPATH=.venv/site /usr/bin/python3 -m ruff check .       PASS
+PYTHONPATH=.venv/site /usr/bin/python3 -m ruff format --check .
+                                                            PASS (78 files)
+PYTHONPATH=.venv/site /usr/bin/python3 -m pyright            PASS (0 errors; 11 expected missing-source warnings)
+Docker Python 3.14.7 / Home Assistant 2026.8.1 suite         PASS (3 tests; network disabled)
+Hassfest pinned image                                       PASS (1 integration; 0 invalid)
+HACS pinned image local schemas                             PASS
+/usr/bin/python3 scripts/build_test_zip.py --check ...       PASS (SHA-256 f6e350d4a30a416dc4e44ea506e58fa5ca9e76bbd6fb2514e67fdf21408db5c5)
+sha256sum --check                                           PASS
+git diff --check                                            PASS
+```
+
+P13 recovered a quota-interrupted, green partial checkpoint. The retained child log
+shows the two new synthetic test modules before the two production modules, but it
+does not retain the original RED command output; this limitation is recorded rather
+than inventing evidence. Recovery independently ran the focused and full suites and
+all configured gates. Every identifier, coordinate, response, API-key value and
+timestamp in tests is synthetic. The real-HA run and both validator containers used
+network-disabled execution; no production Home Assistant, credential, calendar
+text, address, GPS, route/geocoder endpoint, vehicle, service or notification was
+accessed.
+
+Configuration review for P13: config-entry schema 1 advances from minor version 3
+to 4 because four required route-provider fields are added. Valid 1.3 entries retain
+their calendar and planning data but gain no guessed route settings; reconfigure is
+their explicit completion path. Source and English strings remain identical and the
+credential uses Home Assistant's password text selector. Strict Pyright now includes
+both new typed modules, and the reproducible package includes them. Storage schema
+1, manifest/HACS metadata, Python/tool pins, workflow permissions/actions, calendar
+refresh limits and runtime dependencies are unchanged. Google Routes was already
+the documented intended first provider; this checkpoint fixes only its selection and
+credential/preference shape and deliberately defers HTTP details, credential use and
+runtime calls.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -788,6 +845,10 @@ introduced.
 - V1 is read-only/advisory and excludes notifications, price/solar optimization and every physical action.
 - Start and end locations use independent policies. Dynamic vehicle location is passive, freshness/quality gated and fallback based; no wake or refresh request is allowed.
 - The domain uses provider-neutral typed boundaries. Google Routes is the intended first production route adapter; unattended tests use deterministic fakes only.
+- Profile route configuration explicitly selects Google Routes, stores its API key
+  only as private config-entry data and requires toll/highway choices. The adapter
+  currently ends at an injected transport protocol: no live HTTP implementation or
+  credential use exists, and production distance therefore remains unavailable.
 - Route and input failures remain partial, stale or unavailable and never become zero distance or false readiness.
 - Historical plan revisions are immutable so later calendar edits do not rewrite training truth.
 - Domain value objects are frozen and dependency-free. Operational private fields remain available to pure logic but are omitted from representations to reduce accidental disclosure.
@@ -863,10 +924,11 @@ introduced.
 - The development and real-HA requirements pin direct tool versions but not hashes or every transitive dependency. The real-HA harness pin currently requires Home Assistant 2026.8.1 exactly, and its test asserts that installed version. Action commits are immutable; a later supply-chain audit may add a fully hashed lock when a supported dependency workflow is chosen.
 - C4 defines required freshness/accuracy/horizon fields but intentionally supplies no product defaults. Their config-flow representation and migration policy remain future product work and must be reviewed before introduction.
 - Location candidates currently cover passive vehicle GPS and already-resolved event/zone coordinates. Geocoding and Home Assistant zone/entity adapters remain outside the pure C4 boundary and are deferred to source composition.
-- Config-entry schema version 1 minor version 3 and storage schema version 1 now
+- Config-entry schema version 1 minor version 4 and storage schema version 1 now
   exist. The 1.1 empty-calendar marker and 1.2 calendar-preserving migration guess
-  no planning data. Policy reconfiguration exists, but profiles with an empty legacy
-  calendar still need a future source-repair flow; options remain unbuilt.
+  no planning data; 1.3 planning entries retain their data but guess no provider or
+  credential. Policy/routing reconfiguration exists, but profiles with an empty
+  legacy calendar still need a future source-repair flow; options remain unbuilt.
 - The isolated disposable Home Assistant 2026.8.1 environment now covers config
   flow, planning reconfiguration and one setup/platform/entity/unload path. It does
   not cover migration, multiple simultaneously loaded profiles, restart restoration,
@@ -879,6 +941,10 @@ introduced.
 - Private `origin` is configured and authorized for checkpoint pushes; repository
   visibility/settings and external publication remain out of scope.
 - No real route-provider credentials or calls are permitted during unattended work.
+- The Google Routes transport remains intentionally unimplemented. Before real
+  kilometres, a reviewed checkpoint must define timeout/error mapping, API request
+  and response fields, credential injection and network tests that cannot run
+  unattended; local zone resolution and event-location policy must also be composed.
 - Exact Home Assistant entity selections and personal data are deliberately absent from the repository.
 
 ## Nightly runtime

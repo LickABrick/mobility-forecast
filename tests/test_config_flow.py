@@ -22,7 +22,14 @@ POLICY_FIELDS = {
     "all_day_event_policy",
     "no_location_event_policy",
 }
-PROFILE_INPUT_FIELDS = {"name", "calendar_entity_ids", *POLICY_FIELDS}
+ROUTE_FIELDS = {
+    "route_provider",
+    "route_provider_api_key",
+    "toll_policy",
+    "highway_policy",
+}
+CONFIG_FIELDS = POLICY_FIELDS | ROUTE_FIELDS
+PROFILE_INPUT_FIELDS = {"name", "calendar_entity_ids", *CONFIG_FIELDS}
 POLICY_INPUT = {
     "start_anchor_entity_id": "zone.synthetic_start",
     "end_anchor_entity_id": "zone.synthetic_end",
@@ -30,6 +37,12 @@ POLICY_INPUT = {
     "online_event_policy": "exclude",
     "all_day_event_policy": "exclude",
     "no_location_event_policy": "exclude",
+}
+ROUTE_INPUT = {
+    "route_provider": "google_routes",
+    "route_provider_api_key": "synthetic-test-key",
+    "toll_policy": "avoid",
+    "highway_policy": "allow",
 }
 
 
@@ -61,6 +74,20 @@ class FakeEntitySelectorConfig:
 class FakeEntitySelector:
     def __init__(self, config: FakeEntitySelectorConfig) -> None:
         self.config = config
+
+
+class FakeTextSelectorConfig:
+    def __init__(self, *, type: str) -> None:
+        self.type = type
+
+
+class FakeTextSelector:
+    def __init__(self, config: FakeTextSelectorConfig) -> None:
+        self.config = config
+
+
+class FakeTextSelectorType:
+    PASSWORD = "password"
 
 
 class FakeConfigFlow:
@@ -105,6 +132,9 @@ def fake_home_assistant() -> Generator[None]:
     selector = types.ModuleType("homeassistant.helpers.selector")
     selector.EntitySelector = FakeEntitySelector  # type: ignore[attr-defined]
     selector.EntitySelectorConfig = FakeEntitySelectorConfig  # type: ignore[attr-defined]
+    selector.TextSelector = FakeTextSelector  # type: ignore[attr-defined]
+    selector.TextSelectorConfig = FakeTextSelectorConfig  # type: ignore[attr-defined]
+    selector.TextSelectorType = FakeTextSelectorType  # type: ignore[attr-defined]
     voluptuous = types.ModuleType("voluptuous")
     voluptuous.All = FakeAll  # type: ignore[attr-defined]
     voluptuous.In = FakeIn  # type: ignore[attr-defined]
@@ -164,7 +194,7 @@ class IntegrationMetadataTests(unittest.TestCase):
         self.assertEqual(english, strings)
         for step_id, expected_fields in (
             ("user", PROFILE_INPUT_FIELDS),
-            ("reconfigure", POLICY_FIELDS),
+            ("reconfigure", CONFIG_FIELDS),
         ):
             step = strings["config"]["step"][step_id]
             self.assertEqual(set(step["data"]), expected_fields)
@@ -174,6 +204,7 @@ class IntegrationMetadataTests(unittest.TestCase):
             "Select at least one calendar.",
         )
         self.assertIn("invalid_planning_policy", strings["config"]["error"])
+        self.assertIn("invalid_route_provider", strings["config"]["error"])
         self.assertIn("reconfigure_successful", strings["config"]["abort"])
 
 
@@ -185,7 +216,7 @@ class ConfigFlowTests(unittest.TestCase):
             )
             flow_type = module.MobilityForecastConfigFlow
             self.assertEqual(flow_type.registered_domain, "mobility_forecast")
-            self.assertEqual((flow_type.VERSION, flow_type.MINOR_VERSION), (1, 3))
+            self.assertEqual((flow_type.VERSION, flow_type.MINOR_VERSION), (1, 4))
 
             first = asyncio.run(
                 flow_type().async_step_user(
@@ -193,6 +224,7 @@ class ConfigFlowTests(unittest.TestCase):
                         "name": "Commuting",
                         "calendar_entity_ids": ["calendar.synthetic_work"],
                         **POLICY_INPUT,
+                        **ROUTE_INPUT,
                     }
                 )
             )
@@ -203,6 +235,7 @@ class ConfigFlowTests(unittest.TestCase):
                         "calendar_entity_ids": ["calendar.synthetic_family"],
                         **{
                             **POLICY_INPUT,
+                            **ROUTE_INPUT,
                             "start_anchor_entity_id": "zone.synthetic_family_start",
                         },
                     }
@@ -213,7 +246,11 @@ class ConfigFlowTests(unittest.TestCase):
         self.assertEqual(first["title"], "Commuting")
         self.assertEqual(
             first["data"],
-            {"calendar_entity_ids": ["calendar.synthetic_work"], **POLICY_INPUT},
+            {
+                "calendar_entity_ids": ["calendar.synthetic_work"],
+                **POLICY_INPUT,
+                **ROUTE_INPUT,
+            },
         )
         self.assertEqual(second["type"], "create_entry")
         self.assertIsNot(first["data"], second["data"])
@@ -252,6 +289,18 @@ class ConfigFlowTests(unittest.TestCase):
                 validator.container,
                 {"include": "Include", "exclude": "Exclude"},
             )
+        self.assertEqual(
+            schema.schema["route_provider"].container,
+            {"google_routes": "Google Routes"},
+        )
+        for field in ("toll_policy", "highway_policy"):
+            self.assertEqual(
+                schema.schema[field].container,
+                {"allow": "Allow", "avoid": "Avoid"},
+            )
+        credential = schema.schema["route_provider_api_key"]
+        self.assertIsInstance(credential, FakeTextSelector)
+        self.assertEqual(credential.config.type, "password")
 
     def test_empty_calendar_selection_returns_serializable_form_error(self) -> None:
         with fake_home_assistant():
@@ -264,6 +313,7 @@ class ConfigFlowTests(unittest.TestCase):
                         "name": "Empty",
                         "calendar_entity_ids": [],
                         **POLICY_INPUT,
+                        **ROUTE_INPUT,
                     }
                 )
             )
@@ -283,6 +333,7 @@ class ConfigFlowTests(unittest.TestCase):
                         "name": "Invalid",
                         "calendar_entity_ids": ["calendar.synthetic"],
                         **{**POLICY_INPUT, "online_event_policy": "automatic"},
+                        **ROUTE_INPUT,
                     }
                 )
             )
@@ -290,6 +341,25 @@ class ConfigFlowTests(unittest.TestCase):
         self.assertEqual(result["type"], "form")
         self.assertEqual(result["errors"], {"base": "invalid_planning_policy"})
         self.assertNotIn("automatic", repr(result))
+
+    def test_invalid_route_configuration_returns_privacy_safe_base_error(self) -> None:
+        with fake_home_assistant():
+            module = importlib.import_module(
+                "custom_components.mobility_forecast.config_flow"
+            )
+            result = asyncio.run(
+                module.MobilityForecastConfigFlow().async_step_user(
+                    {
+                        "name": "Invalid route",
+                        "calendar_entity_ids": ["calendar.synthetic"],
+                        **POLICY_INPUT,
+                        **{**ROUTE_INPUT, "route_provider_api_key": ""},
+                    }
+                )
+            )
+
+        self.assertEqual(result["type"], "form")
+        self.assertEqual(result["errors"], {"base": "invalid_route_provider"})
 
     def test_reconfigure_updates_policy_without_replacing_calendar_selection(
         self,
@@ -301,6 +371,7 @@ class ConfigFlowTests(unittest.TestCase):
             **POLICY_INPUT,
             "physical_event_policy": "exclude",
             "online_event_policy": "include",
+            **ROUTE_INPUT,
         }
         with fake_home_assistant():
             module = importlib.import_module(

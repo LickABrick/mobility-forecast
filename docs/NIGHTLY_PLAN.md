@@ -136,13 +136,21 @@ proved only with isolated Home Assistant contract fixtures.
     decision. Eight new deterministic tests bring the dependency-free suite to
     113 tests; three real-HA tests, strict Pyright, Ruff, formatting, checkpoint,
     package, Hassfest and HACS validation passed on 2026-09-02.
+- [x] **P13 — Route-provider configuration boundary**
+  - Config-entry schema 1.4 requires an explicit Google Routes selection, private
+    API credential and separate toll/highway choices for new or reconfigured
+    profiles. Schema-1.3 migration retains its complete planning configuration but
+    guesses no provider settings. A provider-neutral decoder projects route options,
+    while a transport-injected Google adapter maps only typed synthetic successes
+    and privacy-safe failures; it contains no HTTP implementation. Ten new tests
+    bring the dependency-free suite to 123 tests; three real-HA tests, strict
+    Pyright, Ruff, formatting, checkpoint/package checks, Hassfest and HACS
+    validation passed on 2026-09-02.
 
-Next checkpoint: **P13 — Route-provider configuration boundary**. Add an explicit
-provider-neutral selection/config contract and a synthetic adapter test surface.
-Do not make live provider or geocoder calls; if the first provider or credential
-shape needs a product decision, preserve a fail-closed unconfigured state and
-document that decision instead of inventing a default. Production ingestion still
-must not be described as a distance forecast.
+Next checkpoint: **P14 — Home Assistant zone-anchor resolution boundary**. Resolve
+only the explicitly selected local zone entities into private typed endpoints and
+compose no event-location geocoder or live route transport yet. Missing or malformed
+zone state must remain unavailable rather than producing a route or zero distance.
 
 ## Checkpoint definition of done
 

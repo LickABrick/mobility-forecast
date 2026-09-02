@@ -21,6 +21,12 @@ from custom_components.mobility_forecast.profile_config import (
     CONF_PHYSICAL_EVENT_POLICY,
     CONF_START_ANCHOR_ENTITY_ID,
 )
+from custom_components.mobility_forecast.route_provider_config import (
+    CONF_HIGHWAY_POLICY,
+    CONF_ROUTE_PROVIDER,
+    CONF_ROUTE_PROVIDER_API_KEY,
+    CONF_TOLL_POLICY,
+)
 
 PLANNING_INPUT = {
     CONF_START_ANCHOR_ENTITY_ID: "zone.synthetic_start",
@@ -29,6 +35,12 @@ PLANNING_INPUT = {
     CONF_ONLINE_EVENT_POLICY: "exclude",
     CONF_ALL_DAY_EVENT_POLICY: "exclude",
     CONF_NO_LOCATION_EVENT_POLICY: "exclude",
+}
+ROUTE_INPUT = {
+    CONF_ROUTE_PROVIDER: "google_routes",
+    CONF_ROUTE_PROVIDER_API_KEY: "synthetic-test-key",
+    CONF_TOLL_POLICY: "avoid",
+    CONF_HIGHWAY_POLICY: "allow",
 }
 
 
@@ -51,6 +63,7 @@ async def test_user_flow_creates_explicit_synthetic_profile(
         CONF_NAME: "Synthetic commute",
         CONF_CALENDAR_ENTITY_IDS: ["calendar.synthetic_work"],
         **PLANNING_INPUT,
+        **ROUTE_INPUT,
     }
     assert form["data_schema"](expected_input) == expected_input
 
@@ -63,9 +76,10 @@ async def test_user_flow_creates_explicit_synthetic_profile(
     assert result["data"] == {
         CONF_CALENDAR_ENTITY_IDS: ["calendar.synthetic_work"],
         **PLANNING_INPUT,
+        **ROUTE_INPUT,
     }
     assert result["result"].version == 1
-    assert result["result"].minor_version == 3
+    assert result["result"].minor_version == 4
 
 
 async def test_reconfigure_preserves_calendar_and_updates_explicit_policy(
@@ -78,7 +92,7 @@ async def test_reconfigure_preserves_calendar_and_updates_explicit_policy(
         title="Synthetic existing profile",
         data={CONF_CALENDAR_ENTITY_IDS: ["calendar.synthetic_existing"]},
         version=1,
-        minor_version=3,
+        minor_version=4,
     )
     entry.add_to_hass(hass)
     form: dict[str, Any] = await hass.config_entries.flow.async_init(
@@ -89,7 +103,7 @@ async def test_reconfigure_preserves_calendar_and_updates_explicit_policy(
     assert form["type"] is FlowResultType.FORM
     assert form["step_id"] == "reconfigure"
     result: dict[str, Any] = await hass.config_entries.flow.async_configure(
-        form["flow_id"], user_input=PLANNING_INPUT
+        form["flow_id"], user_input={**PLANNING_INPUT, **ROUTE_INPUT}
     )
 
     assert result["type"] is FlowResultType.ABORT
@@ -97,6 +111,7 @@ async def test_reconfigure_preserves_calendar_and_updates_explicit_policy(
     assert entry.data == {
         CONF_CALENDAR_ENTITY_IDS: ["calendar.synthetic_existing"],
         **PLANNING_INPUT,
+        **ROUTE_INPUT,
     }
     await hass.async_block_till_done()
     assert await hass.config_entries.async_unload(entry.entry_id)
