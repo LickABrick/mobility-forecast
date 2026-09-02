@@ -1,12 +1,13 @@
 # Project status
 
-Last updated: 2026-09-01 19:41 CEST
+Last updated: 2026-09-02 08:05 CEST
 
 ## Current phase
 
-Phase 1 and post-phase checkpoints P1–P8 are complete. The reproducible manual
-test package is ready for Guus's Home Assistant 2026.8.1 smoke test; implementation
-stops at this handoff.
+Phase 1 and post-phase checkpoints P1–P11 are complete. Production runtime now
+reads each profile's selected Home Assistant calendars on a bounded schedule, but
+distance remains explicitly unknown until profile location/filter policies and a
+configured route provider are added.
 
 ## Completed
 
@@ -100,14 +101,23 @@ stops at this handoff.
   and expected unavailable-entity checks, and safe uninstall/backup rollback.
   It explicitly identifies the artifact as pre-alpha/read-only and distinguishes
   the synthetic fake-route test evidence from the unimplemented runtime source.
+- P11 replaces the fail-closed pending profile source with the selected Home
+  Assistant calendar adapter, using an explicit seven-day horizon, immediate
+  setup refresh and 15-minute periodic refresh while the entry is loaded.
+- P11 derives only service dates from normalized events. It persists no event
+  content and deliberately publishes unavailable distance forecasts until the
+  separately configurable filtering, location and routing policies exist.
+- P11 notifies the sensor after successful and failed transactions, marks a failed
+  latest read unavailable while preserving the last immutable snapshot, and
+  cancels the profile refresh interval on successful unload.
 
 ## Active checkpoint
 
-P8 — Reproducible installable ZIP and tester instructions is complete.
+P11 — Production calendar ingestion and entity refresh lifecycle is complete.
 
-Next bounded checkpoint: none before Guus performs the documented manual smoke
-test. Await its redacted result; do not continue optional hardening or runtime
-forecast composition in this invocation.
+Next bounded checkpoint: P12 — explicit begin/end anchors and physical, online,
+all-day and no-location profile policy (mission B). No route-provider selection or
+external call belongs in that checkpoint.
 
 ## Verification evidence
 
@@ -686,6 +696,39 @@ both tested themes. The two assets increase the deterministic package scope from
 20 to 22 tracked integration files; runtime, config, storage and safety behavior
 are unchanged.
 
+P11 production calendar-ingestion evidence on 2026-09-02:
+
+```text
+/usr/bin/python3 -m unittest ... focused runtime tests PASS (22 tests)
+/usr/bin/python3 scripts/check_checkpoint.py            PASS (105 tests included)
+PYTHONPATH=.venv/site python3 -m pytest                  PASS (105 tests)
+PYTHONPATH=.venv/site python3 -m ruff check .            PASS
+PYTHONPATH=.venv/site python3 -m ruff format --check .   PASS (72 files)
+PYTHONPATH=.venv/site python3 -m pyright                 PASS (0 errors; 11 expected missing-source warnings)
+Docker Python 3.14 / Home Assistant 2026.8.1 suite       PASS (2 tests)
+Hassfest pinned image                                    PASS (1 integration; 0 invalid)
+HACS pinned image local schemas                          PASS
+/usr/bin/python3 scripts/build_test_zip.py --check ...   PASS (SHA-256 cea145f36f022566dfff3373fe4985deee4e3d9584d376f0e027dad8f24a1f42)
+git diff --check                                         PASS
+```
+
+All P11 entities, events, identifiers, text, locations and times used by tests are
+synthetic. The production source can only read the configured local Home Assistant
+calendar entities; it adds no calendar write, service, network-provider, vehicle,
+physical-action, notification or credential path. Event objects are discarded
+after deriving unique service dates and never enter storage, sensor attributes or
+logs. Missing entities and source failures retain stable private-data-free reasons.
+
+Configuration review for P11: the manifest now declares the built-in `calendar`
+component as its sole dependency, consistent with the existing `local_polling` I/O
+class. The config-entry schema remains 1.2 and storage remains schema 1; no persisted
+field or migration changed. The production runtime introduces reviewed fixed limits
+of a seven-day read horizon and a 15-minute refresh interval. They are runtime
+safety/product defaults, not hidden domain defaults; making them user-configurable
+requires a separate schema/migration checkpoint. `pyproject.toml` expands strict
+typing to the new ingestion source and uses minimal isolated Home Assistant stubs.
+Tool pins, workflow, HACS metadata, translations and entity metadata are unchanged.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -711,7 +754,10 @@ are unchanged.
 - Coordinator refreshes are profile-scoped transactions: load prior state, read one typed source update, persist next state, then publish an immutable ordered forecast snapshot. Failed reads or saves do not replace published data.
 - The first entity is one entry-scoped passive distance sensor. It presents the earliest forecast's P90 distance, keeps unavailable distance unknown, and exposes only a fixed non-identifying attribute allowlist.
 - Home Assistant diagnostics consume only a typed entry-scoped aggregate source. Config-entry fields and runtime objects are not recursively dumped, and source failures remain explicit.
-- Config-entry setup owns one isolated runtime and forwards only the sensor platform. Unload releases that runtime only when platform unload succeeds; pending adapter boundaries fail closed and schedule no work.
+- Config-entry setup owns one isolated runtime and forwards only the sensor
+  platform. It reads selected calendars immediately and every 15 minutes over an
+  exact seven-day window; successful unload cancels the interval. Calendar-derived
+  distance remains unknown until planning policy is explicitly configured.
 - Durable runtime state uses one private, atomic Home Assistant Store keyed only by config-entry identifier. Missing storage starts from explicit empty state; restart restores decoded immutable state, cross-entry calls fail, and unload retains persisted data.
 - Config-entry schema 1.2 requires every new profile to explicitly select one or
   more ordered unique calendar entities. Schema-1.1 entries migrate to a
@@ -744,17 +790,16 @@ are unchanged.
 - C3 term matching is intentionally a literal case-insensitive substring contract, not regex, tokenization or location-text matching. Any broader rule language requires a separately tested and documented checkpoint.
 - C5 cache storage is an in-memory contract fake only. Persistent profile-scoped cache storage, privacy-key generation/rotation and migration behavior remain deferred to a later lifecycle/persistence checkpoint; no key material is logged or persisted by the domain.
 - C8c/P2 define serialization and the Home Assistant `Store` adapter, but not retention pruning, transactional recovery UI or migration beyond schema version 1. No pre-version-1 payload exists; future schema changes require explicit forward migration and rollback tests.
-- C8d–C8f and P1–P3 define orchestration, durable state, calendar normalization,
-  fail-closed runtime composition, a passive sensor-platform adapter, diagnostics
-  adapter and config-entry forwarding/unload lifecycle, but not the composed
-  calendar-to-forecast source, a Home Assistant `DataUpdateCoordinator`, concrete
-  aggregate diagnostics source, update interval or timeout/retry policy. Those
-  policies must be explicit in later slices rather than silently defaulted here.
-- P4 demonstrates deterministic contract composition only. Its fixed clock,
-  synthetic location-text mapping, revision identifier, filter/forecast policies
-  and route responses are fixtures, not production choices. Runtime windowing,
-  real location resolution, revision-id generation and refresh scheduling remain
-  unimplemented.
+- C8d–C8f and P1–P3/P11 define orchestration, durable state, calendar
+  normalization, production calendar ingestion, a passive sensor-platform adapter,
+  diagnostics adapter and refresh/unload lifecycle. A Home Assistant
+  `DataUpdateCoordinator`, concrete aggregate diagnostics source and explicit
+  timeout/retry policy remain deferred; the current coordinator orders each
+  persist-before-publish transaction and exposes the latest failure to entity
+  availability.
+- P4 demonstrates full planning composition only with deterministic fakes. P11
+  performs real local calendar ingestion, but location resolution, revision-id
+  generation, filtering and routing remain unimplemented in production.
 - A separate privacy-safe logging policy remains unimplemented; diagnostics safety does not make arbitrary logs safe.
 - The manifest now points documentation and issue support at the authorized private
   origin and intentionally declares no code owner. Those links work only for users

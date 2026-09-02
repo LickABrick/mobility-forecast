@@ -7,6 +7,7 @@ import types
 import unittest
 from collections.abc import Generator
 from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any, ClassVar
 
@@ -27,7 +28,9 @@ class FakeConfigEntry:
         minor_version: int = 2,
     ) -> None:
         self.entry_id = entry_id
-        self.data = {} if data is None else data
+        self.data = (
+            {"calendar_entity_ids": ["calendar.synthetic"]} if data is None else data
+        )
         self.version = version
         self.minor_version = minor_version
         self.runtime_data: object | None = None
@@ -73,6 +76,30 @@ class FakeHomeAssistant:
     def __init__(self, manager: FakeConfigEntriesManager) -> None:
         self.config_entries = manager
         self.storage_backing: dict[str, object] = {}
+        self.data: dict[str, object] = {
+            "calendar": FakeCalendarComponent(FakeCalendarEntity())
+        }
+        self.intervals: list[tuple[object, object]] = []
+        self.cancelled_intervals = 0
+
+
+class FakeCalendarEntity:
+    def __init__(self) -> None:
+        self.calls: list[tuple[object, datetime, datetime]] = []
+
+    async def async_get_events(
+        self, hass: object, start_date: datetime, end_date: datetime
+    ) -> list[object]:
+        self.calls.append((hass, start_date, end_date))
+        return []
+
+
+class FakeCalendarComponent:
+    def __init__(self, entity: FakeCalendarEntity) -> None:
+        self.entity = entity
+
+    def get_entity(self, entity_id: str) -> FakeCalendarEntity | None:
+        return self.entity if entity_id == "calendar.synthetic" else None
 
 
 class FakeStore:
@@ -116,6 +143,10 @@ class FakeStore:
 @contextmanager
 def fake_home_assistant() -> Generator[None]:
     homeassistant = types.ModuleType("homeassistant")
+    components = types.ModuleType("homeassistant.components")
+    calendar = types.ModuleType("homeassistant.components.calendar")
+    calendar_const = types.ModuleType("homeassistant.components.calendar.const")
+    calendar_const.DATA_COMPONENT = "calendar"  # type: ignore[attr-defined]
     config_entries = types.ModuleType("homeassistant.config_entries")
     config_entries.ConfigEntry = FakeConfigEntry  # type: ignore[attr-defined]
     const = types.ModuleType("homeassistant.const")
@@ -123,16 +154,39 @@ def fake_home_assistant() -> Generator[None]:
     core = types.ModuleType("homeassistant.core")
     core.HomeAssistant = FakeHomeAssistant  # type: ignore[attr-defined]
     helpers = types.ModuleType("homeassistant.helpers")
+    event = types.ModuleType("homeassistant.helpers.event")
+
+    def async_track_time_interval(
+        hass: FakeHomeAssistant, callback: object, interval: object
+    ) -> object:
+        hass.intervals.append((callback, interval))
+
+        def cancel() -> None:
+            hass.cancelled_intervals += 1
+
+        return cancel
+
+    event.async_track_time_interval = async_track_time_interval  # type: ignore[attr-defined]
     storage = types.ModuleType("homeassistant.helpers.storage")
     storage.Store = FakeStore  # type: ignore[attr-defined]
+    util = types.ModuleType("homeassistant.util")
+    dt = types.ModuleType("homeassistant.util.dt")
+    dt.now = lambda: datetime(2032, 4, 5, 7, 0, tzinfo=UTC)  # type: ignore[attr-defined]
+    util.dt = dt  # type: ignore[attr-defined]
 
     modules = {
         "homeassistant": homeassistant,
+        "homeassistant.components": components,
+        "homeassistant.components.calendar": calendar,
+        "homeassistant.components.calendar.const": calendar_const,
         "homeassistant.config_entries": config_entries,
         "homeassistant.const": const,
         "homeassistant.core": core,
         "homeassistant.helpers": helpers,
+        "homeassistant.helpers.event": event,
         "homeassistant.helpers.storage": storage,
+        "homeassistant.util": util,
+        "homeassistant.util.dt": dt,
     }
     previous = {name: sys.modules.get(name) for name in modules}
     sys.modules.update(modules)
@@ -246,7 +300,15 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
             first.runtime_data.coordinator,  # type: ignore[union-attr]
             second.runtime_data.coordinator,  # type: ignore[union-attr]
         )
-        self.assertIsNone(first.runtime_data.coordinator.data)  # type: ignore[union-attr]
+        self.assertIsNotNone(first.runtime_data.coordinator.data)  # type: ignore[union-attr]
+        self.assertTrue(first.runtime_data.coordinator.last_update_success)  # type: ignore[union-attr]
+        self.assertEqual(len(hass.intervals), 2)
+        self.assertTrue(
+            all(
+                interval == timedelta(minutes=15)
+                for _callback, interval in hass.intervals
+            )
+        )
 
     def test_successful_unload_clears_runtime_after_platform_unload(self) -> None:
         manager = FakeConfigEntriesManager()
@@ -257,8 +319,7 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
             integration = load_integration()
             asyncio.run(integration.async_setup_entry(hass, entry))
             runtime = entry.runtime_data
-            with self.assertRaisesRegex(RuntimeError, "source adapter"):
-                asyncio.run(runtime.coordinator.refresh())  # type: ignore[union-attr]
+            self.assertTrue(runtime.coordinator.last_update_success)  # type: ignore[union-attr]
             result = asyncio.run(integration.async_unload_entry(hass, entry))
 
         self.assertTrue(result)
@@ -268,6 +329,7 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
         self.assertEqual(len(FakeStore.instances), 1)
         self.assertEqual(FakeStore.instances[0].load_calls, 1)
         self.assertEqual(FakeStore.instances[0].remove_calls, 0)
+        self.assertEqual(hass.cancelled_intervals, 1)
 
     def test_failed_platform_forwarding_releases_unloaded_runtime(self) -> None:
         manager = FakeConfigEntriesManager(

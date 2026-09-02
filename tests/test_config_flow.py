@@ -111,7 +111,7 @@ class IntegrationMetadataTests(unittest.TestCase):
         )
         self.assertEqual(manifest["iot_class"], "local_polling")
         self.assertEqual(manifest["codeowners"], [])
-        self.assertEqual(manifest["dependencies"], [])
+        self.assertEqual(manifest["dependencies"], ["calendar"])
         self.assertEqual(manifest["requirements"], [])
         self.assertEqual(
             manifest["documentation"],

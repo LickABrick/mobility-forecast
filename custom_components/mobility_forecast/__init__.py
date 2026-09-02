@@ -45,10 +45,14 @@ async def async_setup_entry(
 ) -> bool:
     """Set up one isolated profile runtime and its read-only platforms."""
 
-    entry.runtime_data = build_runtime(hass, entry.entry_id)
+    runtime = build_runtime(hass, entry)
+    entry.runtime_data = runtime
     try:
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+        runtime.start(hass)
+        await runtime.async_refresh()
     except Exception:
+        runtime.stop()
         entry.runtime_data = None
         raise
     return True
@@ -59,7 +63,11 @@ async def async_unload_entry(
 ) -> bool:
     """Unload profile platforms and release runtime data only on success."""
 
+    runtime = entry.runtime_data
+    if runtime is None:
+        return False
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     if unload_ok:
+        runtime.stop()
         entry.runtime_data = None
     return unload_ok

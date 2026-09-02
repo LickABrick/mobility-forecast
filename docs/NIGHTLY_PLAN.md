@@ -117,10 +117,22 @@ proved only with isolated Home Assistant contract fixtures.
   - User-approved transparent artwork is packaged as the current Home Assistant
     256px icon and 512px hDPI icon. Package tests verify both files are tracked,
     exact-size 8-bit RGBA PNGs and remain inside the integration-only archive.
+- [x] **P11 — Production calendar ingestion and entity refresh lifecycle**
+  - Each loaded profile now reads exactly its selected local Home Assistant
+    calendars over a seven-day future window immediately after setup and every 15
+    minutes. Refresh completion updates the passive sensor; source failure marks
+    the latest update unavailable without discarding prior immutable data, and
+    successful unload cancels the interval. Only service dates leave ingestion;
+    event content is neither persisted nor projected. Distance remains unknown
+    until explicit planning policies exist. All 105 tests, both real-HA tests,
+    Ruff, format, strict Pyright, package check, Hassfest and HACS validation passed
+    on 2026-09-02.
 
-Next checkpoint: redownload public `main` through HACS, fully restart Home
-Assistant 2026.8.3 and repeat the config-flow/lifecycle smoke test. Runtime forecast
-composition remains a later checkpoint and must not be claimed by this package.
+Next checkpoint: **P12 — Explicit profile planning policies**. Add configurable
+begin/end anchors and physical, online, all-day and no-location handling without
+adding a route provider or any physical action. A manual Home Assistant smoke test
+remains useful, but production calendar ingestion is now covered by isolated and
+real-HA lifecycle checks and must not be described as a distance forecast yet.
 
 ## Checkpoint definition of done
 

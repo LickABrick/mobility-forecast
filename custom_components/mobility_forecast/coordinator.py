@@ -7,6 +7,7 @@ only immutable forecast snapshots are published for later read-only entities.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
@@ -85,12 +86,34 @@ class ProfileCoordinator:
         self._source = source
         self._storage = storage
         self._data: CoordinatorSnapshot | None = None
+        self._last_update_success = False
+        self._listeners: set[Callable[[], None]] = set()
 
     @property
     def data(self) -> CoordinatorSnapshot | None:
         """Return the last successfully persisted immutable snapshot, if any."""
 
         return self._data
+
+    @property
+    def last_update_success(self) -> bool:
+        """Report whether the latest attempted refresh completed successfully."""
+
+        return self._last_update_success
+
+    def add_listener(self, listener: Callable[[], None]) -> Callable[[], None]:
+        """Register a presentation callback and return its removal callback."""
+
+        self._listeners.add(listener)
+
+        def remove_listener() -> None:
+            self._listeners.discard(listener)
+
+        return remove_listener
+
+    def _notify_listeners(self) -> None:
+        for listener in tuple(self._listeners):
+            listener()
 
     async def refresh(self) -> CoordinatorSnapshot:
         """Read, validate, persist, then atomically publish one profile refresh.
@@ -100,9 +123,16 @@ class ProfileCoordinator:
         leave the previous in-memory snapshot unchanged.
         """
 
-        previous_state = await self._storage.load(self._config_entry_id)
-        update = await self._source.read(previous_state)
-        snapshot = CoordinatorSnapshot(update.forecasts, update.generated_at)
-        await self._storage.save(self._config_entry_id, update.state)
+        try:
+            previous_state = await self._storage.load(self._config_entry_id)
+            update = await self._source.read(previous_state)
+            snapshot = CoordinatorSnapshot(update.forecasts, update.generated_at)
+            await self._storage.save(self._config_entry_id, update.state)
+        except Exception:
+            self._last_update_success = False
+            self._notify_listeners()
+            raise
         self._data = snapshot
+        self._last_update_success = True
+        self._notify_listeners()
         return snapshot

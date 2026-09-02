@@ -66,9 +66,15 @@ class ForecastDistanceSensor(SensorEntity):
 
     @property
     def available(self) -> bool:
-        """A persisted coordinator snapshot, even degraded, is available."""
+        """Expose failed latest reads explicitly while retaining prior data."""
 
-        return self._snapshot is not None
+        return self._snapshot is not None and self._coordinator.last_update_success
+
+    async def async_added_to_hass(self) -> None:
+        """Update entity state whenever the profile transaction finishes."""
+
+        await super().async_added_to_hass()
+        self.async_on_remove(self._coordinator.add_listener(self.async_write_ha_state))
 
     @property
     def native_value(self) -> float | None:

@@ -82,6 +82,7 @@ class ProfileCoordinatorTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(storage.saves, [("entry-a", EMPTY_STATE)])
         self.assertEqual(snapshot, CoordinatorSnapshot(update.forecasts, NOW))
         self.assertIs(coordinator.data, snapshot)
+        self.assertTrue(coordinator.last_update_success)
 
     async def test_coordinators_keep_config_entries_isolated(self) -> None:
         state_a = EMPTY_STATE
@@ -116,6 +117,7 @@ class ProfileCoordinatorTests(unittest.IsolatedAsyncioTestCase):
             await coordinator.refresh()
 
         self.assertIs(coordinator.data, published)
+        self.assertFalse(coordinator.last_update_success)
         self.assertEqual(len(storage.saves), 1)
         self.assertEqual(storage.loads, ["entry-a", "entry-a"])
 
@@ -128,6 +130,30 @@ class ProfileCoordinatorTests(unittest.IsolatedAsyncioTestCase):
             await coordinator.refresh()
 
         self.assertIsNone(coordinator.data)
+        self.assertFalse(coordinator.last_update_success)
+
+    async def test_refresh_notifies_listener_on_success_and_failure(self) -> None:
+        storage = FakeProfileStorage({"entry-a": EMPTY_STATE})
+        source = FakeReadOnlySource(
+            [
+                ProfileUpdate(EMPTY_STATE, (forecast(),), NOW),
+                RuntimeError("synthetic read failure"),
+                ProfileUpdate(EMPTY_STATE, (), NOW),
+            ]
+        )
+        coordinator = ProfileCoordinator("entry-a", source, storage)
+        notifications: list[bool] = []
+        remove_listener = coordinator.add_listener(
+            lambda: notifications.append(coordinator.last_update_success)
+        )
+
+        await coordinator.refresh()
+        with self.assertRaises(RuntimeError):
+            await coordinator.refresh()
+        remove_listener()
+        await coordinator.refresh()
+
+        self.assertEqual(notifications, [True, False])
 
     def test_update_rejects_duplicate_or_unordered_forecast_dates(self) -> None:
         duplicate_date = forecast().service_date

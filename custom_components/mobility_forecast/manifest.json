@@ -3,7 +3,7 @@
   "name": "Mobility Forecast",
   "codeowners": [],
   "config_flow": true,
-  "dependencies": [],
+  "dependencies": ["calendar"],
   "documentation": "https://github.com/LickABrick/mobility-forecast",
   "integration_type": "service",
   "iot_class": "local_polling",

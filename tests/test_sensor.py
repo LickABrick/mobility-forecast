@@ -26,7 +26,16 @@ SENSOR_MODULE = "custom_components.mobility_forecast.sensor"
 
 
 class FakeSensorEntity:
-    pass
+    async def async_added_to_hass(self) -> None:
+        return
+
+    def async_on_remove(self, callback: Callable[[], None]) -> None:
+        callbacks = getattr(self, "remove_callbacks", [])
+        callbacks.append(callback)
+        self.remove_callbacks = callbacks
+
+    def async_write_ha_state(self) -> None:
+        self.write_count = getattr(self, "write_count", 0) + 1
 
 
 class FakeUnitOfLength:
@@ -95,6 +104,8 @@ def forecast(
 def coordinator_with(snapshot: CoordinatorSnapshot | None) -> ProfileCoordinator:
     coordinator = object.__new__(ProfileCoordinator)
     coordinator._data = snapshot  # type: ignore[attr-defined]
+    coordinator._last_update_success = snapshot is not None  # type: ignore[attr-defined]
+    coordinator._listeners = set()  # type: ignore[attr-defined]
     return coordinator
 
 
@@ -204,6 +215,20 @@ class ForecastDistanceSensorTests(unittest.TestCase):
         self.assertEqual(added[0].unique_id, "entry-synthetic_forecast_distance")
         self.assertNotIn("async_turn_on", module.ForecastDistanceSensor.__dict__)
         self.assertNotIn("async_update", module.ForecastDistanceSensor.__dict__)
+
+    def test_entity_subscribes_to_completed_profile_refreshes(self) -> None:
+        coordinator = coordinator_with(CoordinatorSnapshot((forecast(),), NOW))
+        with fake_home_assistant():
+            module = importlib.import_module(SENSOR_MODULE)
+            entity = module.ForecastDistanceSensor("entry-synthetic", coordinator)
+            asyncio.run(entity.async_added_to_hass())
+
+        coordinator._notify_listeners()  # type: ignore[attr-defined]
+        self.assertEqual(entity.write_count, 1)
+        self.assertEqual(len(entity.remove_callbacks), 1)
+        entity.remove_callbacks[0]()
+        coordinator._notify_listeners()  # type: ignore[attr-defined]
+        self.assertEqual(entity.write_count, 1)
 
 
 if __name__ == "__main__":
