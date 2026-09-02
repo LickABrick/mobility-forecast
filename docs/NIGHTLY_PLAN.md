@@ -157,12 +157,21 @@ proved only with isolated Home Assistant contract fixtures.
     deterministic tests bring the dependency-free suite to 129 tests; three real-HA
     tests, strict Pyright, Ruff, formatting, checkpoint/package checks, Hassfest and
     HACS validation passed on 2026-09-02.
+- [x] **P15 — Event-location resolver contract and deterministic fake**
+  - A provider-neutral asynchronous contract sends only private physical location
+    text and returns representation-hidden coordinates or one of six stable typed
+    failures. Successful fixtures compose into event-provenance destination candidates
+    with caller-owned opaque identifiers; the exact in-memory fake has no provider,
+    credential, cache or network path. Six new synthetic tests bring the
+    dependency-free suite to 135 tests; all configured local gates passed on
+    2026-09-02.
 
-Next checkpoint: **P15 — Event-location resolver contract and deterministic fake**.
-Define a provider-neutral privacy-safe geocoding boundary, typed failure states and
-synthetic fixtures without choosing or calling a public/paid provider. A reviewed
-provider/credential/cache-retention decision remains required before live event
-locations can produce road kilometres.
+Next checkpoint: **P16 — Production structural-filter composition**. Replace the
+runtime's ingestion-only classification placeholder with an explicit reviewed online
+classification strategy, apply the stored profile filter before creating forecast
+service dates, and retain unknown distance without invoking geocoding or routing.
+Live event-location and route transports remain blocked on reviewed provider,
+credential, timeout and cache-retention decisions; no public/paid call is authorized.
 
 ## Checkpoint definition of done
 

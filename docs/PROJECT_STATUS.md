@@ -1,14 +1,15 @@
 # Project status
 
-Last updated: 2026-09-02 13:43 CEST
+Last updated: 2026-09-02 14:35 CEST
 
 ## Current phase
 
-Phase 1 and post-phase checkpoints P1–P14 are complete. Production runtime reads
-each profile's selected Home Assistant calendars on a bounded schedule and now
-resolves its two explicitly selected local zone anchors before calendar ingestion.
-Distance remains explicitly unknown until event locations and a reviewed route
-transport are composed; this checkpoint adds no HTTP or geocoding implementation.
+Phase 1 and post-phase checkpoints P1–P15 are complete. Production runtime reads
+each profile's selected Home Assistant calendars on a bounded schedule and resolves
+its two explicitly selected local zone anchors before calendar ingestion. The pure
+domain now also has a privacy-safe event-location resolver boundary and exact
+deterministic fake. Distance remains explicitly unknown because no event-location
+provider, cache, route transport or runtime planning composition was selected.
 
 ## Completed
 
@@ -146,15 +147,27 @@ transport are composed; this checkpoint adds no HTTP or geocoding implementation
   nonnumeric values or invalid WGS84 ranges. Stable role-specific reasons propagate
   through the coordinator so the latest entity update remains unavailable rather
   than becoming a zero route or a successful stale result.
+- P15 adds a provider-neutral asynchronous event-location resolver protocol. Its
+  request contains only required physical location text and omits that private value
+  from representations; it cannot carry event summary, description, source or ID.
+- P15 successes retain representation-hidden validated coordinates and compose into
+  an event-provenance destination candidate only with a caller-owned opaque endpoint
+  identifier. Failures retain only an aware time and one of six stable categories,
+  with retryability limited to rate-limited and transient failures.
+- P15's exact deterministic resolver stores synthetic request/result fixtures only
+  in memory, records requests for contract assertions and raises a generic error for
+  unexpected input without echoing private text. It has no HTTP, provider, credential,
+  cache, filesystem or production-runtime path.
 
 ## Active checkpoint
 
-P14 — Home Assistant zone-anchor resolution boundary is complete.
+P15 — Event-location resolver contract and deterministic fake is complete.
 
-Next bounded checkpoint: P15 — define a provider-neutral privacy-safe event-location
-resolver contract and deterministic fake. Do not choose or call a public/paid
-geocoder unattended. Live kilometres still require a reviewed geocoder provider,
-credential handling and cache-retention decision plus the separate route transport.
+Next bounded checkpoint: P16 — compose the configured structural filter into
+production calendar ingestion using an explicit reviewed online-classification
+strategy. It must avoid geocoding/routing excluded events and preserve unknown
+distance. Live kilometres remain blocked on reviewed event-location provider,
+credential, timeout and cache-retention decisions plus the route transport.
 
 ## Verification evidence
 
@@ -887,6 +900,44 @@ unchanged. No geocoder or runtime network dependency was added. A geocoder provi
 credential policy and cache-retention policy must be reviewed before live event
 locations can be resolved.
 
+P15 TDD and verification on 2026-09-02:
+
+```text
+/usr/bin/python3 -m unittest tests.test_event_locations -v
+                                                            RED: contract exports absent
+                                                            PASS (6 focused tests)
+/usr/bin/python3 scripts/check_checkpoint.py                PASS (135 tests included)
+PYTHONPATH=.venv/site /usr/bin/python3 -m pytest             PASS (135 tests)
+PYTHONPATH=.venv/site /usr/bin/python3 -m ruff check .       PASS
+PYTHONPATH=.venv/site /usr/bin/python3 -m ruff format --check .
+                                                            PASS (82 files)
+PYTHONPATH=.venv/site /usr/bin/python3 -m pyright            PASS (0 errors; 11 expected missing-source warnings)
+Docker Python 3.14.7 / Home Assistant 2026.8.1 suite         PASS (3 tests; network disabled)
+Hassfest pinned image                                       PASS (1 integration; 0 invalid)
+HACS pinned image local schemas                             PASS
+/usr/bin/python3 scripts/build_test_zip.py --check ...       PASS (SHA-256 5cbcac55d260fc591d0584f6a8c7edb5145f0d22215f16aadc35017a8bc49be6)
+sha256sum --check                                           PASS
+git diff --cached --check                                  PASS
+```
+
+All P15 location text, endpoint labels, coordinates, timestamps and resolver results
+are synthetic. The new dependency-free contract and fake have no production Home
+Assistant, HTTP, filesystem, provider credential, cache, route call, vehicle, service
+or notification path. Both external validators and the real-HA compatibility suite
+ran with networking disabled; no production credentials, addresses, calendar text or
+GPS state were read. Diff/privacy review found no personal data, secret, private value
+representation or scope outside the event-location boundary and checkpoint evidence.
+
+Configuration review for P15: config-entry schema remains 1.4 and storage remains
+schema 1; no field, default, migration, provider selection or credential policy was
+added. The domain is already inside strict Pyright's configured boundary, so no typing
+configuration changed. The generated 343249-byte package contains 28 tracked
+integration files and passed byte-for-byte verification. Python/tool pins,
+requirements, manifest/HACS metadata, source/English translations, workflow actions
+and permissions, polling limits and route configuration are unchanged. A reviewed
+event-location provider, credential/timeout policy and privacy-safe cache retention
+remain required before implementing a live adapter or producing road kilometres.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -895,6 +946,10 @@ locations can be resolved.
 - V1 is read-only/advisory and excludes notifications, price/solar optimization and every physical action.
 - Start and end locations use independent policies. Dynamic vehicle location is passive, freshness/quality gated and fallback based; no wake or refresh request is allowed.
 - The domain uses provider-neutral typed boundaries. Google Routes is the intended first production route adapter; unattended tests use deterministic fakes only.
+- Event-location resolution has a separate provider-neutral asynchronous boundary.
+  It accepts only physical location text, returns hidden coordinates or a stable
+  typed failure and composes with destination policy through opaque local endpoint
+  identifiers. Its only implementation is the exact deterministic in-memory fake.
 - Profile route configuration explicitly selects Google Routes, stores its API key
   only as private config-entry data and requires toll/highway choices. The adapter
   currently ends at an injected transport protocol: no live HTTP implementation or
@@ -977,8 +1032,10 @@ locations can be resolved.
 - The development and real-HA requirements pin direct tool versions but not hashes or every transitive dependency. The real-HA harness pin currently requires Home Assistant 2026.8.1 exactly, and its test asserts that installed version. Action commits are immutable; a later supply-chain audit may add a fully hashed lock when a supported dependency workflow is chosen.
 - C4 defines required freshness/accuracy/horizon fields but intentionally supplies no product defaults. Their config-flow representation and migration policy remain future product work and must be reviewed before introduction.
 - Location candidates cover passive vehicle GPS and already-resolved event/zone
-  coordinates. P14 now supplies the Home Assistant zone adapter; event-location
-  geocoding and its provider/cache policy remain deferred.
+  coordinates. P14 supplies the Home Assistant zone adapter, while P15 defines the
+  event-location resolver contract and deterministic fake. A production geocoder
+  adapter remains deferred until provider, credential, timeout and cache-retention
+  policy are reviewed; P15 adds no network or cache path.
 - Config-entry schema version 1 minor version 4 and storage schema version 1 now
   exist. The 1.1 empty-calendar marker and 1.2 calendar-preserving migration guess
   no planning data; 1.3 planning entries retain their data but guess no provider or

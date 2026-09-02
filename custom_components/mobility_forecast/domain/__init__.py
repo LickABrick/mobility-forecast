@@ -20,6 +20,15 @@ from .calendar_filters import (
     classify_event,
     preview_events,
 )
+from .event_locations import (
+    DeterministicEventLocationResolver,
+    EventLocationFailure,
+    EventLocationFailureCategory,
+    EventLocationRequest,
+    EventLocationResolver,
+    EventLocationResult,
+    EventLocationSuccess,
+)
 from .location_resolution import (
     EndLocationPolicy,
     LocationCandidate,
@@ -71,10 +80,17 @@ __all__ = [
     "ActualDistance",
     "Coordinates",
     "DataQuality",
+    "DeterministicEventLocationResolver",
     "DeterministicRouteProvider",
     "EndLocationPolicy",
     "EventFilterDecision",
     "EventFilterPolicy",
+    "EventLocationFailure",
+    "EventLocationFailureCategory",
+    "EventLocationRequest",
+    "EventLocationResolver",
+    "EventLocationResult",
+    "EventLocationSuccess",
     "ExclusionReason",
     "FilterPreview",
     "Forecast",

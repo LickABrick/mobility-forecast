@@ -59,6 +59,8 @@ A start policy may use a passively observed vehicle location for an applicable n
 
 An end policy resolves an event- or zone-derived destination independently. Its required fallback flag explicitly permits or forbids a configured destination fallback; a used fallback has `partial` quality. It does not accept or silently substitute the current vehicle position for an unknown destination.
 
+P15 adds a provider-neutral asynchronous event-location resolver contract. Its minimal request contains only required physical location text—not event summary, description, source or identifier—and hides that private text from representations. Successful coordinates are also representation-hidden and become an event-provenance candidate only with a caller-owned opaque endpoint identifier. Failures expose only an aware occurrence time and one stable category: invalid input, not found, rate limited, quota exhausted, transient or unavailable. The exact deterministic resolver fake stores only synthetic in-memory fixtures and has no provider, credential, cache, filesystem or network path. Production provider selection, credential handling and cache retention remain explicit review decisions; no live event-location resolution is composed.
+
 These C4 policy values are required pure-domain inputs. Home Assistant config-flow representation and any user-facing defaults remain deferred to C8 and must not silently alter this contract.
 
 ## Route-provider architecture
