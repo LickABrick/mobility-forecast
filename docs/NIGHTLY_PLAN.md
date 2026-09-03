@@ -199,11 +199,21 @@ proved only with isolated Home Assistant contract fixtures.
     dependency-free suite to 156 tests; all configured local gates passed on
     2026-09-03.
 
-Next checkpoint: **P19 — Injected HTTP request/response transports**. Add exact ORS
-hosted and self-hosted request shaping plus Pelias/Photon/Nominatim response decoding
-behind an injected HTTP sender, with synthetic fixtures only. Keep production runtime
-composition disabled until transport error/status mapping and credential handling are
-fully tested; add no provider fallback and make no real external request.
+- [x] **P19 — Injected HTTP request/response transports**
+  - Hosted Pelias and ORS routing requests use only the fixed disclosed recipients
+    and the one explicit key in an authorization header. Self-hosted Pelias, Photon,
+    Nominatim and ORS requests append their documented family paths to the two
+    independently configured base URLs and carry no hosted credential.
+  - Exact GET/POST payloads, conservative JSON decoding, sanitized sender/status
+    failure mapping and private-value-safe representations are covered by eight
+    synthetic tests (14 subtests). No socket-capable sender or runtime composition
+    exists. The dependency-free suite now has 164 tests; all configured local gates
+    passed on 2026-09-03.
+
+Next checkpoint: **P20 — Profile-scoped persistent provider caches**. Add private
+config-entry-scoped geocode and route cache storage, privacy-key lifecycle and bounded
+retention/pruning with migration/failure tests. Keep network/runtime transport disabled,
+use synthetic fixtures only and preserve explicit stale/unavailable semantics.
 
 ## Checkpoint definition of done
 

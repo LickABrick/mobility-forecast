@@ -192,6 +192,20 @@ text, coordinates, credentials and configured endpoints from representations. Th
 adapters accept injected typed transports only: there is still no HTTP client,
 production runtime composition, provider fallback or unattended external request.
 
+P19 adds concrete request shaping and response decoding behind a still-injected HTTP
+sender. Hosted Pelias uses its fixed GET recipient and the same explicit authorization
+key as fixed-endpoint ORS routing. Self-hosted Pelias, Photon and Nominatim append only
+`/v1/search`, `/api` and `/search` respectively to the separately configured geocoder
+base URL; self-hosted ORS appends `/v2/directions/driving-car` to its independent routing
+base URL and receives no hosted key. ORS routes use minimal JSON POST bodies, with
+longitude/latitude order, disabled geometry/instructions, metre units, explicit avoid
+features and local departure time when supplied. Decoders accept only finite Point
+coordinates and positive route summaries; empty geocodes, malformed successes, sender
+failures and non-success statuses become stable typed failures without provider body,
+request or credential details. HTTP values hide URLs, headers, query text, bodies and
+responses from representations. No socket-capable sender is implemented or composed,
+so there is still no production network path, provider fallback or external request.
+
 P14 adds a read-only Home Assistant state-machine boundary for the two configured
 zone anchors. Each refresh looks up exactly those selected zone entities and reads
 only their latitude/longitude attributes. Valid coordinates become independent

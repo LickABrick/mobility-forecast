@@ -268,6 +268,18 @@ class IntegrationMetadataTests(unittest.TestCase):
         self.assertIn("invalid_planning_policy", strings["config"]["error"])
         self.assertIn("invalid_route_provider", strings["config"]["error"])
         self.assertIn("reconfigure_successful", strings["config"]["abort"])
+        for step_id in ("user", "reconfigure"):
+            descriptions = strings["config"]["step"][step_id]["data_description"]
+            self.assertIn(
+                "configured routing base URL followed by /v2/directions/driving-car",
+                descriptions["routing_base_url"],
+            )
+            for suffix in (
+                "/v1/search for Pelias",
+                "/api for Photon",
+                "/search for Nominatim",
+            ):
+                self.assertIn(suffix, descriptions["geocoder_base_url"])
         provider_description = strings["config"]["step"]["user"]["data_description"][
             "route_provider"
         ]

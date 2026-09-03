@@ -1,18 +1,19 @@
 # Project status
 
-Last updated: 2026-09-03 05:43 CEST
+Last updated: 2026-09-03 10:11 CEST
 
 ## Current phase
 
-Phase 1 and post-phase checkpoints P1–P18 are complete. Production runtime reads
+Phase 1 and post-phase checkpoints P1–P19 are complete. Production runtime reads
 each profile's selected Home Assistant calendars on a bounded schedule, resolves its
 two explicitly selected local zone anchors, classifies reviewed standalone meeting
 URLs locally and applies the stored structural event policy. Provider configuration
 requires explicit consent, recipient disclosure and bounded request/cache policy.
 Synthetic-only hosted and self-hosted OpenRouteService adapters now enforce those
-choices, budgets, retries, timeouts and privacy-safe cache retention behind injected
-transport protocols. No HTTP or production provider transport exists yet, so included
-service dates remain explicitly unknown for distance.
+choices, budgets, retries, timeouts and privacy-safe cache retention. Injected HTTP
+transports shape exact ORS/Pelias/Photon/Nominatim requests and decode only synthetic
+responses behind a sender protocol. No socket-capable sender or production provider
+composition exists, so included service dates remain explicitly unknown for distance.
 
 ## Completed
 
@@ -196,15 +197,23 @@ service dates remain explicitly unknown for distance.
   transport; expired geocodes and routes are deleted, while in-retention stale routes
   preserve explicit stale quality and refresh-failure context. No HTTP implementation
   or production runtime composition was added.
+- P19 adds injected HTTP translations for hosted and self-hosted ORS configurations.
+  Hosted Pelias GET and ORS directions POST requests use only their fixed disclosed
+  endpoints and one authorization key; self-hosted Pelias, Photon, Nominatim and ORS
+  requests append exact family paths to separately configured base URLs without a key.
+- P19 decodes finite point coordinates and positive ORS route summaries, maps empty,
+  malformed, sender and HTTP-status outcomes to stable failures, and excludes URLs,
+  credentials, private query/body data and response bodies from representations. The
+  sender remains an injected protocol and is not composed into production runtime.
 
 ## Active checkpoint
 
-P18 — Injected OpenRouteService adapter contracts is complete.
+P19 — Injected HTTP request/response transports is complete.
 
-Next bounded checkpoint: P19 — add exact OpenRouteService hosted/self-hosted HTTP
-request shaping and Pelias/Photon/Nominatim response decoding behind an injected HTTP
-sender. Use synthetic fixtures only, keep runtime network composition disabled, and
-fail closed without provider fallback.
+Next bounded checkpoint: P20 — add profile-scoped persistent geocode/route caches,
+privacy-key lifecycle and bounded pruning behind config-entry-scoped storage. Use
+synthetic fixtures only, leave network/runtime transport disabled and preserve explicit
+stale, partial and unavailable results.
 
 ## Verification evidence
 
@@ -1115,6 +1124,50 @@ refresh interval are unchanged. Route-cache expiry now deletes the opaque entry 
 enforce existing retention rather than merely refusing to return it. No HTTP client,
 runtime provider composition, persistent cache or physical capability was added.
 
+P19 recovery, TDD and verification on 2026-09-03:
+
+```text
+recovered partial HTTP transport/config/test diff                  PASS (8 focused tests; 14 subtests)
+Hassfest self-hosted path disclosure with angle brackets           RED (1 invalid integration)
+PYTHONPATH=.venv/site /usr/bin/python3 -m pytest                   PASS (164 tests)
+/usr/bin/python3 scripts/check_checkpoint.py                       PASS (164 tests included)
+PYTHONPATH=.venv/site /usr/bin/python3 -m ruff check .             PASS
+PYTHONPATH=.venv/site /usr/bin/python3 -m ruff format --check .    PASS (89 files)
+PYTHONPATH=.venv/site /usr/bin/python3 -m pyright                  PASS (0 errors; 11 expected missing-source warnings)
+Docker Python 3.14.7 / Home Assistant 2026.8.1 suite              PASS (3 tests; network disabled)
+Hassfest pinned image                                             PASS (1 integration; 0 invalid)
+HACS pinned image local schemas                                   PASS
+/usr/bin/python3 scripts/build_test_zip.py --check ...             PASS (398341 bytes; SHA-256 85c796729d4d6dea337e9ac6fa5e457bce12ccfc033890932423400e042074a1)
+sha256sum --check                                                 PASS
+git diff --check                                                  PASS
+```
+
+Recovery found five modified tracked files and two untracked P19 files on synchronized
+`main`. The implementation and eight focused tests already passed, so the complete diff
+was reviewed before continuing rather than discarded. Hassfest then caught HTML-like
+angle brackets in the new self-hosted path disclosure; the test and both translation
+copies were corrected to name the configured base URL plus each exact path without
+HTML, after which Hassfest and the focused 17-test config/HTTP set passed.
+
+All location text, coordinates, credentials, URLs and response bodies used by P19 tests
+are synthetic or the already disclosed fixed hosted ORS recipients. The injected sender
+records fixtures only; no socket/DNS client exists. Home Assistant and validator
+containers used a read-only repository mount and disabled networking. No production
+Home Assistant, calendar state or text, address, GPS, credential, provider endpoint,
+vehicle, service or notification was accessed. Diff/privacy review found no real secret,
+personal data, raw private-value representation, cross-provider fallback, runtime
+network composition or scope outside P19 and its checkpoint documentation.
+
+Configuration review for P19: config-entry schema remains 1.5 and storage remains
+schema 1. Existing explicit provider, consent, request-budget, retry/timeout and cache
+policy fields are consumed without a new default or migration. Source and English
+translations remain identical and now disclose exact self-hosted family suffixes.
+Strict Pyright includes the new HTTP translation module, and the reproducible integration
+package passed byte-for-byte/checksum verification. Python/tool pins, requirements,
+manifest/HACS metadata, workflow actions/permissions, refresh behavior and entity
+surface are unchanged. No dependency, persistent cache, socket-capable HTTP sender,
+production provider composition or physical capability was added.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -1137,8 +1190,9 @@ runtime provider composition, persistent cache or physical capability was added.
   key for its fixed hosted Pelias and routing endpoints; self-hosted ORS requires
   independently configured routing and Pelias/Photon/Nominatim geocoder endpoints.
   Geoapify and Google Routes+Geocoding remain optional. Required hard budgets,
-  bounded attempts/timeouts and cache-retention choices have no defaults. No live
-  HTTP implementation consumes these fields, so production distance remains
+  bounded attempts/timeouts and cache-retention choices have no defaults. P19 shapes
+  exact ORS/Pelias/Photon/Nominatim HTTP values behind an injected sender, but no
+  socket-capable sender or runtime composition exists, so production distance remains
   unavailable and no provider or hosted/self-hosted fallback can occur.
 - Route and input failures remain partial, stale or unavailable and never become zero distance or false readiness.
 - Historical plan revisions are immutable so later calendar edits do not rewrite training truth.
@@ -1224,7 +1278,8 @@ runtime provider composition, persistent cache or physical capability was added.
   coordinates. P14 supplies the Home Assistant zone adapter, while P15 defines the
   event-location resolver contract and deterministic fake. P17 supplies explicit
   provider/recipient, credential, timeout, retry and cache-retention configuration;
-  P18 enforces it in injected ORS adapters with in-memory cache fakes. HTTP transports,
+  P18 enforces it in injected ORS adapters with in-memory cache fakes, and P19 shapes
+  and decodes provider HTTP values behind an injected sender. A socket-capable sender,
   persistent cache storage and runtime composition remain deferred.
 - Config-entry schema version 1 minor version 5 and storage schema version 1 now
   exist. The 1.1 empty-calendar marker and 1.2 calendar-preserving migration guess
@@ -1246,10 +1301,12 @@ runtime provider composition, persistent cache or physical capability was added.
 - No real route-provider credentials or calls are permitted during unattended work.
 - P17 corrects the schema-1.4 Google-only selection before network transport. P18
   enforces the resulting ORS provider, budget, retry, timeout and in-memory retention
-  contracts through injected synthetic transports without fallback. Persistent
-  geocode/route cache implementations, HTTP request/response transports, provider
-  credential injection and production forecast composition remain required before
-  live kilometres. Geoapify and Google still have no matching corrected adapter.
+  contracts through injected synthetic transports without fallback. P19 adds exact
+  hosted/self-hosted HTTP shaping and conservative response/failure decoding behind an
+  injected sender. Persistent geocode/route caches, privacy-key lifecycle, a
+  socket-capable sender, credential injection and production forecast composition
+  remain required before live kilometres. Geoapify and Google still have no matching
+  corrected adapter.
 - Exact Home Assistant entity selections and personal data are deliberately absent from the repository.
 
 ## Nightly runtime
