@@ -210,10 +210,19 @@ proved only with isolated Home Assistant contract fixtures.
     exists. The dependency-free suite now has 164 tests; all configured local gates
     passed on 2026-09-03.
 
-Next checkpoint: **P20 — Profile-scoped persistent provider caches**. Add private
-config-entry-scoped geocode and route cache storage, privacy-key lifecycle and bounded
-retention/pruning with migration/failure tests. Keep network/runtime transport disabled,
-use synthetic fixtures only and preserve explicit stale/unavailable semantics.
+- [x] **P20 — Profile-scoped persistent provider caches**
+  - A separate private atomic Store per config entry now persists one 32-byte HMAC
+    privacy key plus opaque geocode and directional route cache entries. Restart
+    restores the same key and entries; initialization prunes expired/future records,
+    explicit rotation atomically clears both caches, and malformed/unknown schemas
+    fail closed without overwrite. Ten synthetic tests bring the dependency-free
+    suite to 174 tests; Ruff, formatting and strict Pyright pass. No runtime or HTTP
+    sender composition was added.
+
+Next checkpoint: **P21 — Injected Home Assistant HTTP sender boundary**. Translate the
+existing private HTTP request contract through an injected Home Assistant client/session
+boundary with bounded response reads and sanitized transport failures. Use synthetic
+session fixtures only; do not compose providers into runtime or make external calls.
 
 ## Checkpoint definition of done
 

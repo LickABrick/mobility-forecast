@@ -206,6 +206,19 @@ request or credential details. HTTP values hide URLs, headers, query text, bodie
 responses from representations. No socket-capable sender is implemented or composed,
 so there is still no production network path, provider fallback or external request.
 
+P20 adds a separate schema-version-1 private provider-cache Store for each config
+entry. On first initialization it generates and durably saves exactly 32 random bytes
+of profile-local HMAC key material before exposing the caches. Restart restores that
+same key and opaque geocode/route entries; unsupported or malformed payloads fail
+closed without generating a replacement or overwriting evidence. Initialization
+prunes every expired or future-dated entry using the profile's explicit geocode and
+maximum-stale route ages, including entries that are never looked up again. Explicit
+key rotation atomically persists a new key and empty caches so entries derived from
+old key material cannot remain unreachable indefinitely. Cache mutations publish
+in-memory state only after Home Assistant's private atomic Store accepts the complete
+next payload. This storage is an adapter supplied to the existing cache protocols; it
+is not composed into the runtime and adds no HTTP sender or provider call.
+
 P14 adds a read-only Home Assistant state-machine boundary for the two configured
 zone anchors. Each refresh looks up exactly those selected zone entities and reads
 only their latitude/longitude attributes. Valid coordinates become independent

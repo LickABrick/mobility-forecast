@@ -208,12 +208,11 @@ composition exists, so included service dates remain explicitly unknown for dist
 
 ## Active checkpoint
 
-P19 — Injected HTTP request/response transports is complete.
+P20 — Profile-scoped persistent provider caches is complete.
 
-Next bounded checkpoint: P20 — add profile-scoped persistent geocode/route caches,
-privacy-key lifecycle and bounded pruning behind config-entry-scoped storage. Use
-synthetic fixtures only, leave network/runtime transport disabled and preserve explicit
-stale, partial and unavailable results.
+Next bounded checkpoint: P21 — add an injected Home Assistant HTTP sender boundary
+with bounded response reads and sanitized transport failures. Use synthetic session
+fixtures only, leave provider runtime composition disabled and make no external calls.
 
 ## Verification evidence
 
@@ -697,7 +696,7 @@ physical services or notifications.
 Configuration review for P7: the manifest now supplies the fields required by
 current Hassfest/HACS for this custom integration: explicit empty dependencies,
 requirements and code owners; `local_polling` because the future source reads
-local Home Assistant calendar entities; and the authorized private origin's
+local Home Assistant calendar entities; and the public origin's
 documentation and issue URLs. The workflow retains read-only permissions,
 immutable action references, bounded timeouts and no secret or publication path.
 Python/tool pins, package/test discovery, `hacs.json`, config-entry schema 1.2,
@@ -1168,6 +1167,63 @@ manifest/HACS metadata, workflow actions/permissions, refresh behavior and entit
 surface are unchanged. No dependency, persistent cache, socket-capable HTTP sender,
 production provider composition or physical capability was added.
 
+P20 TDD and verification on 2026-09-03:
+
+```text
+python3 -m unittest tests.test_provider_cache_storage \
+  tests.test_ha_provider_cache -v                       RED (modules absent)
+python3 -m unittest tests.test_provider_cache_storage \
+  tests.test_ha_provider_cache -v                       PASS (9 tests)
+python3 -m unittest discover -s tests                   PASS (174 tests)
+python3 scripts/check_checkpoint.py                     PASS (174 tests)
+.venv/bin/python -m pytest                              PASS (174 tests)
+.venv/bin/ruff check .                                  PASS
+.venv/bin/ruff format --check .                         PASS (93 files)
+.venv/bin/pyright                                       PASS (0 errors; 13 expected
+                                                        missing-source warnings)
+python3 scripts/build_test_zip.py --check ...            PASS
+                                                        (429745 bytes; SHA-256
+                                                        93fbe128403797c3a07a6c0672b50386a9a6570e8c7b5173969b60f70966c617)
+git diff --check                                        PASS
+```
+
+P20 adds a dependency-free schema-version-1 codec for one profile's provider cache
+state and a separate Home Assistant private atomic Store adapter. Each store is keyed
+only by config-entry identifier and contains exactly one representation-hidden 32-byte
+HMAC privacy key, opaque geocode cache keys with coordinates and insertion times, and
+opaque directional route cache keys with validated complete routes and insertion
+times. JSON decoding reconstructs validated immutable domain values and rejects
+unknown schema versions, malformed key material, duplicate opaque keys and invalid
+route/location values.
+
+First initialization durably saves generated key material before making it available.
+Restart restores the same key and both cache types. Initialization scans all entries
+and atomically removes expired and future-dated records using the already configured
+geocode retention and maximum-stale route age, preventing never-read records from
+surviving indefinitely. Explicit privacy-key rotation saves a new key and empty caches
+in one transaction; failed Store writes do not publish unpersisted in-memory changes.
+Malformed state fails closed without silent key replacement, cache deletion or store
+overwrite. The adapter satisfies the existing geocode and route cache method shapes
+but is not connected to the production runtime.
+
+All cache locations, coordinates, routes, identifiers, timestamps and Store contents
+used by P20 tests are synthetic. No production Home Assistant, filesystem outside the
+repository, route/geocoder endpoint, credential, calendar, vehicle, service or
+notification was accessed. No HTTP sender, socket-capable dependency, runtime provider
+composition, provider fallback or physical capability was added. The public-repository
+status in this document was corrected from stale private-origin wording following the
+owner's confirmation; `TESTING.md` and manifest links already described the public
+repository.
+
+Configuration review for P20: config-entry schema remains 1.5 and the existing
+forecast/profile storage remains schema 1. Provider-cache persistence has its own new
+schema version 1 and Store namespace so malformed cache state cannot affect immutable
+forecast history. Existing explicit provider consent, budgets, timeout/retry and cache
+age fields are unchanged and no default or config migration was introduced. Strict
+Pyright now includes both new cache modules. Python/tool pins, requirements,
+manifest/HACS metadata, workflow permissions/action pins, strings/translations,
+calendar refresh behavior and entity surface are unchanged.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -1200,6 +1256,9 @@ production provider composition or physical capability was added.
 - Calendar filtering is deterministic and profile-policy driven. Include/exclude terms use case-insensitive substring matching over summary and description only; previews expose aggregate counts and stable reason codes only.
 - Passive start GPS is accepted only within explicit inclusive age, accuracy and trip-horizon gates. Start and end fallback decisions are independent; fallbacks are partial rather than silently complete.
 - Routing is directional and asynchronous behind typed provider/cache protocols. Cache keys are profile-keyed HMAC digests of all route-affecting inputs; fresh/stale limits are explicit, and stale fallback retains both stale quality and the refresh-failure category.
+- Provider caches use a separate private atomic Store per config entry. A persisted
+  32-byte profile-local HMAC key survives restart; startup prunes expired/future
+  entries, and explicit key rotation atomically clears both cache types.
 - Itinerary assembly uses explicit normalized deduplication keys, deterministic stop ordering and known-destination chaining. Conflicting duplicates fail closed, degraded legs remain explicit, and revision history is append-only and immutable.
 - Passive actuals capture the latest complete revision that existed when a day opened and never rematch later edits. Only fresh, monotonic and explicitly distance-bounded odometer closures become complete training actuals.
 - Forecast correction uses only unique earlier-day actuals. Explicit ratio bounds reject outliers; sufficient inliers use median P50 and nearest-rank P90, while cold start is partial and uses an explicit conservative multiplier.
@@ -1252,7 +1311,9 @@ production provider composition or physical capability was added.
   DNS/network lookups or treat arbitrary URLs as online. Expanding provider hosts or
   event fields requires a separate reviewed test and privacy decision.
 - C3 term matching is intentionally a literal case-insensitive substring contract, not regex, tokenization or location-text matching. Any broader rule language requires a separately tested and documented checkpoint.
-- C5 cache storage is an in-memory contract fake only. Persistent profile-scoped cache storage, privacy-key generation/rotation and migration behavior remain deferred to a later lifecycle/persistence checkpoint; no key material is logged or persisted by the domain.
+- C5's in-memory cache remains the dependency-free test fake. P20 adds persistent
+  profile-scoped cache storage and key lifecycle at the Home Assistant boundary, but
+  it is not yet initialized or supplied to provider adapters by production runtime.
 - C8c/P2 define serialization and the Home Assistant `Store` adapter, but not retention pruning, transactional recovery UI or migration beyond schema version 1. No pre-version-1 payload exists; future schema changes require explicit forward migration and rollback tests.
 - C8d–C8f and P1–P3/P11 define orchestration, durable state, calendar
   normalization, production calendar ingestion, a passive sensor-platform adapter,
@@ -1267,10 +1328,9 @@ production provider composition or physical capability was added.
   classification. Event-location production resolution, revision-id generation and
   routing remain unimplemented.
 - A separate privacy-safe logging policy remains unimplemented; diagnostics safety does not make arbitrary logs safe.
-- The manifest now points documentation and issue support at the authorized private
-  origin and intentionally declares no code owner. Those links work only for users
-  who can access the private repository; public publication and an approved
-  maintainer handle remain out of scope.
+- The manifest points documentation and issue support at the public repository and
+  intentionally declares no code owner. An approved maintainer handle remains out of
+  scope.
 - Ruff lint and formatting cover the complete repository. Strict Pyright now also covers the lifecycle module through minimal isolated Home Assistant contracts; other adapters, real-HA tests and dynamic fixtures remain outside that boundary. Expansion must add reviewed contract types rather than weakening strict mode or conflating installed runtime types with the dependency-free check.
 - The development and real-HA requirements pin direct tool versions but not hashes or every transitive dependency. The real-HA harness pin currently requires Home Assistant 2026.8.1 exactly, and its test asserts that installed version. Action commits are immutable; a later supply-chain audit may add a fully hashed lock when a supported dependency workflow is chosen.
 - C4 defines required freshness/accuracy/horizon fields but intentionally supplies no product defaults. Their config-flow representation and migration policy remain future product work and must be reviewed before introduction.
@@ -1278,9 +1338,10 @@ production provider composition or physical capability was added.
   coordinates. P14 supplies the Home Assistant zone adapter, while P15 defines the
   event-location resolver contract and deterministic fake. P17 supplies explicit
   provider/recipient, credential, timeout, retry and cache-retention configuration;
-  P18 enforces it in injected ORS adapters with in-memory cache fakes, and P19 shapes
-  and decodes provider HTTP values behind an injected sender. A socket-capable sender,
-  persistent cache storage and runtime composition remain deferred.
+  P18 enforces it in injected ORS adapters with cache protocols, P19 shapes and
+  decodes provider HTTP values behind an injected sender, and P20 implements the
+  persistent cache adapter. A socket-capable sender and runtime composition remain
+  deferred.
 - Config-entry schema version 1 minor version 5 and storage schema version 1 now
   exist. The 1.1 empty-calendar marker and 1.2 calendar-preserving migration guess
   no planning data; 1.3 planning entries retain their data but guess no provider or
@@ -1294,17 +1355,16 @@ production provider composition or physical capability was added.
 - The deterministic ZIP is locally verified but has not yet been installed or
   smoke-tested by Guus in his Home Assistant environment. Its expected
   `unavailable` sensor proves fail-safe lifecycle behavior only, not forecast
-  generation. Because the private repository cannot be consumed by HACS, this
-  checkpoint uses documented manual installation and backup-based rollback.
-- Private `origin` is configured and authorized for checkpoint pushes; repository
-  visibility/settings and external publication remain out of scope.
+  generation. HACS installation from the public repository and documented manual
+  installation both retain backup-based rollback instructions.
+- Public `origin` is configured; pushes still require explicit user approval.
 - No real route-provider credentials or calls are permitted during unattended work.
 - P17 corrects the schema-1.4 Google-only selection before network transport. P18
   enforces the resulting ORS provider, budget, retry, timeout and in-memory retention
   contracts through injected synthetic transports without fallback. P19 adds exact
   hosted/self-hosted HTTP shaping and conservative response/failure decoding behind an
-  injected sender. Persistent geocode/route caches, privacy-key lifecycle, a
-  socket-capable sender, credential injection and production forecast composition
+  injected sender, and P20 persists profile-local caches and privacy-key lifecycle.
+  A socket-capable sender, credential injection and production forecast composition
   remain required before live kilometres. Geoapify and Google still have no matching
   corrected adapter.
 - Exact Home Assistant entity selections and personal data are deliberately absent from the repository.
