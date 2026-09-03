@@ -12,6 +12,8 @@ from enum import StrEnum
 from typing import Any, ClassVar
 
 from custom_components.mobility_forecast.route_provider_config import (
+    GEOAPIFY_GEOCODING_ENDPOINT,
+    GEOAPIFY_ROUTING_ENDPOINT,
     GOOGLE_GEOCODING_ENDPOINT,
     GOOGLE_ROUTING_ENDPOINT,
 )
@@ -649,6 +651,64 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
         )
         self.assertEqual(calls[1]["url"], GOOGLE_ROUTING_ENDPOINT)
         self.assertIn("departureTime", calls[1]["json"])  # type: ignore[index]
+
+    def test_geoapify_runtime_composes_http_pipeline_into_nonzero_forecast(
+        self,
+    ) -> None:
+        manager = FakeConfigEntriesManager()
+        hass = FakeHomeAssistant(manager)
+        hass.data["calendar"].entity.events = [  # type: ignore[union-attr]
+            SyntheticCalendarEvent(
+                start=datetime(2032, 4, 5, 9, 0, tzinfo=UTC),
+                end=datetime(2032, 4, 5, 10, 0, tzinfo=UTC),
+                summary="Synthetic appointment",
+                location="Synthetic destination",
+                uid="synthetic-event",
+            )
+        ]
+        hass.http_session = SequencedSyntheticSession(
+            [
+                SyntheticResponse(
+                    200,
+                    b'{"features":[{"geometry":{"type":"Point","coordinates":[-33,13]}}]}',
+                ),
+                SyntheticResponse(
+                    200,
+                    b'{"features":[{"properties":{"distance":10000,"time":900}}]}',
+                ),
+            ]
+        )
+        data = dict(FakeConfigEntry("template").data)
+        data.update(
+            {
+                "route_provider": "geoapify",
+                "route_provider_api_key": "synthetic-geoapify-key",
+            }
+        )
+        entry = FakeConfigEntry("entry-geoapify", data=data)
+
+        with fake_home_assistant():
+            integration = load_integration()
+            result = asyncio.run(integration.async_setup_entry(hass, entry))
+
+        self.assertTrue(result)
+        snapshot = entry.runtime_data.coordinator.data  # type: ignore[union-attr]
+        self.assertEqual(snapshot.forecasts[0].distance_p50_m, 10_000)
+        self.assertEqual(snapshot.forecasts[0].distance_p90_m, 12_500)
+        calls = hass.http_session.calls  # type: ignore[attr-defined]
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[0]["url"], GEOAPIFY_GEOCODING_ENDPOINT)
+        self.assertEqual(
+            calls[0]["params"],
+            (
+                ("text", "Synthetic destination"),
+                ("limit", "1"),
+                ("format", "geojson"),
+                ("apiKey", "synthetic-geoapify-key"),
+            ),
+        )
+        self.assertEqual(calls[1]["url"], GEOAPIFY_ROUTING_ENDPOINT)
+        self.assertEqual(calls[1]["params"][1], ("mode", "drive"))
 
     def test_failed_platform_forwarding_releases_unloaded_runtime(self) -> None:
         manager = FakeConfigEntriesManager(

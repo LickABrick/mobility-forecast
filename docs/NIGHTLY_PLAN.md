@@ -261,11 +261,19 @@ proved only with isolated Home Assistant contract fixtures.
     dependency-free suite to 198 tests; all configured local gates pass without an
     external request.
 
-Next checkpoint: **P26 — Production Geoapify composition**. Add bounded geocoding and
-routing HTTP transports plus runtime composition for the remaining explicitly
-selectable optional family, using the existing persistent cache and uncertainty
-pipeline. Tests must intercept every request and use no real credential or external
-call.
+- [x] **P26 — Production Geoapify composition**
+  - The remaining optional family now shapes fixed-endpoint GeoJSON forward-geocoding
+    and road-routing GET requests over the existing bounded Home Assistant sender.
+    Only the selected provider receives private values; no fallback exists.
+  - Explicit toll/highway choices, shared refresh budgets, bounded attempts/timeouts,
+    profile-private persistent caches and conservative failure semantics carry through
+    the existing routed-forecast pipeline. Synthetic HTTP and lifecycle tests intercept
+    every request and make no external call.
+
+Next checkpoint: **P27 — Explicit vehicle-energy policy prerequisite**. Define the
+provider-neutral read-only inputs and explicit consumption/usable-SOC policy required
+to turn distance percentiles into conservative SOC advice, without choosing vehicle
+entities, defaults or production actions yet.
 
 ## Checkpoint definition of done
 

@@ -15,6 +15,11 @@ from typing import TYPE_CHECKING, Protocol, cast
 from .coordinator import ProfileCoordinator
 from .diagnostics import DiagnosticsSnapshot
 from .forecast_config import ProfileForecastConfig
+from .geoapify import build_geoapify_adapters
+from .geoapify_http import (
+    GeoapifyHttpGeocodeTransport,
+    GeoapifyHttpRouteTransport,
+)
 from .google_routes import build_google_adapters
 from .google_routes_http import (
     GoogleHttpGeocodeTransport,
@@ -140,6 +145,24 @@ async def build_runtime(
     sender = build_home_assistant_http_sender(hass)
 
     def build_adapters() -> ProviderAdapters:
+        if route_config.provider is RouteProviderKind.GEOAPIFY:
+            if route_config.api_key is None:
+                raise ValueError("Geoapify profile credential is unavailable")
+            return build_geoapify_adapters(
+                config=route_config,
+                geocode_transport=GeoapifyHttpGeocodeTransport(
+                    sender=sender, now=dt_util.now
+                ),
+                route_transport=GeoapifyHttpRouteTransport(
+                    sender=sender,
+                    api_key=route_config.api_key,
+                    now=dt_util.now,
+                ),
+                geocode_cache=provider_caches.geocode_cache,
+                route_cache=provider_caches.route_cache,
+                privacy_key=provider_caches.privacy_key,
+                now=dt_util.now,
+            )
         if route_config.provider is RouteProviderKind.GOOGLE:
             if route_config.api_key is None:
                 raise ValueError("Google profile credential is unavailable")

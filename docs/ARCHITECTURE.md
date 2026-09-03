@@ -276,6 +276,17 @@ successes become stable typed failures without body or error text. Both transpor
 the existing sender, request budgets, bounded retries/timeouts and profile-private
 persistent caches; no provider fallback is introduced. Geoapify remains fail closed.
 
+P26 composes the remaining optional Geoapify family through the same provider-neutral
+runtime pipeline. Forward geocoding sends only location text, a one-result GeoJSON
+format choice and the explicit key to the disclosed geocoding endpoint. Road routing
+sends only the two endpoint coordinates, drive mode, explicit metric units, the selected
+toll/highway avoidance, GeoJSON format and the same key to the separately disclosed
+routing endpoint.
+Only the first valid point or route distance/time is consumed. HTTP/sender failures,
+empty results and malformed successes map to stable typed failures; the shared refresh
+budget, bounded attempts/timeouts and profile-private persistent caches apply without
+fallback.
+
 P14 adds a read-only Home Assistant state-machine boundary for the two configured
 zone anchors. Each refresh looks up exactly those selected zone entities and reads
 only their latitude/longitude attributes. Valid coordinates become independent
@@ -286,8 +297,9 @@ values and out-of-range values fail closed with stable role-specific reasons bef
 calendar ingestion, which makes the latest entity update unavailable while retaining
 prior immutable coordinator data. The resolved coordinates are not projected. P16
 applies structural filtering after anchor resolution; P23 supplies event geocoding,
-routing and road kilometres for supported OpenRouteService configurations, and P25
-adds the same provider-neutral pipeline for explicitly selected Google profiles.
+routing and road kilometres for supported OpenRouteService configurations, P25 adds
+the same provider-neutral pipeline for explicitly selected Google profiles, and P26
+adds it for explicitly selected Geoapify profiles.
 
 ## Test strategy
 

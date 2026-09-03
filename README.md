@@ -7,16 +7,15 @@ Mobility Forecast is a planned Home Assistant custom integration that turns cale
 The phase-1 architecture and safe development foundation are complete. Bounded
 post-phase work now provides selected-calendar refreshes, explicit profile zone
 anchors, conservative local online-event classification, applied structural policy,
-real OpenRouteService location/routing composition, isolated Home Assistant contracts
-and a reproducible test ZIP. Valid configured physical events can publish real routed
-kilometres; failed or incomplete inputs remain unknown rather than becoming zero.
-The project must not wake vehicles or execute charging actions.
+real OpenRouteService, Geoapify and Google location/routing composition, isolated
+Home Assistant contracts and a reproducible test ZIP. Valid configured physical events
+can publish real routed kilometres; failed or incomplete inputs remain unknown rather
+than becoming zero. The project must not wake vehicles or execute charging actions.
 
 Profile-scoped provider caches and the bounded production HTTP sender are connected to
-the refresh runtime for hosted/self-hosted OpenRouteService and optional Google
-profiles. Raw event locations are sent only to the explicitly selected geocoder, and
-coordinates only to the selected router. Geoapify remains a selectable future family
-without a production adapter and therefore fails closed today.
+the refresh runtime for hosted/self-hosted OpenRouteService, optional Geoapify and
+optional Google profiles. Raw event locations are sent only to the explicitly selected
+geocoder, and coordinates only to the selected router. No provider fallback occurs.
 
 Schema 1.6 also requires every profile to choose its history threshold, accepted
 actual-to-planned correction range and cold-start P90 conservatism explicitly. The
