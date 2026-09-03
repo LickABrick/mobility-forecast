@@ -235,7 +235,17 @@ are never read or retained. Connection, timeout and stream failures become a sta
 transient sender failure; oversized, invalid UTF-8 or invalid JSON responses become
 unavailable, without exception or body text. Task cancellation propagates. The sender
 is real production I/O code, while its tests inject protocol-compatible sessions and
-make no external request. Runtime composition remains P22 work.
+make no external request. Runtime composition remains P23 work.
+
+P22 advances config-entry schema 1.5 to 1.6 with the forecast model policy that
+production composition requires. Every new or reconfigured profile explicitly chooses
+the minimum valid history count, inclusive minimum/maximum accepted actual-to-planned
+correction percentages, and cold-start P90 percentage. Persisted percentages are
+JSON-safe integers and project to the existing ratio-based `ForecastPolicy`; the form
+supplies bounds but no defaults. Schema-1.5 entries retain their complete calendar,
+planning and provider configuration during migration but gain no guessed forecast
+policy, so reconfiguration is required before routed composition. P23 owns that
+composition.
 
 P14 adds a read-only Home Assistant state-machine boundary for the two configured
 zone anchors. Each refresh looks up exactly those selected zone entities and reads

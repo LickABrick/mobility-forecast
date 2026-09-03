@@ -23,13 +23,14 @@ from .route_provider_config import (
     CONF_ROUTE_PROVIDER,
     CONF_ROUTE_PROVIDER_API_KEY,
     CONF_TOLL_POLICY,
+    ProfileRouteConfig,
     RoutePreference,
 )
 from .runtime import ProfileRuntimeData, build_runtime
 
 PLATFORMS: Final = ("sensor",)
 CONFIG_ENTRY_VERSION: Final = 1
-CONFIG_ENTRY_MINOR_VERSION: Final = 5
+CONFIG_ENTRY_MINOR_VERSION: Final = 6
 
 _PLANNING_DATA_KEYS: Final = {
     CONF_START_ANCHOR_ENTITY_ID,
@@ -77,8 +78,9 @@ async def async_migrate_entry(
     choices but gain no guessed provider policy. Version 1.4's inactive
     Google-only provider marker and credential are removed; its provider-neutral
     route preferences remain, but users must explicitly reconfigure provider,
-    recipients, consent and safety limits. Earlier versions receive no guessed
-    values. Users complete absent fields through reconfigure.
+    recipients, consent and safety limits. Version 1.5 entries retain their complete
+    provider policy but gain no guessed forecast-model policy. Earlier versions
+    receive no guessed values. Users complete absent fields through reconfigure.
     """
 
     if entry.version != CONFIG_ENTRY_VERSION:
@@ -126,6 +128,14 @@ async def async_migrate_entry(
         raw_data.pop(CONF_ROUTE_PROVIDER)
         raw_data.pop(CONF_ROUTE_PROVIDER_API_KEY)
         data = raw_data
+    elif entry.minor_version == 5:
+        try:
+            validate_calendar_entity_ids(entry.data[CONF_CALENDAR_ENTITY_IDS])
+            ProfilePlanningConfig.from_entry_data(entry.data)
+            ProfileRouteConfig.from_entry_data(entry.data)
+        except (KeyError, ValueError):
+            return False
+        data = dict(entry.data)
     else:
         return False
     hass.config_entries.async_update_entry(

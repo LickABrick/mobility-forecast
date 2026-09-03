@@ -11,6 +11,12 @@ from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.mobility_forecast.config_flow import DOMAIN
+from custom_components.mobility_forecast.forecast_config import (
+    CONF_COLD_START_P90_PERCENT,
+    CONF_MAXIMUM_CORRECTION_PERCENT,
+    CONF_MINIMUM_CORRECTION_PERCENT,
+    CONF_MINIMUM_HISTORY_SAMPLES,
+)
 from custom_components.mobility_forecast.ha_calendar import CONF_CALENDAR_ENTITY_IDS
 from custom_components.mobility_forecast.profile_config import (
     CONF_ALL_DAY_EVENT_POLICY,
@@ -65,9 +71,13 @@ async def test_entry_lifecycle_registers_unavailable_read_only_sensor(
             CONF_ROUTE_CACHE_STALE_HOURS: 24,
             CONF_TOLL_POLICY: "avoid",
             CONF_HIGHWAY_POLICY: "allow",
+            CONF_MINIMUM_HISTORY_SAMPLES: 5,
+            CONF_MINIMUM_CORRECTION_PERCENT: 60,
+            CONF_MAXIMUM_CORRECTION_PERCENT: 180,
+            CONF_COLD_START_P90_PERCENT: 125,
         },
         version=1,
-        minor_version=5,
+        minor_version=6,
     )
     entry.add_to_hass(hass)
 

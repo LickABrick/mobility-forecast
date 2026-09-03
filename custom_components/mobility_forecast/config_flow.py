@@ -18,6 +18,18 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
+from .forecast_config import (
+    CONF_COLD_START_P90_PERCENT,
+    CONF_MAXIMUM_CORRECTION_PERCENT,
+    CONF_MINIMUM_CORRECTION_PERCENT,
+    CONF_MINIMUM_HISTORY_SAMPLES,
+    MAXIMUM_COLD_START_P90_PERCENT,
+    MAXIMUM_CORRECTION_PERCENT,
+    MAXIMUM_HISTORY_SAMPLES,
+    MINIMUM_COLD_START_P90_PERCENT,
+    MINIMUM_CORRECTION_PERCENT,
+    ProfileForecastConfig,
+)
 from .ha_calendar import (
     CONF_CALENDAR_ENTITY_IDS,
     validate_calendar_entity_ids,
@@ -133,11 +145,13 @@ def _planning_schema_fields() -> dict[object, object]:
     }
 
 
-def _number_selector(maximum: int) -> NumberSelector:
+def _number_selector(maximum: int, *, minimum: int = 1) -> NumberSelector:
     """Build an explicit integer selector with no default."""
 
     return NumberSelector(
-        NumberSelectorConfig(min=1, max=maximum, step=1, mode=NumberSelectorMode.BOX)
+        NumberSelectorConfig(
+            min=minimum, max=maximum, step=1, mode=NumberSelectorMode.BOX
+        )
     )
 
 
@@ -181,7 +195,33 @@ def _route_schema_fields() -> dict[object, object]:
     }
 
 
-CONFIG_SCHEMA = vol.Schema({**_planning_schema_fields(), **_route_schema_fields()})
+def _forecast_schema_fields() -> dict[object, object]:
+    """Build explicit uncertainty settings without behavioral defaults."""
+
+    return {
+        vol.Required(CONF_MINIMUM_HISTORY_SAMPLES): _number_selector(
+            MAXIMUM_HISTORY_SAMPLES
+        ),
+        vol.Required(CONF_MINIMUM_CORRECTION_PERCENT): _number_selector(
+            MAXIMUM_CORRECTION_PERCENT, minimum=MINIMUM_CORRECTION_PERCENT
+        ),
+        vol.Required(CONF_MAXIMUM_CORRECTION_PERCENT): _number_selector(
+            MAXIMUM_CORRECTION_PERCENT, minimum=MINIMUM_CORRECTION_PERCENT
+        ),
+        vol.Required(CONF_COLD_START_P90_PERCENT): _number_selector(
+            MAXIMUM_COLD_START_P90_PERCENT,
+            minimum=MINIMUM_COLD_START_P90_PERCENT,
+        ),
+    }
+
+
+CONFIG_SCHEMA = vol.Schema(
+    {
+        **_planning_schema_fields(),
+        **_route_schema_fields(),
+        **_forecast_schema_fields(),
+    }
+)
 PROFILE_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_NAME): str,
@@ -190,6 +230,7 @@ PROFILE_SCHEMA = vol.Schema(
         ),
         **_planning_schema_fields(),
         **_route_schema_fields(),
+        **_forecast_schema_fields(),
     }
 )
 
@@ -212,11 +253,20 @@ def _validated_route_data(user_input: dict[str, Any]) -> dict[str, str | int]:
         raise vol.Invalid("invalid route provider configuration") from err
 
 
+def _validated_forecast_data(user_input: dict[str, Any]) -> dict[str, int]:
+    """Return strict explicit model policy or a fixed validation error."""
+
+    try:
+        return ProfileForecastConfig.from_entry_data(user_input).as_entry_data()
+    except ValueError as err:
+        raise vol.Invalid("invalid forecast policy") from err
+
+
 class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
     """Create and reconfigure independent forecast profiles."""
 
     VERSION = 1
-    MINOR_VERSION = 5
+    MINOR_VERSION = 6
 
     def _show_profile_form(
         self,
@@ -269,12 +319,21 @@ class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
                 data_schema=PROFILE_SCHEMA,
                 errors={"base": "invalid_route_provider"},
             )
+        try:
+            forecast_data = _validated_forecast_data(user_input)
+        except vol.Invalid:
+            return self._show_profile_form(
+                step_id="user",
+                data_schema=PROFILE_SCHEMA,
+                errors={"base": "invalid_forecast_policy"},
+            )
         return self.async_create_entry(
             title=user_input[CONF_NAME],
             data={
                 CONF_CALENDAR_ENTITY_IDS: entity_ids,
                 **planning_data,
                 **route_data,
+                **forecast_data,
             },
         )
 
@@ -304,6 +363,14 @@ class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
                 data_schema=CONFIG_SCHEMA,
                 errors={"base": "invalid_route_provider"},
             )
+        try:
+            forecast_data = _validated_forecast_data(user_input)
+        except vol.Invalid:
+            return self._show_profile_form(
+                step_id="reconfigure",
+                data_schema=CONFIG_SCHEMA,
+                errors={"base": "invalid_forecast_policy"},
+            )
         entry = self._get_reconfigure_entry()
         return self.async_update_reload_and_abort(
             entry,
@@ -311,5 +378,6 @@ class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
                 CONF_CALENDAR_ENTITY_IDS: entry.data[CONF_CALENDAR_ENTITY_IDS],
                 **planning_data,
                 **route_data,
+                **forecast_data,
             },
         )

@@ -1,17 +1,18 @@
 {
   "config": {
     "abort": {
-      "reconfigure_successful": "Profile planning and routing configuration updated."
+      "reconfigure_successful": "Profile planning, routing and forecast configuration updated."
     },
     "error": {
       "calendar_required": "Select at least one calendar.",
       "invalid_planning_policy": "Select valid anchors and event handling choices.",
-      "invalid_route_provider": "Select one provider, explicitly consent, and supply valid provider-specific endpoints, credentials, budgets, retries and cache retention."
+      "invalid_route_provider": "Select one provider, explicitly consent, and supply valid provider-specific endpoints, credentials, budgets, retries and cache retention.",
+      "invalid_forecast_policy": "Supply valid explicit history and uncertainty settings."
     },
     "step": {
       "user": {
         "title": "Create a Mobility Forecast profile",
-        "description": "Each profile is independent. Setup makes no provider request. Future hosted forecasting sends calendar location text to the selected geocoder and coordinates to the selected router only with explicit consent; it never falls back to another provider.",
+        "description": "Each profile is independent. Setup makes no provider request. Forecasting uses the explicit model policy below and sends calendar location text to the selected geocoder and coordinates to the selected router only with explicit consent; it never falls back to another provider.",
         "data": {
           "name": "Profile name",
           "calendar_entity_ids": "Calendars",
@@ -35,7 +36,11 @@
           "route_cache_fresh_hours": "Fresh route cache age (hours)",
           "route_cache_stale_hours": "Maximum stale route cache age (hours)",
           "toll_policy": "Tolls",
-          "highway_policy": "Highways"
+          "highway_policy": "Highways",
+          "minimum_history_samples": "Minimum history samples",
+          "minimum_correction_percent": "Minimum correction (%)",
+          "maximum_correction_percent": "Maximum correction (%)",
+          "cold_start_p90_percent": "Cold-start conservative estimate (%)"
         },
         "data_description": {
           "name": "A display name for this independent forecast profile.",
@@ -60,12 +65,16 @@
           "route_cache_fresh_hours": "Required fresh retention from 1 to 24 hours. Route cache keys retain no raw coordinates or endpoint identifiers.",
           "route_cache_stale_hours": "Required maximum retention from the fresh age through 720 hours. Stale data must remain explicitly stale.",
           "toll_policy": "Explicitly allow or avoid toll roads.",
-          "highway_policy": "Explicitly allow or avoid highways."
+          "highway_policy": "Explicitly allow or avoid highways.",
+          "minimum_history_samples": "Required number of valid earlier days before historical correction is applied (1 to 365).",
+          "minimum_correction_percent": "Required lower bound for accepted actual-to-planned correction ratios (10 to 300 percent).",
+          "maximum_correction_percent": "Required upper bound for accepted actual-to-planned correction ratios (at least the lower bound, up to 300 percent).",
+          "cold_start_p90_percent": "Required conservative multiplier used until enough history exists (100 to 300 percent)."
         }
       },
       "reconfigure": {
-        "title": "Configure planning and routing",
-        "description": "Choose anchors, event handling, one provider family, explicit location-data consent and bounded transport/cache policy. Calendar selection is preserved and reconfiguration makes no provider request.",
+        "title": "Configure planning, routing and forecasting",
+        "description": "Choose anchors, event handling, one provider family, explicit location-data consent, bounded transport/cache policy and forecast-model policy. Calendar selection is preserved and reconfiguration makes no provider request.",
         "data": {
           "start_anchor_entity_id": "Start anchor",
           "end_anchor_entity_id": "End anchor",
@@ -87,7 +96,11 @@
           "route_cache_fresh_hours": "Fresh route cache age (hours)",
           "route_cache_stale_hours": "Maximum stale route cache age (hours)",
           "toll_policy": "Tolls",
-          "highway_policy": "Highways"
+          "highway_policy": "Highways",
+          "minimum_history_samples": "Minimum history samples",
+          "minimum_correction_percent": "Minimum correction (%)",
+          "maximum_correction_percent": "Maximum correction (%)",
+          "cold_start_p90_percent": "Cold-start conservative estimate (%)"
         },
         "data_description": {
           "start_anchor_entity_id": "Select the Home Assistant zone where a forecast day begins.",
@@ -110,7 +123,11 @@
           "route_cache_fresh_hours": "Required fresh retention from 1 to 24 hours. Route cache keys retain no raw coordinates or endpoint identifiers.",
           "route_cache_stale_hours": "Required maximum retention from the fresh age through 720 hours. Stale data must remain explicitly stale.",
           "toll_policy": "Explicitly allow or avoid toll roads.",
-          "highway_policy": "Explicitly allow or avoid highways."
+          "highway_policy": "Explicitly allow or avoid highways.",
+          "minimum_history_samples": "Required number of valid earlier days before historical correction is applied (1 to 365).",
+          "minimum_correction_percent": "Required lower bound for accepted actual-to-planned correction ratios (10 to 300 percent).",
+          "maximum_correction_percent": "Required upper bound for accepted actual-to-planned correction ratios (at least the lower bound, up to 300 percent).",
+          "cold_start_p90_percent": "Required conservative multiplier used until enough history exists (100 to 300 percent)."
         }
       }
     }

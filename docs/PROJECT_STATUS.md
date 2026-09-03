@@ -4,7 +4,7 @@ Last updated: 2026-09-03 10:11 CEST
 
 ## Current phase
 
-Phase 1 and post-phase checkpoints P1–P21 are complete. Production runtime reads
+Phase 1 and post-phase checkpoints P1–P22 are complete. Production runtime reads
 each profile's selected Home Assistant calendars on a bounded schedule, resolves its
 two explicitly selected local zone anchors, classifies reviewed standalone meeting
 URLs locally and applies the stored structural event policy. Provider configuration
@@ -213,13 +213,17 @@ explicitly unknown for distance. Synthetic provider data exists only in tests.
 - P21 implements the production sender using Home Assistant's managed HTTP session.
   Redirects are disabled, successful JSON bodies are capped at 1 MiB, error bodies
   are skipped, failures are sanitized and cancellation propagates. It remains
-  uncomposed until P22; protocol-compatible tests make no external request.
+  uncomposed until P23; protocol-compatible tests make no external request.
+- P22 advances config-entry schema 1.5 to 1.6 and requires explicit history-count,
+  correction-bound and cold-start P90 settings. Older complete provider entries keep
+  their data but receive no guessed model policy and must be reconfigured before
+  production routed forecasts are composed.
 
 ## Active checkpoint
 
-P21 — Home Assistant HTTP sender boundary is complete.
+P22 — Explicit forecast-model policy prerequisite is complete.
 
-Next bounded checkpoint: P22 — initialize persistent provider caches, construct the
+Next bounded checkpoint: P23 — initialize persistent provider caches, construct the
 configured OpenRouteService adapters with the real Home Assistant sender, resolve
 included physical event destinations, route daily itineraries and publish conservative
 forecasts. Production uses real configured inputs and providers; unattended tests use
@@ -1288,6 +1292,51 @@ consent, credentials/endpoints, budgets, attempts, timeout and cache ages remain
 explicit and unchanged. Requirements, manifest/HACS metadata, strings/translations,
 workflow pins/permissions, refresh schedule and entity surface are unchanged.
 
+P22 TDD and verification on 2026-09-03:
+
+```text
+python3 -m unittest tests.test_forecast_config \
+  tests.test_config_flow tests.test_lifecycle -v         PASS (24 tests)
+python3 -m unittest discover -s tests                   PASS (184 tests)
+python3 scripts/check_checkpoint.py                     PASS (184 tests)
+.venv/bin/python -m pytest                              PASS (184 tests)
+.venv/bin/ruff check .                                  PASS
+.venv/bin/ruff format --check .                         PASS (98 files)
+.venv/bin/pyright                                       PASS (0 errors; 15 expected
+                                                        missing-source warnings)
+python3 scripts/build_test_zip.py --check ...            PASS
+                                                        (444259 bytes; SHA-256
+                                                        0728f08ec8801c3196ce351fdd09744af74b0d535ef30bbc534a15c4202719a2)
+git diff --check                                        PASS
+```
+
+P22 adds a frozen typed profile forecast configuration with four required JSON-safe
+integer values: minimum history samples (1–365), inclusive lower and upper accepted
+actual-to-planned correction percentages (10–300, ordered), and cold-start P90
+percentage (100–300). It projects exactly to the existing ratio-based pure
+`ForecastPolicy`. Missing, boolean, reversed and out-of-range values fail closed.
+
+Config-entry schema 1.6 exposes all four values as required bounded number selectors
+without defaults in both creation and reconfiguration. A fixed translated base error
+handles invalid combinations without echoing values. Schema-1.5 migration first
+validates and preserves the complete calendar, planning and provider data, then adds no
+forecast field; users explicitly complete the new contract through reconfiguration.
+Earlier migrations likewise target 1.6 without acquiring guessed behavior. Real-Home-
+Assistant fixtures were updated to the current schema contract.
+
+All P22 fixtures contain only synthetic policy numbers and identifiers. No production
+Home Assistant, calendar, address, coordinates, credential, external provider,
+network request, vehicle, service or notification was accessed. Production provider
+composition remains absent until P23, so this checkpoint changes configuration and
+model-policy readiness but not current sensor output.
+
+Configuration review for P22: config-entry minor version changes from 5 to 6; forecast
+and provider-cache storage schemas remain 1. The migration is one-way and preserves
+prior fields without defaults. Source and English translations remain identical.
+Strict Pyright includes the new configuration module. Python/tool pins, requirements,
+manifest/HACS metadata, workflow permissions/action pins, provider/cache/HTTP behavior,
+refresh cadence and entity surface are unchanged.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -1306,7 +1355,7 @@ workflow pins/permissions, refresh schedule and entity surface are unchanged.
   typed failure and composes with destination policy through opaque local endpoint
   identifiers. OpenRouteService and the exact deterministic in-memory test fake both
   implement this boundary.
-- Config-entry schema 1.5 requires an explicit provider family and affirmative
+- Config-entry schema 1.6 requires an explicit provider family and affirmative
   location-data consent. Hosted OpenRouteService is recommended and uses one private
   key for its fixed hosted Pelias and routing endpoints; self-hosted ORS requires
   independently configured routing and Pelias/Photon/Nominatim geocoder endpoints.
@@ -1316,6 +1365,8 @@ workflow pins/permissions, refresh schedule and entity surface are unchanged.
   caches, and P21 sends requests through Home Assistant's managed client. Runtime
   composition remains absent, so production distance is unavailable and no provider
   or hosted/self-hosted fallback can occur.
+- Schema 1.6 also requires explicit bounded history, correction-ratio and cold-start
+  P90 policy. These values project to the pure forecast model without defaults.
 - Route and input failures remain partial, stale or unavailable and never become zero distance or false readiness.
 - Historical plan revisions are immutable so later calendar edits do not rewrite training truth.
 - Domain value objects are frozen and dependency-free. Operational private fields remain available to pure logic but are omitted from representations to reduce accidental disclosure.
@@ -1344,12 +1395,14 @@ workflow pins/permissions, refresh schedule and entity surface are unchanged.
   successful unload cancels the interval. Calendar-derived distance remains unknown
   until event destinations and routing are composed.
 - Durable runtime state uses one private, atomic Home Assistant Store keyed only by config-entry identifier. Missing storage starts from explicit empty state; restart restores decoded immutable state, cross-entry calls fail, and unload retains persisted data.
-- Config-entry schema 1.5 requires every new profile to explicitly select one or
+- Config-entry schema 1.6 requires every new profile to explicitly select one or
   more ordered unique calendar entities, independent zone anchors, structural event
   policy, one provider family, affirmative consent and bounded request/cache policy.
   Schema-1.1 entries retain a deliberately invalid empty calendar marker; 1.2/1.3
   migrations preserve existing data without guessing later fields, and schema-1.4
   removes its inactive Google marker/key without choosing a replacement provider.
+  Schema-1.5 entries preserve their provider configuration but receive no guessed
+  forecast policy.
 - Calendar normalization reads only configured `CalendarEntity` objects for an
   explicit aware window. It maps Home Assistant 2026.8.1 timed/all-day events to
   frozen source events, requires provider identity, injects online classification
@@ -1408,7 +1461,7 @@ workflow pins/permissions, refresh schedule and entity surface are unchanged.
   decodes provider HTTP values behind an injected sender, and P20 implements the
   persistent cache adapter, and P21 implements the Home Assistant sender. Runtime
   composition remains deferred.
-- Config-entry schema version 1 minor version 5 and storage schema version 1 now
+- Config-entry schema version 1 minor version 6 and storage schema version 1 now
   exist. The 1.1 empty-calendar marker and 1.2 calendar-preserving migration guess
   no planning data; 1.3 planning entries retain their data but guess no provider or
   credential, while 1.4 entries lose the inactive Google marker/key and gain no

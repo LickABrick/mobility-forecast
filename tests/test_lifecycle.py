@@ -25,7 +25,7 @@ class FakeConfigEntry:
         *,
         data: dict[str, object] | None = None,
         version: int = 1,
-        minor_version: int = 5,
+        minor_version: int = 6,
     ) -> None:
         self.entry_id = entry_id
         self.data = (
@@ -49,6 +49,10 @@ class FakeConfigEntry:
                 "route_cache_stale_hours": 24,
                 "toll_policy": "avoid",
                 "highway_policy": "allow",
+                "minimum_history_samples": 5,
+                "minimum_correction_percent": 60,
+                "maximum_correction_percent": 180,
+                "cold_start_p90_percent": 125,
             }
             if data is None
             else data
@@ -270,7 +274,7 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
                     entry,
                     {
                         "data": {"calendar_entity_ids": []},
-                        "minor_version": 5,
+                        "minor_version": 6,
                     },
                 )
             ],
@@ -298,7 +302,7 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
                     entry,
                     {
                         "data": {"calendar_entity_ids": ["calendar.synthetic"]},
-                        "minor_version": 5,
+                        "minor_version": 6,
                     },
                 )
             ],
@@ -324,7 +328,7 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
             result = asyncio.run(integration.async_migrate_entry(hass, entry))
 
         self.assertTrue(result)
-        self.assertEqual(entry.minor_version, 5)
+        self.assertEqual(entry.minor_version, 6)
         self.assertEqual(entry.data, data)
         self.assertNotIn("route_provider", entry.data)
         self.assertNotIn("route_provider_api_key", entry.data)
@@ -354,13 +358,35 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
             result = asyncio.run(integration.async_migrate_entry(hass, entry))
 
         self.assertTrue(result)
-        self.assertEqual(entry.minor_version, 5)
+        self.assertEqual(entry.minor_version, 6)
         self.assertNotIn("route_provider", entry.data)
         self.assertNotIn("route_provider_api_key", entry.data)
         self.assertEqual(entry.data["toll_policy"], "avoid")
         self.assertEqual(entry.data["highway_policy"], "allow")
         self.assertNotIn("location_data_consent", entry.data)
         self.assertNotIn("routing_base_url", entry.data)
+
+    def test_migrates_route_entry_without_guessing_forecast_policy(self) -> None:
+        manager = FakeConfigEntriesManager()
+        hass = FakeHomeAssistant(manager)
+        data = dict(FakeConfigEntry("template").data)
+        for key in (
+            "minimum_history_samples",
+            "minimum_correction_percent",
+            "maximum_correction_percent",
+            "cold_start_p90_percent",
+        ):
+            data.pop(key)
+        entry = FakeConfigEntry("entry-a", data=data, minor_version=5)
+
+        with fake_home_assistant():
+            integration = load_integration()
+            result = asyncio.run(integration.async_migrate_entry(hass, entry))
+
+        self.assertTrue(result)
+        self.assertEqual(entry.minor_version, 6)
+        self.assertEqual(entry.data, data)
+        self.assertNotIn("minimum_history_samples", entry.data)
 
     def test_rejects_unknown_config_entry_major_version(self) -> None:
         manager = FakeConfigEntriesManager()
@@ -379,7 +405,7 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
             FakeConfigEntry(
                 "entry-current",
                 data={"calendar_entity_ids": ["calendar.synthetic"]},
-                minor_version=5,
+                minor_version=6,
             ),
             FakeConfigEntry(
                 "entry-legacy-data",
@@ -398,7 +424,7 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
                     integration = load_integration()
                     result = asyncio.run(integration.async_migrate_entry(hass, entry))
 
-                self.assertEqual(result, entry.minor_version == 5)
+                self.assertEqual(result, entry.minor_version == 6)
                 self.assertEqual(entry.data, original_data)
                 self.assertEqual(manager.updated, [])
 

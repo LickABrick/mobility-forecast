@@ -227,12 +227,19 @@ proved only with isolated Home Assistant contract fixtures.
     protocol-compatible session tests bring the suite to 180 tests without an
     external request; all configured local gates pass. Runtime composition is absent.
 
-Next checkpoint: **P22 — Production routed-forecast composition**. Initialize the
+- [x] **P22 — Explicit forecast-model policy prerequisite**
+  - Schema 1.6 requires minimum history samples, inclusive accepted correction
+    percentages and cold-start P90 percentage with no defaults. A typed decoder
+    projects them to the existing model; schema-1.5 migration preserves prior data
+    without guessing these values, and reconfiguration supplies them. Four new tests
+    bring the dependency-free suite to 184 tests; all configured local gates pass.
+
+Next checkpoint: **P23 — Production routed-forecast composition**. Initialize the
 persistent provider caches, construct the configured OpenRouteService geocoder/router
 with the real Home Assistant sender, resolve included physical event destinations,
-route daily itineraries and publish conservative forecasts. Use real configured data
-in production and deterministic protocol fakes in tests; never call an external
-provider during unattended verification.
+route daily itineraries and publish conservative forecasts using the explicit schema-
+1.6 policy. Production uses real configured data; deterministic protocol fakes remain
+limited to tests and no unattended external call is allowed.
 
 ## Checkpoint definition of done
 

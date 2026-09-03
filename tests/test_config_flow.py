@@ -39,7 +39,13 @@ ROUTE_FIELDS = {
     "toll_policy",
     "highway_policy",
 }
-CONFIG_FIELDS = POLICY_FIELDS | ROUTE_FIELDS
+FORECAST_FIELDS = {
+    "minimum_history_samples",
+    "minimum_correction_percent",
+    "maximum_correction_percent",
+    "cold_start_p90_percent",
+}
+CONFIG_FIELDS = POLICY_FIELDS | ROUTE_FIELDS | FORECAST_FIELDS
 PROFILE_INPUT_FIELDS = {"name", "calendar_entity_ids", *CONFIG_FIELDS}
 POLICY_INPUT = {
     "start_anchor_entity_id": "zone.synthetic_start",
@@ -62,6 +68,12 @@ ROUTE_INPUT = {
     "route_cache_stale_hours": 24,
     "toll_policy": "avoid",
     "highway_policy": "allow",
+}
+FORECAST_INPUT = {
+    "minimum_history_samples": 5,
+    "minimum_correction_percent": 60,
+    "maximum_correction_percent": 180,
+    "cold_start_p90_percent": 125,
 }
 ENDPOINT_PLACEHOLDERS = {
     "ors_geocoding_endpoint": "https://api.openrouteservice.org/geocode/search",
@@ -267,6 +279,7 @@ class IntegrationMetadataTests(unittest.TestCase):
         )
         self.assertIn("invalid_planning_policy", strings["config"]["error"])
         self.assertIn("invalid_route_provider", strings["config"]["error"])
+        self.assertIn("invalid_forecast_policy", strings["config"]["error"])
         self.assertIn("reconfigure_successful", strings["config"]["abort"])
         for step_id in ("user", "reconfigure"):
             descriptions = strings["config"]["step"][step_id]["data_description"]
@@ -316,7 +329,7 @@ class ConfigFlowTests(unittest.TestCase):
             )
             flow_type = module.MobilityForecastConfigFlow
             self.assertEqual(flow_type.registered_domain, "mobility_forecast")
-            self.assertEqual((flow_type.VERSION, flow_type.MINOR_VERSION), (1, 5))
+            self.assertEqual((flow_type.VERSION, flow_type.MINOR_VERSION), (1, 6))
 
             first = asyncio.run(
                 flow_type().async_step_user(
@@ -325,6 +338,7 @@ class ConfigFlowTests(unittest.TestCase):
                         "calendar_entity_ids": ["calendar.synthetic_work"],
                         **POLICY_INPUT,
                         **ROUTE_INPUT,
+                        **FORECAST_INPUT,
                     }
                 )
             )
@@ -336,6 +350,7 @@ class ConfigFlowTests(unittest.TestCase):
                         **{
                             **POLICY_INPUT,
                             **ROUTE_INPUT,
+                            **FORECAST_INPUT,
                             "start_anchor_entity_id": "zone.synthetic_family_start",
                         },
                     }
@@ -350,6 +365,7 @@ class ConfigFlowTests(unittest.TestCase):
                 "calendar_entity_ids": ["calendar.synthetic_work"],
                 **POLICY_INPUT,
                 **ROUTE_INPUT,
+                **FORECAST_INPUT,
             },
         )
         self.assertEqual(second["type"], "create_entry")
@@ -429,13 +445,29 @@ class ConfigFlowTests(unittest.TestCase):
             "geocode_cache_retention_hours": 720,
             "route_cache_fresh_hours": 24,
             "route_cache_stale_hours": 720,
+            "minimum_history_samples": 365,
+            "minimum_correction_percent": 300,
+            "maximum_correction_percent": 300,
+            "cold_start_p90_percent": 300,
         }
         for field, maximum in expected_maxima.items():
             validator = schema.schema[field]
             self.assertIsInstance(validator, FakeNumberSelector)
             self.assertEqual(
                 (validator.config.min, validator.config.max, validator.config.step),
-                (1, maximum, 1),
+                (
+                    100
+                    if field == "cold_start_p90_percent"
+                    else 10
+                    if field
+                    in {
+                        "minimum_correction_percent",
+                        "maximum_correction_percent",
+                    }
+                    else 1,
+                    maximum,
+                    1,
+                ),
             )
             self.assertEqual(validator.config.mode, "box")
 
@@ -451,6 +483,7 @@ class ConfigFlowTests(unittest.TestCase):
                         "calendar_entity_ids": [],
                         **POLICY_INPUT,
                         **ROUTE_INPUT,
+                        **FORECAST_INPUT,
                     }
                 )
             )
@@ -471,6 +504,7 @@ class ConfigFlowTests(unittest.TestCase):
                         "calendar_entity_ids": ["calendar.synthetic"],
                         **{**POLICY_INPUT, "online_event_policy": "automatic"},
                         **ROUTE_INPUT,
+                        **FORECAST_INPUT,
                     }
                 )
             )
@@ -491,12 +525,32 @@ class ConfigFlowTests(unittest.TestCase):
                         "calendar_entity_ids": ["calendar.synthetic"],
                         **POLICY_INPUT,
                         **{**ROUTE_INPUT, "route_provider_api_key": ""},
+                        **FORECAST_INPUT,
                     }
                 )
             )
 
         self.assertEqual(result["type"], "form")
         self.assertEqual(result["errors"], {"base": "invalid_route_provider"})
+
+    def test_invalid_forecast_policy_returns_privacy_safe_base_error(self) -> None:
+        with fake_home_assistant():
+            module = importlib.import_module(
+                "custom_components.mobility_forecast.config_flow"
+            )
+            result = asyncio.run(
+                module.MobilityForecastConfigFlow().async_step_user(
+                    {
+                        "name": "Invalid forecast",
+                        "calendar_entity_ids": ["calendar.synthetic"],
+                        **POLICY_INPUT,
+                        **ROUTE_INPUT,
+                        **{**FORECAST_INPUT, "cold_start_p90_percent": 99},
+                    }
+                )
+            )
+
+        self.assertEqual(result["errors"], {"base": "invalid_forecast_policy"})
 
     def test_reconfigure_replaces_provider_specific_fields_without_fallback(
         self,
@@ -506,6 +560,7 @@ class ConfigFlowTests(unittest.TestCase):
                 "calendar_entity_ids": ["calendar.synthetic_existing"],
                 **POLICY_INPUT,
                 **ROUTE_INPUT,
+                **FORECAST_INPUT,
             }
         )
         self_hosted = {
@@ -519,6 +574,7 @@ class ConfigFlowTests(unittest.TestCase):
             "routing_base_url": "https://routing.synthetic.invalid/ors",
             "geocoder_provider": "pelias",
             "geocoder_base_url": "https://geocoder.synthetic.invalid/pelias",
+            **FORECAST_INPUT,
         }
         with fake_home_assistant():
             module = importlib.import_module(
@@ -549,6 +605,7 @@ class ConfigFlowTests(unittest.TestCase):
             "physical_event_policy": "exclude",
             "online_event_policy": "include",
             **ROUTE_INPUT,
+            **FORECAST_INPUT,
         }
         with fake_home_assistant():
             module = importlib.import_module(

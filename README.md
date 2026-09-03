@@ -16,6 +16,10 @@ Home Assistant's managed client are implemented, including opaque keys, retentio
 pruning, atomic privacy-key rotation, disabled redirects and sanitized failures. They
 are not yet connected to the production refresh runtime.
 
+Schema 1.6 also requires every profile to choose its history threshold, accepted
+actual-to-planned correction range and cold-start P90 conservatism explicitly. The
+forecast model has no hidden behavioral defaults.
+
 The intended integration is not a synthetic-data demo. Once the remaining network and
 runtime checkpoints are complete, configured profiles will use their real calendar and
 Home Assistant inputs and call the provider explicitly selected by the user. Synthetic

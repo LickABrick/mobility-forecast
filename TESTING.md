@@ -147,11 +147,14 @@ Do not continue to config flow if Home Assistant does not return cleanly.
    the same, but each choice is stored independently.
 6. Explicitly choose Include or Exclude for physical, online, all-day and
    no-location events. These choices have no hidden defaults.
-7. Submit the form.
-8. Expected result: one new Mobility Forecast config entry is created and loads.
-9. After updating an older profile, use **Reconfigure** on its integration entry
+7. Supply the required history sample count, accepted minimum/maximum correction
+   percentages and cold-start conservative P90 percentage. These values have no
+   hidden defaults.
+8. Submit the form.
+9. Expected result: one new Mobility Forecast config entry is created and loads.
+10. After updating an older profile, use **Reconfigure** on its integration entry
    to add the new anchors and event policy without replacing its calendars.
-10. Optionally repeat with another synthetic profile to confirm profiles are
+11. Optionally repeat with another synthetic profile to confirm profiles are
    independent. This is not required for the minimum smoke test.
 
 Failure indicators are a missing integration, a form that cannot list calendar
