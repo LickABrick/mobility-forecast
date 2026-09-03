@@ -22,7 +22,15 @@ from custom_components.mobility_forecast.profile_config import (
     CONF_START_ANCHOR_ENTITY_ID,
 )
 from custom_components.mobility_forecast.route_provider_config import (
+    CONF_GEOCODE_CACHE_RETENTION_HOURS,
     CONF_HIGHWAY_POLICY,
+    CONF_LOCATION_DATA_CONSENT,
+    CONF_MAX_GEOCODE_REQUESTS_PER_REFRESH,
+    CONF_MAX_REQUEST_ATTEMPTS,
+    CONF_MAX_ROUTE_REQUESTS_PER_REFRESH,
+    CONF_REQUEST_TIMEOUT_SECONDS,
+    CONF_ROUTE_CACHE_FRESH_HOURS,
+    CONF_ROUTE_CACHE_STALE_HOURS,
     CONF_ROUTE_PROVIDER,
     CONF_ROUTE_PROVIDER_API_KEY,
     CONF_TOLL_POLICY,
@@ -37,8 +45,16 @@ PLANNING_INPUT = {
     CONF_NO_LOCATION_EVENT_POLICY: "exclude",
 }
 ROUTE_INPUT = {
-    CONF_ROUTE_PROVIDER: "google_routes",
+    CONF_ROUTE_PROVIDER: "openrouteservice_hosted",
     CONF_ROUTE_PROVIDER_API_KEY: "synthetic-test-key",
+    CONF_LOCATION_DATA_CONSENT: "accepted",
+    CONF_MAX_GEOCODE_REQUESTS_PER_REFRESH: 8,
+    CONF_MAX_ROUTE_REQUESTS_PER_REFRESH: 16,
+    CONF_MAX_REQUEST_ATTEMPTS: 2,
+    CONF_REQUEST_TIMEOUT_SECONDS: 10,
+    CONF_GEOCODE_CACHE_RETENTION_HOURS: 72,
+    CONF_ROUTE_CACHE_FRESH_HOURS: 6,
+    CONF_ROUTE_CACHE_STALE_HOURS: 24,
     CONF_TOLL_POLICY: "avoid",
     CONF_HIGHWAY_POLICY: "allow",
 }
@@ -59,6 +75,20 @@ async def test_user_flow_creates_explicit_synthetic_profile(
     assert form["type"] is FlowResultType.FORM
     assert form["step_id"] == "user"
     assert form["errors"] is None
+    assert form["description_placeholders"] == {
+        "ors_geocoding_endpoint": "https://api.openrouteservice.org/geocode/search",
+        "ors_routing_endpoint": (
+            "https://api.openrouteservice.org/v2/directions/driving-car"
+        ),
+        "geoapify_geocoding_endpoint": "https://api.geoapify.com/v1/geocode/search",
+        "geoapify_routing_endpoint": "https://api.geoapify.com/v1/routing",
+        "google_geocoding_endpoint": (
+            "https://maps.googleapis.com/maps/api/geocode/json"
+        ),
+        "google_routing_endpoint": (
+            "https://routes.googleapis.com/directions/v2:computeRoutes"
+        ),
+    }
     expected_input = {
         CONF_NAME: "Synthetic commute",
         CONF_CALENDAR_ENTITY_IDS: ["calendar.synthetic_work"],
@@ -79,7 +109,7 @@ async def test_user_flow_creates_explicit_synthetic_profile(
         **ROUTE_INPUT,
     }
     assert result["result"].version == 1
-    assert result["result"].minor_version == 4
+    assert result["result"].minor_version == 5
 
 
 async def test_reconfigure_preserves_calendar_and_updates_explicit_policy(
@@ -92,7 +122,7 @@ async def test_reconfigure_preserves_calendar_and_updates_explicit_policy(
         title="Synthetic existing profile",
         data={CONF_CALENDAR_ENTITY_IDS: ["calendar.synthetic_existing"]},
         version=1,
-        minor_version=4,
+        minor_version=5,
     )
     entry.add_to_hass(hass)
     form: dict[str, Any] = await hass.config_entries.flow.async_init(

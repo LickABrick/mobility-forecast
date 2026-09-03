@@ -175,15 +175,24 @@ proved only with isolated Home Assistant contract fixtures.
     deterministic tests bring the dependency-free suite to 138 tests; all configured
     local gates passed on 2026-09-02.
 
-Next checkpoint: **P17 — Provider-neutral configuration correction**. Replace the
-schema-1.4 Google-only configuration with an explicitly selected, consented provider
-family and no silent default. Recommend hosted OpenRouteService plus hosted Pelias
-with one supplied key; keep self-hosted ORS routing and a separately selected Pelias,
-Photon or Nominatim geocoder as independently configured endpoints. Geoapify and
-Google Routes+Geocoding remain optional adapters. This checkpoint must define and
-test endpoint disclosure, hard budgets, bounded retries and privacy-safe cache
-retention before any network transport is enabled; tests use injected transports and
-synthetic fixtures only.
+- [x] **P17 — Provider-neutral configuration correction**
+  - Schema 1.5 replaces the inactive Google-only choice with explicit hosted ORS,
+    self-hosted ORS plus a separately selected Pelias/Photon/Nominatim geocoder,
+    optional Geoapify and optional Google families. Hosted endpoint recipients and
+    self-hosted endpoint roles are disclosed through Hassfest-valid placeholders,
+    affirmative consent is required, and provider-specific fields cannot coexist.
+  - Required per-refresh budgets, total-attempt/timeout bounds, HMAC geocode keys and
+    bounded geocode/route retention policies are validated before any network
+    transport exists. Legacy schema-1.4 Google selection and credential are removed
+    without choosing a replacement. Nine new deterministic tests bring the suite to
+    147 tests; three real-HA tests, strict Pyright, Ruff, formatting, checkpoint/package
+    checks, Hassfest and HACS validation passed on 2026-09-03.
+
+Next checkpoint: **P18 — Injected OpenRouteService adapter contracts**. Add synthetic,
+transport-injected hosted/self-hosted geocoding and routing adapters that consume only
+the explicitly selected endpoints and map failures to existing privacy-safe types.
+Enforce the P17 budgets/retry/cache contracts in the adapter execution boundary; do
+not add an HTTP client or compose production network transport in this checkpoint.
 
 ## Checkpoint definition of done
 

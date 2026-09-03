@@ -25,7 +25,7 @@ class FakeConfigEntry:
         *,
         data: dict[str, object] | None = None,
         version: int = 1,
-        minor_version: int = 4,
+        minor_version: int = 5,
     ) -> None:
         self.entry_id = entry_id
         self.data = (
@@ -37,8 +37,16 @@ class FakeConfigEntry:
                 "online_event_policy": "exclude",
                 "all_day_event_policy": "exclude",
                 "no_location_event_policy": "exclude",
-                "route_provider": "google_routes",
+                "route_provider": "openrouteservice_hosted",
                 "route_provider_api_key": "synthetic-test-key",
+                "location_data_consent": "accepted",
+                "max_geocode_requests_per_refresh": 8,
+                "max_route_requests_per_refresh": 16,
+                "max_request_attempts": 2,
+                "request_timeout_seconds": 10,
+                "geocode_cache_retention_hours": 72,
+                "route_cache_fresh_hours": 6,
+                "route_cache_stale_hours": 24,
                 "toll_policy": "avoid",
                 "highway_policy": "allow",
             }
@@ -262,7 +270,7 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
                     entry,
                     {
                         "data": {"calendar_entity_ids": []},
-                        "minor_version": 4,
+                        "minor_version": 5,
                     },
                 )
             ],
@@ -290,7 +298,7 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
                     entry,
                     {
                         "data": {"calendar_entity_ids": ["calendar.synthetic"]},
-                        "minor_version": 4,
+                        "minor_version": 5,
                     },
                 )
             ],
@@ -316,10 +324,43 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
             result = asyncio.run(integration.async_migrate_entry(hass, entry))
 
         self.assertTrue(result)
-        self.assertEqual(entry.minor_version, 4)
+        self.assertEqual(entry.minor_version, 5)
         self.assertEqual(entry.data, data)
         self.assertNotIn("route_provider", entry.data)
         self.assertNotIn("route_provider_api_key", entry.data)
+
+    def test_migrates_google_only_entry_without_guessing_replacement_provider(
+        self,
+    ) -> None:
+        manager = FakeConfigEntriesManager()
+        hass = FakeHomeAssistant(manager)
+        data: dict[str, object] = {
+            "calendar_entity_ids": ["calendar.synthetic"],
+            "start_anchor_entity_id": "zone.synthetic_start",
+            "end_anchor_entity_id": "zone.synthetic_end",
+            "physical_event_policy": "include",
+            "online_event_policy": "exclude",
+            "all_day_event_policy": "exclude",
+            "no_location_event_policy": "exclude",
+            "route_provider": "google_routes",
+            "route_provider_api_key": "synthetic-legacy-key",
+            "toll_policy": "avoid",
+            "highway_policy": "allow",
+        }
+        entry = FakeConfigEntry("entry-a", data=data, minor_version=4)
+
+        with fake_home_assistant():
+            integration = load_integration()
+            result = asyncio.run(integration.async_migrate_entry(hass, entry))
+
+        self.assertTrue(result)
+        self.assertEqual(entry.minor_version, 5)
+        self.assertNotIn("route_provider", entry.data)
+        self.assertNotIn("route_provider_api_key", entry.data)
+        self.assertEqual(entry.data["toll_policy"], "avoid")
+        self.assertEqual(entry.data["highway_policy"], "allow")
+        self.assertNotIn("location_data_consent", entry.data)
+        self.assertNotIn("routing_base_url", entry.data)
 
     def test_rejects_unknown_config_entry_major_version(self) -> None:
         manager = FakeConfigEntriesManager()
@@ -338,7 +379,7 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
             FakeConfigEntry(
                 "entry-current",
                 data={"calendar_entity_ids": ["calendar.synthetic"]},
-                minor_version=4,
+                minor_version=5,
             ),
             FakeConfigEntry(
                 "entry-legacy-data",
@@ -357,7 +398,7 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
                     integration = load_integration()
                     result = asyncio.run(integration.async_migrate_entry(hass, entry))
 
-                self.assertEqual(result, entry.minor_version == 4)
+                self.assertEqual(result, entry.minor_version == 5)
                 self.assertEqual(entry.data, original_data)
                 self.assertEqual(manager.updated, [])
 

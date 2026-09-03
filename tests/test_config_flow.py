@@ -25,6 +25,17 @@ POLICY_FIELDS = {
 ROUTE_FIELDS = {
     "route_provider",
     "route_provider_api_key",
+    "routing_base_url",
+    "geocoder_provider",
+    "geocoder_base_url",
+    "location_data_consent",
+    "max_geocode_requests_per_refresh",
+    "max_route_requests_per_refresh",
+    "max_request_attempts",
+    "request_timeout_seconds",
+    "geocode_cache_retention_hours",
+    "route_cache_fresh_hours",
+    "route_cache_stale_hours",
     "toll_policy",
     "highway_policy",
 }
@@ -39,10 +50,30 @@ POLICY_INPUT = {
     "no_location_event_policy": "exclude",
 }
 ROUTE_INPUT = {
-    "route_provider": "google_routes",
+    "route_provider": "openrouteservice_hosted",
     "route_provider_api_key": "synthetic-test-key",
+    "location_data_consent": "accepted",
+    "max_geocode_requests_per_refresh": 8,
+    "max_route_requests_per_refresh": 16,
+    "max_request_attempts": 2,
+    "request_timeout_seconds": 10,
+    "geocode_cache_retention_hours": 72,
+    "route_cache_fresh_hours": 6,
+    "route_cache_stale_hours": 24,
     "toll_policy": "avoid",
     "highway_policy": "allow",
+}
+ENDPOINT_PLACEHOLDERS = {
+    "ors_geocoding_endpoint": "https://api.openrouteservice.org/geocode/search",
+    "ors_routing_endpoint": (
+        "https://api.openrouteservice.org/v2/directions/driving-car"
+    ),
+    "geoapify_geocoding_endpoint": "https://api.geoapify.com/v1/geocode/search",
+    "geoapify_routing_endpoint": "https://api.geoapify.com/v1/routing",
+    "google_geocoding_endpoint": ("https://maps.googleapis.com/maps/api/geocode/json"),
+    "google_routing_endpoint": (
+        "https://routes.googleapis.com/directions/v2:computeRoutes"
+    ),
 }
 
 
@@ -88,6 +119,24 @@ class FakeTextSelector:
 
 class FakeTextSelectorType:
     PASSWORD = "password"
+    URL = "url"
+
+
+class FakeNumberSelectorConfig:
+    def __init__(self, *, min: int, max: int, step: int, mode: str) -> None:
+        self.min = min
+        self.max = max
+        self.step = step
+        self.mode = mode
+
+
+class FakeNumberSelector:
+    def __init__(self, config: FakeNumberSelectorConfig) -> None:
+        self.config = config
+
+
+class FakeNumberSelectorMode:
+    BOX = "box"
 
 
 class FakeConfigFlow:
@@ -110,9 +159,18 @@ class FakeConfigFlow:
         return self.reconfigure_entry
 
     def async_update_reload_and_abort(
-        self, entry: SimpleNamespace, *, data_updates: dict[str, object]
+        self,
+        entry: SimpleNamespace,
+        *,
+        data: dict[str, object] | None = None,
+        data_updates: dict[str, object] | None = None,
     ) -> dict[str, object]:
-        entry.data = {**entry.data, **data_updates}
+        if data is not None and data_updates is not None:
+            raise ValueError("data and data_updates are mutually exclusive")
+        if data is not None:
+            entry.data = dict(data)
+        elif data_updates is not None:
+            entry.data = {**entry.data, **data_updates}
         return {
             "type": "abort",
             "reason": "reconfigure_successful",
@@ -132,6 +190,9 @@ def fake_home_assistant() -> Generator[None]:
     selector = types.ModuleType("homeassistant.helpers.selector")
     selector.EntitySelector = FakeEntitySelector  # type: ignore[attr-defined]
     selector.EntitySelectorConfig = FakeEntitySelectorConfig  # type: ignore[attr-defined]
+    selector.NumberSelector = FakeNumberSelector  # type: ignore[attr-defined]
+    selector.NumberSelectorConfig = FakeNumberSelectorConfig  # type: ignore[attr-defined]
+    selector.NumberSelectorMode = FakeNumberSelectorMode  # type: ignore[attr-defined]
     selector.TextSelector = FakeTextSelector  # type: ignore[attr-defined]
     selector.TextSelectorConfig = FakeTextSelectorConfig  # type: ignore[attr-defined]
     selector.TextSelectorType = FakeTextSelectorType  # type: ignore[attr-defined]
@@ -139,6 +200,7 @@ def fake_home_assistant() -> Generator[None]:
     voluptuous.All = FakeAll  # type: ignore[attr-defined]
     voluptuous.In = FakeIn  # type: ignore[attr-defined]
     voluptuous.Invalid = FakeInvalid  # type: ignore[attr-defined]
+    voluptuous.Optional = lambda key: key  # type: ignore[attr-defined]
     voluptuous.Required = lambda key: key  # type: ignore[attr-defined]
     voluptuous.Schema = FakeSchema  # type: ignore[attr-defined]
 
@@ -206,6 +268,32 @@ class IntegrationMetadataTests(unittest.TestCase):
         self.assertIn("invalid_planning_policy", strings["config"]["error"])
         self.assertIn("invalid_route_provider", strings["config"]["error"])
         self.assertIn("reconfigure_successful", strings["config"]["abort"])
+        provider_description = strings["config"]["step"]["user"]["data_description"][
+            "route_provider"
+        ]
+        self.assertNotIn("https://", provider_description)
+        self.assertEqual(
+            {
+                "{ors_geocoding_endpoint}",
+                "{ors_routing_endpoint}",
+                "{geoapify_geocoding_endpoint}",
+                "{geoapify_routing_endpoint}",
+                "{google_geocoding_endpoint}",
+                "{google_routing_endpoint}",
+            },
+            {
+                placeholder
+                for placeholder in (
+                    "{ors_geocoding_endpoint}",
+                    "{ors_routing_endpoint}",
+                    "{geoapify_geocoding_endpoint}",
+                    "{geoapify_routing_endpoint}",
+                    "{google_geocoding_endpoint}",
+                    "{google_routing_endpoint}",
+                )
+                if placeholder in provider_description
+            },
+        )
 
 
 class ConfigFlowTests(unittest.TestCase):
@@ -216,7 +304,7 @@ class ConfigFlowTests(unittest.TestCase):
             )
             flow_type = module.MobilityForecastConfigFlow
             self.assertEqual(flow_type.registered_domain, "mobility_forecast")
-            self.assertEqual((flow_type.VERSION, flow_type.MINOR_VERSION), (1, 4))
+            self.assertEqual((flow_type.VERSION, flow_type.MINOR_VERSION), (1, 5))
 
             first = asyncio.run(
                 flow_type().async_step_user(
@@ -266,6 +354,7 @@ class ConfigFlowTests(unittest.TestCase):
 
         self.assertEqual(result["type"], "form")
         self.assertEqual(result["step_id"], "user")
+        self.assertEqual(result["description_placeholders"], ENDPOINT_PLACEHOLDERS)
         schema = result["data_schema"]
         self.assertIsInstance(schema, FakeSchema)
         self.assertEqual(set(schema.schema), PROFILE_INPUT_FIELDS)
@@ -291,7 +380,22 @@ class ConfigFlowTests(unittest.TestCase):
             )
         self.assertEqual(
             schema.schema["route_provider"].container,
-            {"google_routes": "Google Routes"},
+            {
+                "openrouteservice_hosted": "OpenRouteService hosted (recommended)",
+                "openrouteservice_self_hosted": (
+                    "Self-hosted OpenRouteService + separate geocoder"
+                ),
+                "geoapify": "Geoapify",
+                "google": "Google Routes + Geocoding",
+            },
+        )
+        self.assertEqual(
+            schema.schema["geocoder_provider"].container,
+            {"pelias": "Pelias", "photon": "Photon", "nominatim": "Nominatim"},
+        )
+        self.assertEqual(
+            schema.schema["location_data_consent"].container,
+            {"accepted": "I understand and consent"},
         )
         for field in ("toll_policy", "highway_policy"):
             self.assertEqual(
@@ -301,6 +405,27 @@ class ConfigFlowTests(unittest.TestCase):
         credential = schema.schema["route_provider_api_key"]
         self.assertIsInstance(credential, FakeTextSelector)
         self.assertEqual(credential.config.type, "password")
+        for field in ("routing_base_url", "geocoder_base_url"):
+            endpoint = schema.schema[field]
+            self.assertIsInstance(endpoint, FakeTextSelector)
+            self.assertEqual(endpoint.config.type, "url")
+        expected_maxima = {
+            "max_geocode_requests_per_refresh": 50,
+            "max_route_requests_per_refresh": 100,
+            "max_request_attempts": 3,
+            "request_timeout_seconds": 30,
+            "geocode_cache_retention_hours": 720,
+            "route_cache_fresh_hours": 24,
+            "route_cache_stale_hours": 720,
+        }
+        for field, maximum in expected_maxima.items():
+            validator = schema.schema[field]
+            self.assertIsInstance(validator, FakeNumberSelector)
+            self.assertEqual(
+                (validator.config.min, validator.config.max, validator.config.step),
+                (1, maximum, 1),
+            )
+            self.assertEqual(validator.config.mode, "box")
 
     def test_empty_calendar_selection_returns_serializable_form_error(self) -> None:
         with fake_home_assistant():
@@ -360,6 +485,46 @@ class ConfigFlowTests(unittest.TestCase):
 
         self.assertEqual(result["type"], "form")
         self.assertEqual(result["errors"], {"base": "invalid_route_provider"})
+
+    def test_reconfigure_replaces_provider_specific_fields_without_fallback(
+        self,
+    ) -> None:
+        entry = SimpleNamespace(
+            data={
+                "calendar_entity_ids": ["calendar.synthetic_existing"],
+                **POLICY_INPUT,
+                **ROUTE_INPUT,
+            }
+        )
+        self_hosted = {
+            **POLICY_INPUT,
+            **{
+                key: value
+                for key, value in ROUTE_INPUT.items()
+                if key not in {"route_provider", "route_provider_api_key"}
+            },
+            "route_provider": "openrouteservice_self_hosted",
+            "routing_base_url": "https://routing.synthetic.invalid/ors",
+            "geocoder_provider": "pelias",
+            "geocoder_base_url": "https://geocoder.synthetic.invalid/pelias",
+        }
+        with fake_home_assistant():
+            module = importlib.import_module(
+                "custom_components.mobility_forecast.config_flow"
+            )
+            flow = module.MobilityForecastConfigFlow()
+            flow.reconfigure_entry = entry
+            result = asyncio.run(flow.async_step_reconfigure(self_hosted))
+
+        self.assertEqual(result["type"], "abort")
+        self.assertEqual(
+            entry.data,
+            {
+                "calendar_entity_ids": ["calendar.synthetic_existing"],
+                **self_hosted,
+            },
+        )
+        self.assertNotIn("route_provider_api_key", entry.data)
 
     def test_reconfigure_updates_policy_without_replacing_calendar_selection(
         self,

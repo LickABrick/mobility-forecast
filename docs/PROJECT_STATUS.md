@@ -1,15 +1,17 @@
 # Project status
 
-Last updated: 2026-09-02 19:22 CEST
+Last updated: 2026-09-03 05:24 CEST
 
 ## Current phase
 
-Phase 1 and post-phase checkpoints P1–P16 are complete. Production runtime reads
+Phase 1 and post-phase checkpoints P1–P17 are complete. Production runtime reads
 each profile's selected Home Assistant calendars on a bounded schedule, resolves its
 two explicitly selected local zone anchors, classifies reviewed standalone meeting
-URLs locally and applies the stored structural event policy. Only included service
-dates leave ingestion; distance remains explicitly unknown because event-location
-resolution, route transport and production planning are not composed.
+URLs locally and applies the stored structural event policy. Provider configuration
+now requires explicit consent, recipient disclosure and bounded request/cache policy
+for hosted ORS, self-hosted ORS plus a separate geocoder, optional Geoapify or optional
+Google. No network transport consumes that configuration yet, so included service
+dates remain explicitly unknown for distance.
 
 ## Completed
 
@@ -166,18 +168,30 @@ resolution, route transport and production planning are not composed.
   no-location choices into production ingestion before service-date projection.
   Excluded events are discarded before any future location or route stage, while
   included dates remain explicitly unavailable for distance rather than zero.
+- P17 advances config-entry schema 1.4 to 1.5 and replaces the inactive Google-only
+  selection with explicit hosted OpenRouteService, self-hosted OpenRouteService plus
+  a separately selected Pelias/Photon/Nominatim geocoder, optional Geoapify and
+  optional Google provider families. Hosted ORS is visibly recommended but never
+  selected by default.
+- P17 requires affirmative location-data consent, discloses every fixed hosted
+  geocoding/routing recipient through Home Assistant description placeholders and
+  labels both separately configured self-hosted endpoint roles. Provider-specific
+  keys and endpoints are mutually exclusive, and reconfiguration replaces the exact
+  provider shape instead of retaining fallback credentials or endpoints.
+- P17 defines required hard request/attempt/timeout limits and bounded geocode/route
+  cache retention. Geocode keys are profile-keyed, provider-scoped HMAC-SHA-256
+  digests that retain no raw location text; existing route keys remain HMAC digests
+  without raw coordinates. No HTTP client or runtime provider call was added.
 
 ## Active checkpoint
 
-P16 — Production structural-filter composition is complete.
+P17 — Provider-neutral configuration correction is complete.
 
-Next bounded checkpoint: P17 — correct schema-1.4's Google-only configuration to the
-approved provider-neutral, explicit-consent direction. Recommend hosted
-OpenRouteService routing plus hosted Pelias with one user key; model self-hosted ORS
-routing and a separately configured Pelias, Photon or Nominatim geocoder without
-implying ORS bundles geocoding. Keep Geoapify and Google Routes+Geocoding optional.
-No network transport may be enabled before endpoint disclosure, hard request budgets,
-bounded retries and privacy-safe cache retention are explicit and tested.
+Next bounded checkpoint: P18 — add transport-injected OpenRouteService hosted and
+self-hosted geocoding/routing adapter contracts using only synthetic responses. The
+execution boundary must enforce P17's exact provider selection, budgets, typed retry
+rules and privacy-safe cache policy without adding an HTTP client or runtime network
+composition.
 
 ## Verification evidence
 
@@ -991,6 +1005,53 @@ hosted OpenRouteService+Pelias, separately configured self-hosted routing/geocod
 and optional Geoapify or Google adapters; transport stays blocked pending request
 budgets, bounded retries and privacy-safe cache rules.
 
+P17 recovery, TDD and final verification on 2026-09-02–03:
+
+```text
+recovered partial provider/config/migration diff                   PASS (31 focused tests)
+provider budget fractional-input regression                       RED (2 failures)
+translation endpoint-placeholder regression                       RED (1 failure, 1 error)
+Hassfest raw-URL translation validation                            RED (1 invalid integration)
+/usr/bin/python3 -m unittest ... focused P17/lifecycle tests       PASS (31 tests)
+/usr/bin/python3 scripts/check_checkpoint.py                       PASS (147 tests included)
+PYTHONPATH=.venv/site /usr/bin/python3 -m pytest                    PASS (147 tests)
+PYTHONPATH=.venv/site /usr/bin/python3 -m ruff check .              PASS
+PYTHONPATH=.venv/site /usr/bin/python3 -m ruff format --check .     PASS (85 files)
+PYTHONPATH=.venv/site /usr/bin/python3 -m pyright                   PASS (0 errors; 11 expected missing-source warnings)
+Docker Python 3.14.7 / Home Assistant 2026.8.1 suite               PASS (3 tests; network disabled)
+Hassfest pinned image                                              PASS (1 integration; 0 invalid)
+HACS pinned image local schemas                                    PASS
+/usr/bin/python3 scripts/build_test_zip.py --check ...              PASS (378736 bytes; 29 files; SHA-256 42957356e48b6ddc1d030b3db9f71a5899ab1402253331eb04e98740dfb4954f)
+sha256sum --check                                                  PASS
+git diff --check                                                   PASS
+```
+
+P17 recovered an interrupted test-first partial checkpoint whose original RED output
+was not retained; recovery reviewed the complete diff and first proved its 31 focused
+tests green. Two additional fail-closed cases were then written and observed RED:
+fractional request counters/budgets and Hassfest-compatible endpoint placeholders.
+The first Hassfest run independently rejected raw URLs before placeholders and exact
+flow values made the same disclosure valid. Every provider key, endpoint hostname,
+location string and identifier in tests is synthetic or a documented fixed provider
+endpoint. The real-HA suite and validators ran with networking disabled; no production
+Home Assistant, credential, address, calendar text, GPS state, provider request,
+vehicle, service or notification was accessed. Diff/privacy review found no real
+secret, personal data, raw-value logging, HTTP client or runtime network composition.
+
+Configuration review for P17: config-entry schema 1 advances from minor version 4 to
+5 because provider family, separate self-hosted endpoint/geocoder choices, affirmative
+consent and seven bounded request/cache fields replace the old Google-only shape.
+Schema-1.4 migration validates the complete old shape, removes its provider marker and
+credential, preserves provider-neutral toll/highway choices and guesses no replacement.
+New/reconfigured profiles choose every field explicitly; hosted ORS is recommended in
+labels only and has no schema default. Source/English strings remain identical and use
+runtime description placeholders for the six fixed hosted endpoints. Strict Pyright
+adds the provider guardrail module; package scope grows to 29 tracked integration
+files. Storage schema 1, Python/tool pins, dependencies, manifest/HACS metadata,
+workflow actions/permissions, calendar horizon and refresh interval are unchanged.
+No transport, provider fallback, persisted forecast state or physical capability was
+added.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -1008,12 +1069,14 @@ budgets, bounded retries and privacy-safe cache rules.
   It accepts only physical location text, returns hidden coordinates or a stable
   typed failure and composes with destination policy through opaque local endpoint
   identifiers. Its only implementation is the exact deterministic in-memory fake.
-- Schema 1.4 still explicitly selects Google Routes, stores its API key only as
-  private config-entry data and requires toll/highway choices. This inactive P13
-  contract predates and must be migrated to the approved provider-neutral direction
-  before transport is enabled. The adapter ends at an injected transport protocol:
-  no live HTTP implementation or credential use exists, and production distance
-  therefore remains unavailable.
+- Config-entry schema 1.5 requires an explicit provider family and affirmative
+  location-data consent. Hosted OpenRouteService is recommended and uses one private
+  key for its fixed hosted Pelias and routing endpoints; self-hosted ORS requires
+  independently configured routing and Pelias/Photon/Nominatim geocoder endpoints.
+  Geoapify and Google Routes+Geocoding remain optional. Required hard budgets,
+  bounded attempts/timeouts and cache-retention choices have no defaults. No live
+  HTTP implementation consumes these fields, so production distance remains
+  unavailable and no provider or hosted/self-hosted fallback can occur.
 - Route and input failures remain partial, stale or unavailable and never become zero distance or false readiness.
 - Historical plan revisions are immutable so later calendar edits do not rewrite training truth.
 - Domain value objects are frozen and dependency-free. Operational private fields remain available to pure logic but are omitted from representations to reduce accidental disclosure.
@@ -1039,11 +1102,12 @@ budgets, bounded retries and privacy-safe cache rules.
   successful unload cancels the interval. Calendar-derived distance remains unknown
   until event destinations and routing are composed.
 - Durable runtime state uses one private, atomic Home Assistant Store keyed only by config-entry identifier. Missing storage starts from explicit empty state; restart restores decoded immutable state, cross-entry calls fail, and unload retains persisted data.
-- Config-entry schema 1.4 requires every new profile to explicitly select one or
+- Config-entry schema 1.5 requires every new profile to explicitly select one or
   more ordered unique calendar entities, independent zone anchors, structural event
-  policy and route-provider configuration. Schema-1.1 entries retain a deliberately
-  invalid empty calendar marker; 1.2/1.3 migrations preserve existing data without
-  guessing the fields introduced later.
+  policy, one provider family, affirmative consent and bounded request/cache policy.
+  Schema-1.1 entries retain a deliberately invalid empty calendar marker; 1.2/1.3
+  migrations preserve existing data without guessing later fields, and schema-1.4
+  removes its inactive Google marker/key without choosing a replacement provider.
 - Calendar normalization reads only configured `CalendarEntity` objects for an
   explicit aware window. It maps Home Assistant 2026.8.1 timed/all-day events to
   frozen source events, requires provider identity, injects online classification
@@ -1095,14 +1159,15 @@ budgets, bounded retries and privacy-safe cache rules.
 - C4 defines required freshness/accuracy/horizon fields but intentionally supplies no product defaults. Their config-flow representation and migration policy remain future product work and must be reviewed before introduction.
 - Location candidates cover passive vehicle GPS and already-resolved event/zone
   coordinates. P14 supplies the Home Assistant zone adapter, while P15 defines the
-  event-location resolver contract and deterministic fake. A production geocoder
-  adapter remains deferred until provider, credential, timeout and cache-retention
-  policy are reviewed; P15 adds no network or cache path.
-- Config-entry schema version 1 minor version 4 and storage schema version 1 now
+  event-location resolver contract and deterministic fake. P17 now supplies explicit
+  provider/recipient, credential, timeout, retry and cache-retention configuration;
+  injected geocoder adapters, cache storage and runtime composition remain deferred.
+- Config-entry schema version 1 minor version 5 and storage schema version 1 now
   exist. The 1.1 empty-calendar marker and 1.2 calendar-preserving migration guess
   no planning data; 1.3 planning entries retain their data but guess no provider or
-  credential. Policy/routing reconfiguration exists, but profiles with an empty
-  legacy calendar still need a future source-repair flow; options remain unbuilt.
+  credential, while 1.4 entries lose the inactive Google marker/key and gain no
+  replacement. Reconfiguration exists, but profiles with an empty legacy calendar
+  still need a future source-repair flow; options remain unbuilt.
 - The isolated disposable Home Assistant 2026.8.1 environment now covers config
   flow, planning reconfiguration and one setup/platform/entity/unload path. It does
   not cover migration, multiple simultaneously loaded profiles, restart restoration,
@@ -1115,14 +1180,13 @@ budgets, bounded retries and privacy-safe cache rules.
 - Private `origin` is configured and authorized for checkpoint pushes; repository
   visibility/settings and external publication remain out of scope.
 - No real route-provider credentials or calls are permitted during unattended work.
-- The schema-1.4 Google-only route selection and injected Google transport contract
-  predate the approved provider-neutral direction and remain inactive. Before any
-  live kilometres, configuration must explicitly select and disclose every routing
-  and geocoding recipient, recommend hosted OpenRouteService+Pelias, keep self-hosted
-  ORS and its separately configured geocoder distinct, and retain Geoapify/Google as
-  optional adapters without fallback. Hard budgets, bounded retries, privacy-safe
-  geocode/route cache retention, credential injection and fail-closed error mapping
-  require synthetic transport tests before network code is allowed.
+- P17 corrects the schema-1.4 Google-only selection before any network transport.
+  Provider and consent configuration now identifies all hosted recipients, keeps
+  self-hosted ORS and its separate geocoder endpoints distinct, and retains Geoapify
+  and Google as explicit optional families without fallback. Request budgets,
+  attempts/timeouts, HMAC keys and retention are bounded, but persistent geocode/route
+  cache implementations, provider credential injection, synthetic adapter execution
+  and fail-closed HTTP error mapping remain required before live kilometres.
 - Exact Home Assistant entity selections and personal data are deliberately absent from the repository.
 
 ## Nightly runtime

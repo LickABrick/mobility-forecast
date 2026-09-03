@@ -167,9 +167,16 @@ introduced by this composition.
 
 P13 advances config-entry schema 1.3 to 1.4 with an explicit Google Routes provider,
 private credential and toll/highway choices. Its adapter stops at an injected typed
-transport, so no HTTP implementation or unattended provider call exists. This
-Google-only configuration predates the approved provider-neutral ORS-recommended
-direction and must be migrated before any transport is enabled.
+transport, so no HTTP implementation or unattended provider call exists. P17 advances
+schema 1.4 to 1.5 and corrects that inactive Google-only shape before transport: every
+new/reconfigured profile explicitly selects hosted ORS, self-hosted ORS with a separate
+Pelias/Photon/Nominatim geocoder, optional Geoapify or optional Google; accepts the
+location-data disclosure; and supplies bounded request, retry, timeout and cache
+retention values. Hosted recipients are exact fixed endpoints, while self-hosted
+routing and geocoder URLs are independent required fields. Legacy 1.4 migration drops
+its provider marker and credential without choosing a replacement. HMAC cache keys
+retain no raw location text or coordinates. This remains configuration/domain policy;
+no HTTP client, provider fallback or production network composition exists.
 
 P14 adds a read-only Home Assistant state-machine boundary for the two configured
 zone anchors. Each refresh looks up exactly those selected zone entities and reads

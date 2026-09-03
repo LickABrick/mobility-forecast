@@ -10,6 +10,9 @@ from homeassistant.const import CONF_NAME
 from homeassistant.helpers.selector import (
     EntitySelector,
     EntitySelectorConfig,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
     TextSelector,
     TextSelectorConfig,
     TextSelectorType,
@@ -29,11 +32,39 @@ from .profile_config import (
     EventHandling,
     ProfilePlanningConfig,
 )
+from .provider_guardrails import (
+    MAX_GEOCODE_CACHE_RETENTION,
+    MAX_GEOCODE_REQUESTS_PER_REFRESH,
+    MAX_REQUEST_ATTEMPTS,
+    MAX_REQUEST_TIMEOUT,
+    MAX_ROUTE_REQUESTS_PER_REFRESH,
+)
 from .route_provider_config import (
+    CONF_GEOCODE_CACHE_RETENTION_HOURS,
+    CONF_GEOCODER_BASE_URL,
+    CONF_GEOCODER_PROVIDER,
     CONF_HIGHWAY_POLICY,
+    CONF_LOCATION_DATA_CONSENT,
+    CONF_MAX_GEOCODE_REQUESTS_PER_REFRESH,
+    CONF_MAX_REQUEST_ATTEMPTS,
+    CONF_MAX_ROUTE_REQUESTS_PER_REFRESH,
+    CONF_REQUEST_TIMEOUT_SECONDS,
+    CONF_ROUTE_CACHE_FRESH_HOURS,
+    CONF_ROUTE_CACHE_STALE_HOURS,
     CONF_ROUTE_PROVIDER,
     CONF_ROUTE_PROVIDER_API_KEY,
+    CONF_ROUTING_BASE_URL,
     CONF_TOLL_POLICY,
+    GEOAPIFY_GEOCODING_ENDPOINT,
+    GEOAPIFY_ROUTING_ENDPOINT,
+    GOOGLE_GEOCODING_ENDPOINT,
+    GOOGLE_ROUTING_ENDPOINT,
+    MAX_ROUTE_CACHE_FRESH_HOURS,
+    MAX_ROUTE_CACHE_STALE_HOURS,
+    ORS_HOSTED_GEOCODING_ENDPOINT,
+    ORS_HOSTED_ROUTING_ENDPOINT,
+    GeocoderKind,
+    LocationDataConsent,
     ProfileRouteConfig,
     RoutePreference,
     RouteProviderKind,
@@ -45,11 +76,34 @@ _POLICY_CHOICES = {
     EventHandling.EXCLUDE.value: "Exclude",
 }
 _ROUTE_PROVIDER_CHOICES = {
-    RouteProviderKind.GOOGLE_ROUTES.value: "Google Routes",
+    RouteProviderKind.OPENROUTESERVICE_HOSTED.value: (
+        "OpenRouteService hosted (recommended)"
+    ),
+    RouteProviderKind.OPENROUTESERVICE_SELF_HOSTED.value: (
+        "Self-hosted OpenRouteService + separate geocoder"
+    ),
+    RouteProviderKind.GEOAPIFY.value: "Geoapify",
+    RouteProviderKind.GOOGLE.value: "Google Routes + Geocoding",
+}
+_GEOCODER_CHOICES = {
+    GeocoderKind.PELIAS.value: "Pelias",
+    GeocoderKind.PHOTON.value: "Photon",
+    GeocoderKind.NOMINATIM.value: "Nominatim",
+}
+_CONSENT_CHOICES = {
+    LocationDataConsent.ACCEPTED.value: "I understand and consent",
 }
 _ROUTE_PREFERENCE_CHOICES = {
     RoutePreference.ALLOW.value: "Allow",
     RoutePreference.AVOID.value: "Avoid",
+}
+_ENDPOINT_DESCRIPTION_PLACEHOLDERS = {
+    "ors_geocoding_endpoint": ORS_HOSTED_GEOCODING_ENDPOINT,
+    "ors_routing_endpoint": ORS_HOSTED_ROUTING_ENDPOINT,
+    "geoapify_geocoding_endpoint": GEOAPIFY_GEOCODING_ENDPOINT,
+    "geoapify_routing_endpoint": GEOAPIFY_ROUTING_ENDPOINT,
+    "google_geocoding_endpoint": GOOGLE_GEOCODING_ENDPOINT,
+    "google_routing_endpoint": GOOGLE_ROUTING_ENDPOINT,
 }
 
 
@@ -79,13 +133,48 @@ def _planning_schema_fields() -> dict[object, object]:
     }
 
 
+def _number_selector(maximum: int) -> NumberSelector:
+    """Build an explicit integer selector with no default."""
+
+    return NumberSelector(
+        NumberSelectorConfig(min=1, max=maximum, step=1, mode=NumberSelectorMode.BOX)
+    )
+
+
 def _route_schema_fields() -> dict[object, object]:
-    """Build required serializable route-provider fields without defaults."""
+    """Build explicit provider, consent and transport-safety fields without defaults."""
 
     return {
         vol.Required(CONF_ROUTE_PROVIDER): vol.In(_ROUTE_PROVIDER_CHOICES),
-        vol.Required(CONF_ROUTE_PROVIDER_API_KEY): TextSelector(
+        vol.Optional(CONF_ROUTE_PROVIDER_API_KEY): TextSelector(
             TextSelectorConfig(type=TextSelectorType.PASSWORD)
+        ),
+        vol.Optional(CONF_ROUTING_BASE_URL): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.URL)
+        ),
+        vol.Optional(CONF_GEOCODER_PROVIDER): vol.In(_GEOCODER_CHOICES),
+        vol.Optional(CONF_GEOCODER_BASE_URL): TextSelector(
+            TextSelectorConfig(type=TextSelectorType.URL)
+        ),
+        vol.Required(CONF_LOCATION_DATA_CONSENT): vol.In(_CONSENT_CHOICES),
+        vol.Required(CONF_MAX_GEOCODE_REQUESTS_PER_REFRESH): _number_selector(
+            MAX_GEOCODE_REQUESTS_PER_REFRESH
+        ),
+        vol.Required(CONF_MAX_ROUTE_REQUESTS_PER_REFRESH): _number_selector(
+            MAX_ROUTE_REQUESTS_PER_REFRESH
+        ),
+        vol.Required(CONF_MAX_REQUEST_ATTEMPTS): _number_selector(MAX_REQUEST_ATTEMPTS),
+        vol.Required(CONF_REQUEST_TIMEOUT_SECONDS): _number_selector(
+            int(MAX_REQUEST_TIMEOUT.total_seconds())
+        ),
+        vol.Required(CONF_GEOCODE_CACHE_RETENTION_HOURS): _number_selector(
+            int(MAX_GEOCODE_CACHE_RETENTION.total_seconds() // 3600)
+        ),
+        vol.Required(CONF_ROUTE_CACHE_FRESH_HOURS): _number_selector(
+            MAX_ROUTE_CACHE_FRESH_HOURS
+        ),
+        vol.Required(CONF_ROUTE_CACHE_STALE_HOURS): _number_selector(
+            MAX_ROUTE_CACHE_STALE_HOURS
         ),
         vol.Required(CONF_TOLL_POLICY): vol.In(_ROUTE_PREFERENCE_CHOICES),
         vol.Required(CONF_HIGHWAY_POLICY): vol.In(_ROUTE_PREFERENCE_CHOICES),
@@ -114,7 +203,7 @@ def _validated_planning_data(user_input: dict[str, Any]) -> dict[str, str]:
         raise vol.Invalid("invalid planning policy") from err
 
 
-def _validated_route_data(user_input: dict[str, Any]) -> dict[str, str]:
+def _validated_route_data(user_input: dict[str, Any]) -> dict[str, str | int]:
     """Return strict private route configuration or a fixed validation error."""
 
     try:
@@ -127,23 +216,39 @@ class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
     """Create and reconfigure independent forecast profiles."""
 
     VERSION = 1
-    MINOR_VERSION = 4
+    MINOR_VERSION = 5
+
+    def _show_profile_form(
+        self,
+        *,
+        step_id: str,
+        data_schema: Any,
+        errors: dict[str, str] | None = None,
+    ) -> ConfigFlowResult:
+        """Show a profile form with validated endpoint disclosure placeholders."""
+
+        return self.async_show_form(
+            step_id=step_id,
+            data_schema=data_schema,
+            errors=errors,
+            description_placeholders=_ENDPOINT_DESCRIPTION_PLACEHOLDERS,
+        )
 
     @override
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Create a profile from explicit source, planning, and route choices."""
+        """Create a profile from explicit source, planning, provider and consent."""
 
         if user_input is None:
-            return self.async_show_form(step_id="user", data_schema=PROFILE_SCHEMA)
+            return self._show_profile_form(step_id="user", data_schema=PROFILE_SCHEMA)
 
         try:
             entity_ids = _validate_calendar_entity_ids(
                 user_input[CONF_CALENDAR_ENTITY_IDS]
             )
         except vol.Invalid:
-            return self.async_show_form(
+            return self._show_profile_form(
                 step_id="user",
                 data_schema=PROFILE_SCHEMA,
                 errors={CONF_CALENDAR_ENTITY_IDS: "calendar_required"},
@@ -151,7 +256,7 @@ class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
         try:
             planning_data = _validated_planning_data(user_input)
         except vol.Invalid:
-            return self.async_show_form(
+            return self._show_profile_form(
                 step_id="user",
                 data_schema=PROFILE_SCHEMA,
                 errors={"base": "invalid_planning_policy"},
@@ -159,7 +264,7 @@ class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
         try:
             route_data = _validated_route_data(user_input)
         except vol.Invalid:
-            return self.async_show_form(
+            return self._show_profile_form(
                 step_id="user",
                 data_schema=PROFILE_SCHEMA,
                 errors={"base": "invalid_route_provider"},
@@ -180,13 +285,13 @@ class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
         """Configure planning and routing while preserving selected calendars."""
 
         if user_input is None:
-            return self.async_show_form(
+            return self._show_profile_form(
                 step_id="reconfigure", data_schema=CONFIG_SCHEMA
             )
         try:
             planning_data = _validated_planning_data(user_input)
         except vol.Invalid:
-            return self.async_show_form(
+            return self._show_profile_form(
                 step_id="reconfigure",
                 data_schema=CONFIG_SCHEMA,
                 errors={"base": "invalid_planning_policy"},
@@ -194,12 +299,17 @@ class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
         try:
             route_data = _validated_route_data(user_input)
         except vol.Invalid:
-            return self.async_show_form(
+            return self._show_profile_form(
                 step_id="reconfigure",
                 data_schema=CONFIG_SCHEMA,
                 errors={"base": "invalid_route_provider"},
             )
+        entry = self._get_reconfigure_entry()
         return self.async_update_reload_and_abort(
-            self._get_reconfigure_entry(),
-            data_updates={**planning_data, **route_data},
+            entry,
+            data={
+                CONF_CALENDAR_ENTITY_IDS: entry.data[CONF_CALENDAR_ENTITY_IDS],
+                **planning_data,
+                **route_data,
+            },
         )

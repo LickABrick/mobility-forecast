@@ -18,11 +18,18 @@ from .profile_config import (
     CONF_START_ANCHOR_ENTITY_ID,
     ProfilePlanningConfig,
 )
+from .route_provider_config import (
+    CONF_HIGHWAY_POLICY,
+    CONF_ROUTE_PROVIDER,
+    CONF_ROUTE_PROVIDER_API_KEY,
+    CONF_TOLL_POLICY,
+    RoutePreference,
+)
 from .runtime import ProfileRuntimeData, build_runtime
 
 PLATFORMS: Final = ("sensor",)
 CONFIG_ENTRY_VERSION: Final = 1
-CONFIG_ENTRY_MINOR_VERSION: Final = 4
+CONFIG_ENTRY_MINOR_VERSION: Final = 5
 
 _PLANNING_DATA_KEYS: Final = {
     CONF_START_ANCHOR_ENTITY_ID,
@@ -32,6 +39,29 @@ _PLANNING_DATA_KEYS: Final = {
     CONF_ALL_DAY_EVENT_POLICY,
     CONF_NO_LOCATION_EVENT_POLICY,
 }
+_LEGACY_ROUTE_DATA_KEYS: Final = {
+    CONF_ROUTE_PROVIDER,
+    CONF_ROUTE_PROVIDER_API_KEY,
+    CONF_TOLL_POLICY,
+    CONF_HIGHWAY_POLICY,
+}
+
+
+def _valid_legacy_google_route_data(data: dict[str, object]) -> bool:
+    """Validate the inactive schema-1.4 shape before removing its credential."""
+
+    api_key = data.get(CONF_ROUTE_PROVIDER_API_KEY)
+    try:
+        RoutePreference(data.get(CONF_TOLL_POLICY))  # type: ignore[arg-type]
+        RoutePreference(data.get(CONF_HIGHWAY_POLICY))  # type: ignore[arg-type]
+    except ValueError:
+        return False
+    return (
+        data.get(CONF_ROUTE_PROVIDER) == "google_routes"
+        and isinstance(api_key, str)
+        and bool(api_key)
+        and api_key == api_key.strip()
+    )
 
 
 async def async_migrate_entry(
@@ -44,8 +74,11 @@ async def async_migrate_entry(
     decoding rejects it until a calendar is selected by a later user flow.
     Version 1.2 entries keep their calendar selection but gain no guessed
     anchors or event handling; version 1.3 entries keep their explicit planning
-    choices but gain no guessed route provider, credential or route preference.
-    Users complete absent fields through reconfigure.
+    choices but gain no guessed provider policy. Version 1.4's inactive
+    Google-only provider marker and credential are removed; its provider-neutral
+    route preferences remain, but users must explicitly reconfigure provider,
+    recipients, consent and safety limits. Earlier versions receive no guessed
+    values. Users complete absent fields through reconfigure.
     """
 
     if entry.version != CONFIG_ENTRY_VERSION:
@@ -75,6 +108,24 @@ async def async_migrate_entry(
         except ValueError:
             return False
         data = dict(entry.data)
+    elif entry.minor_version == 4:
+        if set(entry.data) != {
+            CONF_CALENDAR_ENTITY_IDS,
+            *_PLANNING_DATA_KEYS,
+            *_LEGACY_ROUTE_DATA_KEYS,
+        }:
+            return False
+        raw_data = dict(entry.data)
+        try:
+            validate_calendar_entity_ids(raw_data[CONF_CALENDAR_ENTITY_IDS])
+            ProfilePlanningConfig.from_entry_data(raw_data)
+        except ValueError:
+            return False
+        if not _valid_legacy_google_route_data(raw_data):
+            return False
+        raw_data.pop(CONF_ROUTE_PROVIDER)
+        raw_data.pop(CONF_ROUTE_PROVIDER_API_KEY)
+        data = raw_data
     else:
         return False
     hass.config_entries.async_update_entry(
