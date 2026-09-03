@@ -4,16 +4,17 @@ Last updated: 2026-09-03 10:11 CEST
 
 ## Current phase
 
-Phase 1 and post-phase checkpoints P1–P19 are complete. Production runtime reads
+Phase 1 and post-phase checkpoints P1–P21 are complete. Production runtime reads
 each profile's selected Home Assistant calendars on a bounded schedule, resolves its
 two explicitly selected local zone anchors, classifies reviewed standalone meeting
 URLs locally and applies the stored structural event policy. Provider configuration
 requires explicit consent, recipient disclosure and bounded request/cache policy.
-Synthetic-only hosted and self-hosted OpenRouteService adapters now enforce those
-choices, budgets, retries, timeouts and privacy-safe cache retention. Injected HTTP
-transports shape exact ORS/Pelias/Photon/Nominatim requests and decode only synthetic
-responses behind a sender protocol. No socket-capable sender or production provider
-composition exists, so included service dates remain explicitly unknown for distance.
+Hosted and self-hosted OpenRouteService adapters enforce those choices, budgets,
+retries, timeouts and privacy-safe persistent cache retention. HTTP transports shape
+exact ORS/Pelias/Photon/Nominatim requests, and the production sender uses Home
+Assistant's managed session with redirects disabled and bounded response reads. The
+provider pipeline is not yet composed into runtime, so included service dates remain
+explicitly unknown for distance. Synthetic provider data exists only in tests.
 
 ## Completed
 
@@ -205,14 +206,24 @@ composition exists, so included service dates remain explicitly unknown for dist
   malformed, sender and HTTP-status outcomes to stable failures, and excludes URLs,
   credentials, private query/body data and response bodies from representations. The
   sender remains an injected protocol and is not composed into production runtime.
+- P20 persists a profile-local 32-byte privacy key plus opaque geocode and route
+  cache entries in a separate private atomic Store. Restart restoration, global
+  retention pruning, explicit key rotation and malformed-state failures preserve
+  config-entry isolation without runtime provider composition.
+- P21 implements the production sender using Home Assistant's managed HTTP session.
+  Redirects are disabled, successful JSON bodies are capped at 1 MiB, error bodies
+  are skipped, failures are sanitized and cancellation propagates. It remains
+  uncomposed until P22; protocol-compatible tests make no external request.
 
 ## Active checkpoint
 
-P20 — Profile-scoped persistent provider caches is complete.
+P21 — Home Assistant HTTP sender boundary is complete.
 
-Next bounded checkpoint: P21 — add an injected Home Assistant HTTP sender boundary
-with bounded response reads and sanitized transport failures. Use synthetic session
-fixtures only, leave provider runtime composition disabled and make no external calls.
+Next bounded checkpoint: P22 — initialize persistent provider caches, construct the
+configured OpenRouteService adapters with the real Home Assistant sender, resolve
+included physical event destinations, route daily itineraries and publish conservative
+forecasts. Production uses real configured inputs and providers; unattended tests use
+deterministic protocol fakes and make no external request.
 
 ## Verification evidence
 
@@ -1224,6 +1235,59 @@ Pyright now includes both new cache modules. Python/tool pins, requirements,
 manifest/HACS metadata, workflow permissions/action pins, strings/translations,
 calendar refresh behavior and entity surface are unchanged.
 
+P21 TDD and verification on 2026-09-03:
+
+```text
+python3 -m unittest tests.test_ha_http_sender -v         RED (module absent)
+python3 -m unittest tests.test_ha_http_sender -v         PASS (6 tests)
+python3 -m unittest discover -s tests                   PASS (180 tests)
+python3 scripts/check_checkpoint.py                     PASS (180 tests)
+.venv/bin/python -m pytest                              PASS (180 tests)
+.venv/bin/ruff check .                                  PASS
+.venv/bin/ruff format --check .                         PASS (96 files)
+.venv/bin/pyright                                       PASS (0 errors; 15 expected
+                                                        missing-source warnings)
+python3 scripts/build_test_zip.py --check ...            PASS
+                                                        (434466 bytes; SHA-256
+                                                        939028aebace780d5e3a765b80c1746db5afbbd45814ebc850da7c4433be1799)
+git diff --check                                        PASS
+```
+
+P21 implements the real production sender behind P19's provider-neutral HTTP
+contract. Its factory obtains Home Assistant's managed shared client session. Each
+request forwards the exact method, selected URL, private headers, query and JSON body,
+while redirects are always disabled so provider credentials and location data cannot
+be forwarded to an undisclosed recipient. The existing OpenRouteService adapter owns
+the configured per-attempt timeout around this sender.
+
+Only HTTP 200 bodies are read. Successful response streams are accumulated in bounded
+chunks up to a hard 1 MiB decoded-body safety limit, then parsed as strict UTF-8 JSON.
+Non-success response bodies are never read or retained. Oversized, invalid UTF-8 and
+invalid JSON bodies become stable unavailable failures; transport, timeout and stream
+exceptions become stable transient failures without exception text. Task cancellation
+is not swallowed. Request, sender and result representations contain no private URL,
+credential, query, body or provider response text.
+
+The owner clarified the production acceptance boundary during P21: Mobility Forecast
+must use real configured Home Assistant inputs and make real requests to the user's
+explicitly selected provider. Synthetic provider data is limited to automated tests
+and is not a production mode or acceptable substitute for working forecasts. Product,
+architecture, README, testing and checkpoint documentation now state this distinction.
+
+All P21 HTTP session behavior was exercised through protocol-compatible in-process
+fixtures containing synthetic values. No production Home Assistant, real location,
+calendar, credential, external provider, DNS/socket request, vehicle, service or
+notification was accessed. The production sender exists but is not constructed by the
+profile runtime, so installed sensor behavior remains unchanged until P22.
+
+Configuration review for P21: config-entry schema remains 1.5; forecast/profile and
+provider-cache storage schemas remain 1. The 1 MiB response limit is a hard transport
+safety bound rather than a user-facing forecast default. Strict Pyright includes the
+new sender and a minimal Home Assistant managed-session type stub. Provider selection,
+consent, credentials/endpoints, budgets, attempts, timeout and cache ages remain
+explicit and unchanged. Requirements, manifest/HACS metadata, strings/translations,
+workflow pins/permissions, refresh schedule and entity surface are unchanged.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -1240,16 +1304,18 @@ calendar refresh behavior and entity surface are unchanged.
 - Event-location resolution has a separate provider-neutral asynchronous boundary.
   It accepts only physical location text, returns hidden coordinates or a stable
   typed failure and composes with destination policy through opaque local endpoint
-  identifiers. Its only implementation is the exact deterministic in-memory fake.
+  identifiers. OpenRouteService and the exact deterministic in-memory test fake both
+  implement this boundary.
 - Config-entry schema 1.5 requires an explicit provider family and affirmative
   location-data consent. Hosted OpenRouteService is recommended and uses one private
   key for its fixed hosted Pelias and routing endpoints; self-hosted ORS requires
   independently configured routing and Pelias/Photon/Nominatim geocoder endpoints.
   Geoapify and Google Routes+Geocoding remain optional. Required hard budgets,
   bounded attempts/timeouts and cache-retention choices have no defaults. P19 shapes
-  exact ORS/Pelias/Photon/Nominatim HTTP values behind an injected sender, but no
-  socket-capable sender or runtime composition exists, so production distance remains
-  unavailable and no provider or hosted/self-hosted fallback can occur.
+  exact ORS/Pelias/Photon/Nominatim HTTP values, P20 supplies persistent private
+  caches, and P21 sends requests through Home Assistant's managed client. Runtime
+  composition remains absent, so production distance is unavailable and no provider
+  or hosted/self-hosted fallback can occur.
 - Route and input failures remain partial, stale or unavailable and never become zero distance or false readiness.
 - Historical plan revisions are immutable so later calendar edits do not rewrite training truth.
 - Domain value objects are frozen and dependency-free. Operational private fields remain available to pure logic but are omitted from representations to reduce accidental disclosure.
@@ -1340,8 +1406,8 @@ calendar refresh behavior and entity surface are unchanged.
   provider/recipient, credential, timeout, retry and cache-retention configuration;
   P18 enforces it in injected ORS adapters with cache protocols, P19 shapes and
   decodes provider HTTP values behind an injected sender, and P20 implements the
-  persistent cache adapter. A socket-capable sender and runtime composition remain
-  deferred.
+  persistent cache adapter, and P21 implements the Home Assistant sender. Runtime
+  composition remains deferred.
 - Config-entry schema version 1 minor version 5 and storage schema version 1 now
   exist. The 1.1 empty-calendar marker and 1.2 calendar-preserving migration guess
   no planning data; 1.3 planning entries retain their data but guess no provider or
@@ -1363,10 +1429,10 @@ calendar refresh behavior and entity surface are unchanged.
   enforces the resulting ORS provider, budget, retry, timeout and in-memory retention
   contracts through injected synthetic transports without fallback. P19 adds exact
   hosted/self-hosted HTTP shaping and conservative response/failure decoding behind an
-  injected sender, and P20 persists profile-local caches and privacy-key lifecycle.
-  A socket-capable sender, credential injection and production forecast composition
-  remain required before live kilometres. Geoapify and Google still have no matching
-  corrected adapter.
+  injected sender, P20 persists profile-local caches and privacy-key lifecycle, and
+  P21 implements real HTTP I/O through Home Assistant's managed client. Credential
+  injection and production forecast composition remain required before live
+  kilometres. Geoapify and Google still have no matching corrected adapter.
 - Exact Home Assistant entity selections and personal data are deliberately absent from the repository.
 
 ## Nightly runtime

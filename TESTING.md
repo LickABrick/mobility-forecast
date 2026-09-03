@@ -16,6 +16,9 @@ The public repository can be installed as a HACS custom integration from
 - The existing end-to-end forecast evidence uses only synthetic calendar data,
   synthetic locations, and a deterministic fake route provider in tests. Real
   route-provider and real forecast output are not part of this artifact.
+- Synthetic provider data is test-only. It is not the intended production operating
+  mode: upcoming checkpoints must connect the configured provider through Home
+  Assistant's HTTP client and compose real calendar locations into routed forecasts.
 - Calendar and zone entity IDs are stored only in the profile config entry. Event
   text, locations and coordinates are not persisted or exposed by the sensor.
 - Test only on Home Assistant **2026.8.x**. Stop if the backup fails, the checksum

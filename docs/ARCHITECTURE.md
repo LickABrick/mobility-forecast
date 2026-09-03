@@ -25,6 +25,12 @@ Read-only entities | privacy-safe preview | redacted diagnostics
 
 External systems are behind typed protocols. Domain objects must not import Home Assistant. Provider-specific request/response types stop at their adapter.
 
+These boundaries are seams for safety and testing, not a replacement for production
+I/O. The completed integration must connect them to Home Assistant's HTTP client and
+the user's explicitly configured real provider. Synthetic calendars, locations and
+provider responses are permitted only in tests; they must never be selected as a
+production forecast source.
+
 ## Forecast profile ownership
 
 Each config entry is an independent composition root. It owns:
@@ -219,6 +225,18 @@ in-memory state only after Home Assistant's private atomic Store accepts the com
 next payload. This storage is an adapter supplied to the existing cache protocols; it
 is not composed into the runtime and adds no HTTP sender or provider call.
 
+P21 implements the production `InjectedHttpSender` boundary over Home Assistant's
+managed shared HTTP session. It transmits the already-shaped private URL, headers,
+query and JSON body only to the selected recipient, disables redirects so credentials
+and location data cannot cross to an undisclosed host, and uses the caller's existing
+per-attempt timeout. A successful response is streamed in bounded chunks with a hard
+1 MiB decoded-body limit before strict UTF-8 JSON parsing. Non-success response bodies
+are never read or retained. Connection, timeout and stream failures become a stable
+transient sender failure; oversized, invalid UTF-8 or invalid JSON responses become
+unavailable, without exception or body text. Task cancellation propagates. The sender
+is real production I/O code, while its tests inject protocol-compatible sessions and
+make no external request. Runtime composition remains P22 work.
+
 P14 adds a read-only Home Assistant state-machine boundary for the two configured
 zone anchors. Each refresh looks up exactly those selected zone entities and reads
 only their latitude/longitude attributes. Valid coordinates become independent
@@ -241,3 +259,6 @@ event-location geocoding, route transport and road kilometres remain uncomposed.
 - Route providers: recorded or synthetic fixtures only unless a later explicitly authorized manual test supplies dedicated credentials.
 
 No test may access production Home Assistant, personal data, vehicle services or real route endpoints.
+Production code, by contrast, must call the selected real provider when the user has
+configured consent and credentials/endpoints; automated verification proves that path
+with protocol-compatible fakes rather than making an unattended external request.

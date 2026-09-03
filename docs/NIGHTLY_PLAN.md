@@ -219,10 +219,20 @@ proved only with isolated Home Assistant contract fixtures.
     suite to 174 tests; Ruff, formatting and strict Pyright pass. No runtime or HTTP
     sender composition was added.
 
-Next checkpoint: **P21 — Injected Home Assistant HTTP sender boundary**. Translate the
-existing private HTTP request contract through an injected Home Assistant client/session
-boundary with bounded response reads and sanitized transport failures. Use synthetic
-session fixtures only; do not compose providers into runtime or make external calls.
+- [x] **P21 — Home Assistant HTTP sender boundary**
+  - The real production sender uses Home Assistant's managed HTTP session, forwards
+    exact private request values only to the selected URL, disables redirects, skips
+    error bodies and limits successful decoded JSON bodies to 1 MiB. Transport,
+    oversized and parse failures are sanitized while cancellation propagates. Six
+    protocol-compatible session tests bring the suite to 180 tests without an
+    external request; all configured local gates pass. Runtime composition is absent.
+
+Next checkpoint: **P22 — Production routed-forecast composition**. Initialize the
+persistent provider caches, construct the configured OpenRouteService geocoder/router
+with the real Home Assistant sender, resolve included physical event destinations,
+route daily itineraries and publish conservative forecasts. Use real configured data
+in production and deterministic protocol fakes in tests; never call an external
+provider during unattended verification.
 
 ## Checkpoint definition of done
 

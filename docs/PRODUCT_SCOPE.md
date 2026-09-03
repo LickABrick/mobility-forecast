@@ -69,3 +69,10 @@ Schema fields, thresholds and defaults are intentionally deferred until their be
 ## Acceptance boundary for V1
 
 V1 is complete only when a user can configure more than one isolated profile, preview what will be considered without exposing event details, obtain read-only forecasts with visible quality/uncertainty, and inspect redacted diagnostics. Every degraded state must remain conservative and explainable.
+
+The production integration must operate on the user's configured Home Assistant
+entities and make real geocoding and routing requests to the explicitly selected
+provider. Deterministic synthetic data is a test strategy, not a production mode or
+substitute for this acceptance boundary. Provider calls require the user's affirmative
+location-data consent, configured credential or self-hosted endpoints, bounded request
+policy and private cache; disabling or failing a provider must degrade explicitly.

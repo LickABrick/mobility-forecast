@@ -112,6 +112,7 @@ class QualityWorkflowTests(unittest.TestCase):
                 "custom_components/mobility_forecast/openrouteservice_http.py",
                 "custom_components/mobility_forecast/provider_cache_storage.py",
                 "custom_components/mobility_forecast/ha_provider_cache.py",
+                "custom_components/mobility_forecast/ha_http.py",
             ],
         )
         self.assertEqual(pyright["stubPath"], "typings")

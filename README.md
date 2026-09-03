@@ -11,9 +11,15 @@ isolated Home Assistant contracts and a reproducible test ZIP. Event-location an
 route-provider runtime composition remain incomplete, so kilometres stay unknown.
 The project must not wake vehicles or execute charging actions.
 
-Profile-scoped provider cache persistence is implemented behind a private Home
-Assistant Store boundary, including opaque keys, retention pruning and atomic privacy
-key rotation. It is not yet connected to the production refresh runtime.
+Profile-scoped provider cache persistence and a bounded production HTTP sender over
+Home Assistant's managed client are implemented, including opaque keys, retention
+pruning, atomic privacy-key rotation, disabled redirects and sanitized failures. They
+are not yet connected to the production refresh runtime.
+
+The intended integration is not a synthetic-data demo. Once the remaining network and
+runtime checkpoints are complete, configured profiles will use their real calendar and
+Home Assistant inputs and call the provider explicitly selected by the user. Synthetic
+provider data remains confined to automated tests.
 
 See:
 
