@@ -6,21 +6,29 @@ specific read-only boundaries each adapter needs.
 
 from __future__ import annotations
 
+import secrets
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import timedelta
 from typing import TYPE_CHECKING, Protocol, cast
 
-from .calendar_profile_source import CalendarIngestionProfileSource
 from .coordinator import ProfileCoordinator
 from .diagnostics import DiagnosticsSnapshot
+from .forecast_config import ProfileForecastConfig
 from .ha_calendar import (
     CalendarSourceConfig,
     HomeAssistantCalendarSource,
     classify_online_event,
 )
 from .ha_zone_anchors import HomeAssistantZoneAnchorResolver
+from .openrouteservice import OpenRouteServiceAdapters, build_openrouteservice_adapters
+from .openrouteservice_http import (
+    OpenRouteServiceHttpGeocodeTransport,
+    OpenRouteServiceHttpRouteTransport,
+)
 from .profile_config import ProfilePlanningConfig
+from .route_provider_config import ProfileRouteConfig
+from .routed_profile_source import RoutedCalendarProfileSource
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -90,18 +98,22 @@ class _PendingDiagnosticsSource:
         raise RuntimeError("profile diagnostics source is not configured")
 
 
-def build_runtime(
+async def build_runtime(
     hass: HomeAssistant, entry: ConfigEntry[ProfileRuntimeData]
 ) -> ProfileRuntimeData:
-    """Build an isolated calendar-reading runtime for one config entry."""
+    """Build an isolated real routed-forecast runtime for one config entry."""
 
     from homeassistant.components.calendar.const import DATA_COMPONENT
     from homeassistant.util import dt as dt_util
 
+    from .ha_http import build_home_assistant_http_sender
+    from .ha_provider_cache import HomeAssistantProviderCaches
     from .ha_storage import HomeAssistantProfileStorage
 
     config_entry_id = entry.entry_id
     planning_config = ProfilePlanningConfig.from_entry_data(entry.data)
+    route_config = ProfileRouteConfig.from_entry_data(entry.data)
+    forecast_config = ProfileForecastConfig.from_entry_data(entry.data)
     component = cast("CalendarComponentContract", hass.data[DATA_COMPONENT])
     calendar_source = HomeAssistantCalendarSource(
         hass=hass,
@@ -113,13 +125,41 @@ def build_runtime(
         hass.states,
         planning_config,
     )
+    provider_caches = HomeAssistantProviderCaches(hass, config_entry_id)
+    initialized_at = dt_util.now()
+    await provider_caches.async_initialize(
+        evaluated_at=initialized_at,
+        maximum_geocode_age=route_config.geocode_cache_policy.maximum_age,
+        maximum_route_age=route_config.route_cache_policy.maximum_stale_age,
+    )
+    sender = build_home_assistant_http_sender(hass)
+
+    def build_adapters() -> OpenRouteServiceAdapters:
+        return build_openrouteservice_adapters(
+            config=route_config,
+            geocode_transport=OpenRouteServiceHttpGeocodeTransport(
+                sender=sender, now=dt_util.now
+            ),
+            route_transport=OpenRouteServiceHttpRouteTransport(
+                sender=sender, now=dt_util.now
+            ),
+            geocode_cache=provider_caches.geocode_cache,
+            route_cache=provider_caches.route_cache,
+            privacy_key=provider_caches.privacy_key,
+            now=dt_util.now,
+        )
+
     return ProfileRuntimeData(
         coordinator=ProfileCoordinator(
             config_entry_id,
-            source=CalendarIngestionProfileSource(
+            source=RoutedCalendarProfileSource(
                 calendar_source=calendar_source,
                 zone_anchor_resolver=zone_anchor_resolver,
                 event_filter_policy=planning_config.event_filter_policy,
+                route_options=route_config.route_options,
+                forecast_policy=forecast_config.forecast_policy,
+                build_provider_adapters=build_adapters,
+                new_revision_id=lambda: f"revision:{secrets.token_hex(16)}",
                 now=dt_util.now,
                 horizon=CALENDAR_HORIZON,
             ),

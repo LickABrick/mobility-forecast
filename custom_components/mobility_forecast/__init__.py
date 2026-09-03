@@ -151,7 +151,7 @@ async def async_setup_entry(
 ) -> bool:
     """Set up one isolated profile runtime and its read-only platforms."""
 
-    runtime = build_runtime(hass, entry)
+    runtime = await build_runtime(hass, entry)
     entry.runtime_data = runtime
     try:
         await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

@@ -4,7 +4,7 @@ Last updated: 2026-09-03 10:11 CEST
 
 ## Current phase
 
-Phase 1 and post-phase checkpoints P1–P22 are complete. Production runtime reads
+Phase 1 and post-phase checkpoints P1–P23 are complete. Production runtime reads
 each profile's selected Home Assistant calendars on a bounded schedule, resolves its
 two explicitly selected local zone anchors, classifies reviewed standalone meeting
 URLs locally and applies the stored structural event policy. Provider configuration
@@ -12,9 +12,11 @@ requires explicit consent, recipient disclosure and bounded request/cache policy
 Hosted and self-hosted OpenRouteService adapters enforce those choices, budgets,
 retries, timeouts and privacy-safe persistent cache retention. HTTP transports shape
 exact ORS/Pelias/Photon/Nominatim requests, and the production sender uses Home
-Assistant's managed session with redirects disabled and bounded response reads. The
-provider pipeline is not yet composed into runtime, so included service dates remain
-explicitly unknown for distance. Synthetic provider data exists only in tests.
+Assistant's managed session with redirects disabled and bounded response reads. For
+hosted and self-hosted OpenRouteService profiles, that pipeline now resolves included
+physical locations, routes daily itineraries, persists immutable revisions and
+publishes conservative real-distance forecasts. Failures remain unknown rather than
+zero. Synthetic provider data exists only in tests.
 
 ## Completed
 
@@ -218,16 +220,19 @@ explicitly unknown for distance. Synthetic provider data exists only in tests.
   correction-bound and cold-start P90 settings. Older complete provider entries keep
   their data but receive no guessed model policy and must be reconfigured before
   production routed forecasts are composed.
+- P23 composes the production refresh from configured calendars and zone anchors
+  through the selected hosted/self-hosted OpenRouteService geocoder and router into
+  append-only revisions and conservative forecasts. Persistent provider caches are
+  initialized before refresh, and selector-shaped whole-number forecast values decode
+  without weakening integer validation.
 
 ## Active checkpoint
 
-P22 — Explicit forecast-model policy prerequisite is complete.
+P23 — Production routed-forecast composition is complete.
 
-Next bounded checkpoint: P23 — initialize persistent provider caches, construct the
-configured OpenRouteService adapters with the real Home Assistant sender, resolve
-included physical event destinations, route daily itineraries and publish conservative
-forecasts. Production uses real configured inputs and providers; unattended tests use
-deterministic protocol fakes and make no external request.
+Next bounded checkpoint: P24 — prove the routed production composition through the
+real Home Assistant lifecycle and entity state with an intercepted managed HTTP
+session. No unattended external request is allowed.
 
 ## Verification evidence
 
@@ -1337,6 +1342,55 @@ Strict Pyright includes the new configuration module. Python/tool pins, requirem
 manifest/HACS metadata, workflow permissions/action pins, provider/cache/HTTP behavior,
 refresh cadence and entity surface are unchanged.
 
+P23 TDD and verification on 2026-09-03:
+
+```text
+.venv/bin/python -m pytest tests/test_forecast_config.py \
+  tests/test_config_flow.py tests/test_routed_profile_source.py \
+  tests/test_lifecycle.py -q                         PASS (29 tests; 8 subtests)
+python3 scripts/check_checkpoint.py                  PASS (189 tests)
+.venv/bin/python -m pytest                           PASS (189 tests)
+.venv/bin/ruff check .                               PASS
+.venv/bin/ruff format --check .                      PASS (100 files)
+.venv/bin/pyright                                    PASS (0 errors; 15 expected
+                                                     missing-source warnings)
+python3 scripts/build_test_zip.py --check ...        PASS
+                                                     (452840 bytes; SHA-256
+                                                     21bb373fcaf8ca91559bd79ab1c34e98eeeb45cdfe67c2aa9ad8f06331b8c2d9)
+git diff --check                                     PASS
+```
+
+P23 initializes the private provider-cache Store during config-entry setup and builds
+a fresh configured OpenRouteService adapter pair for every refresh so each run receives
+its own explicit request budget. The adapters use Home Assistant's managed HTTP sender,
+the persisted profile privacy key and cache policies decoded from schema 1.6.
+
+The new production source filters real normalized calendar events, omits online events
+from physical travel, geocodes only included physical location text and assembles one
+directional itinerary per service date from the start anchor. An included event without
+a location uses the independently configured end anchor as an explicit partial fallback.
+Every generated plan is appended as a new immutable revision; route/geocode failures
+remain partial or unavailable and cannot create a zero-distance success. Forecasts use
+the profile's explicit uncertainty policy and prior immutable actuals.
+
+Home Assistant number selectors may submit whole-number values as floats. The strict
+forecast decoder now normalizes only finite integer-valued floats while continuing to
+reject booleans and fractional numbers, fixing the reported default-value config-flow
+failure. Focused config-flow coverage reproduces that selector representation.
+
+All P23 provider behavior is exercised with in-process protocol-compatible HTTP
+responses and synthetic locations. No external DNS/socket request, real credential,
+calendar, address, coordinate, vehicle, service or notification was accessed. The
+installed runtime now makes real bounded calls only for the provider explicitly chosen
+and consented to by the user.
+
+Configuration review for P23: config-entry schema remains 1.6 and both storage schemas
+remain 1. Provider choices, consent, budgets, attempts, timeout, cache retention,
+forecast bounds, seven-day horizon and 15-minute refresh cadence are unchanged. Strict
+Pyright now includes the routed source. Manifest/HACS metadata, dependencies, workflow
+pins/permissions, translations and entity surface are unchanged. Geoapify and Google
+remain explicit optional selections without production adapters and fail closed.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -1362,9 +1416,9 @@ refresh cadence and entity surface are unchanged.
   Geoapify and Google Routes+Geocoding remain optional. Required hard budgets,
   bounded attempts/timeouts and cache-retention choices have no defaults. P19 shapes
   exact ORS/Pelias/Photon/Nominatim HTTP values, P20 supplies persistent private
-  caches, and P21 sends requests through Home Assistant's managed client. Runtime
-  composition remains absent, so production distance is unavailable and no provider
-  or hosted/self-hosted fallback can occur.
+  caches, and P21 sends requests through Home Assistant's managed client. P23 composes
+  these boundaries for the selected hosted or self-hosted ORS configuration without
+  provider or hosted/self-hosted fallback.
 - Schema 1.6 also requires explicit bounded history, correction-ratio and cold-start
   P90 policy. These values project to the pure forecast model without defaults.
 - Route and input failures remain partial, stale or unavailable and never become zero distance or false readiness.
@@ -1392,8 +1446,8 @@ refresh cadence and entity surface are unchanged.
   platform. It reads selected calendars immediately and every 15 minutes over an
   exact seven-day window, first resolves both selected local zone anchors, then
   locally classifies reviewed meeting URLs and applies the stored structural policy;
-  successful unload cancels the interval. Calendar-derived distance remains unknown
-  until event destinations and routing are composed.
+  successful unload cancels the interval. Included physical events are geocoded and
+  routed for supported OpenRouteService profiles; incomplete routes remain unknown.
 - Durable runtime state uses one private, atomic Home Assistant Store keyed only by config-entry identifier. Missing storage starts from explicit empty state; restart restores decoded immutable state, cross-entry calls fail, and unload retains persisted data.
 - Config-entry schema 1.6 requires every new profile to explicitly select one or
   more ordered unique calendar entities, independent zone anchors, structural event
@@ -1410,7 +1464,8 @@ refresh cadence and entity surface are unchanged.
 - The synthetic smoke harness proves the existing calendar, filtering, planning,
   fake-routing, forecast, coordinator, persistence and sensor contracts compose
   across one complete path and one route-failure path. It is test-only evidence,
-  not the production runtime composition and not proof of real forecasting.
+  while P23 separately proves the production runtime composition with intercepted
+  managed HTTP. Automated evidence makes no external request.
 - Real Home Assistant compatibility tests are isolated from the dependency-free
   suite and pin the matching test harness for Home Assistant 2026.8.1. They prove
   config-flow creation, planning-policy reconfiguration and one current-schema
@@ -1430,9 +1485,9 @@ refresh cadence and entity surface are unchanged.
   DNS/network lookups or treat arbitrary URLs as online. Expanding provider hosts or
   event fields requires a separate reviewed test and privacy decision.
 - C3 term matching is intentionally a literal case-insensitive substring contract, not regex, tokenization or location-text matching. Any broader rule language requires a separately tested and documented checkpoint.
-- C5's in-memory cache remains the dependency-free test fake. P20 adds persistent
-  profile-scoped cache storage and key lifecycle at the Home Assistant boundary, but
-  it is not yet initialized or supplied to provider adapters by production runtime.
+- C5's in-memory cache remains the dependency-free test fake. P20's persistent
+  profile-scoped cache storage and key lifecycle are initialized and supplied to the
+  production OpenRouteService adapters by P23.
 - C8c/P2 define serialization and the Home Assistant `Store` adapter, but not retention pruning, transactional recovery UI or migration beyond schema version 1. No pre-version-1 payload exists; future schema changes require explicit forward migration and rollback tests.
 - C8d–C8f and P1–P3/P11 define orchestration, durable state, calendar
   normalization, production calendar ingestion, a passive sensor-platform adapter,
@@ -1444,8 +1499,8 @@ refresh cadence and entity surface are unchanged.
 - P4 demonstrates full planning composition only with deterministic fakes. P11
   performs real local calendar ingestion, P12 stores explicit structural policy,
   P14 resolves configured zone anchors and P16 applies that policy after local online
-  classification. Event-location production resolution, revision-id generation and
-  routing remain unimplemented.
+  classification. P23 now supplies event-location resolution, opaque revision-id
+  generation and routing for hosted/self-hosted OpenRouteService profiles.
 - A separate privacy-safe logging policy remains unimplemented; diagnostics safety does not make arbitrary logs safe.
 - The manifest points documentation and issue support at the public repository and
   intentionally declares no code owner. An approved maintainer handle remains out of
@@ -1459,8 +1514,8 @@ refresh cadence and entity surface are unchanged.
   provider/recipient, credential, timeout, retry and cache-retention configuration;
   P18 enforces it in injected ORS adapters with cache protocols, P19 shapes and
   decodes provider HTTP values behind an injected sender, and P20 implements the
-  persistent cache adapter, and P21 implements the Home Assistant sender. Runtime
-  composition remains deferred.
+  persistent cache adapter, P21 implements the Home Assistant sender, and P23 composes
+  them into the production refresh for hosted/self-hosted OpenRouteService profiles.
 - Config-entry schema version 1 minor version 6 and storage schema version 1 now
   exist. The 1.1 empty-calendar marker and 1.2 calendar-preserving migration guess
   no planning data; 1.3 planning entries retain their data but guess no provider or
@@ -1482,10 +1537,10 @@ refresh cadence and entity surface are unchanged.
   enforces the resulting ORS provider, budget, retry, timeout and in-memory retention
   contracts through injected synthetic transports without fallback. P19 adds exact
   hosted/self-hosted HTTP shaping and conservative response/failure decoding behind an
-  injected sender, P20 persists profile-local caches and privacy-key lifecycle, and
-  P21 implements real HTTP I/O through Home Assistant's managed client. Credential
-  injection and production forecast composition remain required before live
-  kilometres. Geoapify and Google still have no matching corrected adapter.
+  injected sender, P20 persists profile-local caches and privacy-key lifecycle, P21
+  implements real HTTP I/O through Home Assistant's managed client, and P23 composes
+  credential injection and live forecast generation for ORS profiles. Geoapify and
+  Google still have no matching corrected adapter.
 - Exact Home Assistant entity selections and personal data are deliberately absent from the repository.
 
 ## Nightly runtime

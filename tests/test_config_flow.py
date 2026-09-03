@@ -552,6 +552,28 @@ class ConfigFlowTests(unittest.TestCase):
 
         self.assertEqual(result["errors"], {"base": "invalid_forecast_policy"})
 
+    def test_whole_number_selector_floats_create_forecast_policy(self) -> None:
+        with fake_home_assistant():
+            module = importlib.import_module(
+                "custom_components.mobility_forecast.config_flow"
+            )
+            result = asyncio.run(
+                module.MobilityForecastConfigFlow().async_step_user(
+                    {
+                        "name": "Selector values",
+                        "calendar_entity_ids": ["calendar.synthetic"],
+                        **POLICY_INPUT,
+                        **ROUTE_INPUT,
+                        **{key: float(value) for key, value in FORECAST_INPUT.items()},
+                    }
+                )
+            )
+
+        self.assertEqual(result["type"], "create_entry")
+        for key, value in FORECAST_INPUT.items():
+            self.assertEqual(result["data"][key], value)
+            self.assertIsInstance(result["data"][key], int)
+
     def test_reconfigure_replaces_provider_specific_fields_without_fallback(
         self,
     ) -> None:

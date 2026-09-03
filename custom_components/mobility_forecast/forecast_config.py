@@ -81,6 +81,10 @@ class ProfileForecastConfig:
 
 def _required_int(data: Mapping[str, object], key: str) -> int:
     value = data.get(key)
-    if type(value) is not int:
+    if isinstance(value, bool):
         raise ValueError(f"{key} is unavailable")
-    return value
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float) and value.is_integer():
+        return int(value)
+    raise ValueError(f"{key} is unavailable")

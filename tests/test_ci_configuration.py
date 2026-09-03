@@ -114,6 +114,7 @@ class QualityWorkflowTests(unittest.TestCase):
                 "custom_components/mobility_forecast/ha_provider_cache.py",
                 "custom_components/mobility_forecast/ha_http.py",
                 "custom_components/mobility_forecast/forecast_config.py",
+                "custom_components/mobility_forecast/routed_profile_source.py",
             ],
         )
         self.assertEqual(pyright["stubPath"], "typings")

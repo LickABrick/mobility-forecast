@@ -234,12 +234,19 @@ proved only with isolated Home Assistant contract fixtures.
     without guessing these values, and reconfiguration supplies them. Four new tests
     bring the dependency-free suite to 184 tests; all configured local gates pass.
 
-Next checkpoint: **P23 — Production routed-forecast composition**. Initialize the
-persistent provider caches, construct the configured OpenRouteService geocoder/router
-with the real Home Assistant sender, resolve included physical event destinations,
-route daily itineraries and publish conservative forecasts using the explicit schema-
-1.6 policy. Production uses real configured data; deterministic protocol fakes remain
-limited to tests and no unattended external call is allowed.
+- [x] **P23 — Production routed-forecast composition**
+  - Runtime initializes each profile's persistent provider caches and composes the
+    configured hosted/self-hosted OpenRouteService geocoder and router through Home
+    Assistant's managed HTTP session. Included physical events produce append-only
+    routed revisions and conservative forecasts; failures remain unknown, and
+    no-location events use only the explicit end anchor fallback. Selector-shaped
+    whole-number floats are normalized for the P22 policy. Automated tests intercept
+    all HTTP and make no external request.
+
+Next checkpoint: **P24 — Real Home Assistant routed-runtime compatibility**. Drive a
+current profile through the installed Home Assistant lifecycle with an intercepted
+managed session and prove a nonzero forecast entity, persistent caches and unload
+behavior without external calls.
 
 ## Checkpoint definition of done
 

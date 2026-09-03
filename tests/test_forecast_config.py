@@ -25,6 +25,9 @@ class ProfileForecastConfigTests(unittest.TestCase):
             ForecastPolicy(5, 0.6, 1.8, 1.25),
         )
 
+        selector_values = {key: float(value) for key, value in data.items()}
+        self.assertEqual(ProfileForecastConfig.from_entry_data(selector_values), config)
+
     def test_missing_boolean_reversed_and_out_of_range_values_fail_closed(self) -> None:
         valid = {
             "minimum_history_samples": 5,

@@ -247,6 +247,17 @@ planning and provider configuration during migration but gain no guessed forecas
 policy, so reconfiguration is required before routed composition. P23 owns that
 composition.
 
+P23 composes the supported production path. Config-entry setup initializes the
+profile-local privacy key and persistent provider caches, then each refresh constructs
+a new budget-scoped hosted or self-hosted OpenRouteService geocoder/router pair over
+Home Assistant's managed session. Only structurally included physical event locations
+are geocoded. Included no-location events use the independently configured end anchor
+as an explicit partial fallback; online events create no physical trip. Daily
+itineraries start at the configured start anchor, retain failed legs as degraded data,
+append a new immutable revision and use the schema-1.6 policy to publish P50/P90
+distance. Provider or input failures remain unavailable rather than zero. Geoapify
+and Google selections still have no production adapter and fail closed.
+
 P14 adds a read-only Home Assistant state-machine boundary for the two configured
 zone anchors. Each refresh looks up exactly those selected zone entities and reads
 only their latitude/longitude attributes. Valid coordinates become independent
@@ -255,9 +266,9 @@ identifiers; the selected entity IDs and coordinate values are hidden from adapt
 snapshot and error representations. Missing state, missing coordinates, nonnumeric
 values and out-of-range values fail closed with stable role-specific reasons before
 calendar ingestion, which makes the latest entity update unavailable while retaining
-prior immutable coordinator data. The resolved coordinates are not persisted or
-projected. P16 now applies structural filtering after anchor resolution;
-event-location geocoding, route transport and road kilometres remain uncomposed.
+prior immutable coordinator data. The resolved coordinates are not projected. P16
+applies structural filtering after anchor resolution, and P23 supplies event
+geocoding, routing and road kilometres for supported OpenRouteService configurations.
 
 ## Test strategy
 

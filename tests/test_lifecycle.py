@@ -11,6 +11,9 @@ from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any, ClassVar
 
+from tests.synthetic_pipeline import SyntheticCalendarEvent
+from tests.test_ha_http_sender import SyntheticResponse, SyntheticSession
+
 INTEGRATION_MODULE = "custom_components.mobility_forecast"
 
 
@@ -115,6 +118,7 @@ class FakeHomeAssistant:
         )
         self.intervals: list[tuple[object, object]] = []
         self.cancelled_intervals = 0
+        self.http_session: object = object()
 
 
 class FakeState:
@@ -133,14 +137,15 @@ class FakeStates:
 
 
 class FakeCalendarEntity:
-    def __init__(self) -> None:
+    def __init__(self, events: list[object] | None = None) -> None:
         self.calls: list[tuple[object, datetime, datetime]] = []
+        self.events = events if events is not None else []
 
     async def async_get_events(
         self, hass: object, start_date: datetime, end_date: datetime
     ) -> list[object]:
         self.calls.append((hass, start_date, end_date))
-        return []
+        return self.events
 
 
 class FakeCalendarComponent:
@@ -149,6 +154,16 @@ class FakeCalendarComponent:
 
     def get_entity(self, entity_id: str) -> FakeCalendarEntity | None:
         return self.entity if entity_id == "calendar.synthetic" else None
+
+
+class SequencedSyntheticSession(SyntheticSession):
+    def __init__(self, responses: list[SyntheticResponse]) -> None:
+        super().__init__()
+        self.responses = responses
+
+    def request(self, *args: object, **kwargs: object):  # type: ignore[no-untyped-def]
+        self.response = self.responses.pop(0)
+        return super().request(*args, **kwargs)  # type: ignore[arg-type]
 
 
 class FakeStore:
@@ -216,6 +231,8 @@ def fake_home_assistant() -> Generator[None]:
         return cancel
 
     event.async_track_time_interval = async_track_time_interval  # type: ignore[attr-defined]
+    aiohttp_client = types.ModuleType("homeassistant.helpers.aiohttp_client")
+    aiohttp_client.async_get_clientsession = lambda hass: hass.http_session  # type: ignore[attr-defined]
     storage = types.ModuleType("homeassistant.helpers.storage")
     storage.Store = FakeStore  # type: ignore[attr-defined]
     util = types.ModuleType("homeassistant.util")
@@ -233,6 +250,7 @@ def fake_home_assistant() -> Generator[None]:
         "homeassistant.core": core,
         "homeassistant.helpers": helpers,
         "homeassistant.helpers.event": event,
+        "homeassistant.helpers.aiohttp_client": aiohttp_client,
         "homeassistant.helpers.storage": storage,
         "homeassistant.util": util,
         "homeassistant.util.dt": dt,
@@ -510,10 +528,46 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
         self.assertEqual(manager.unloaded, [(entry, (FakePlatform.SENSOR,))])
         self.assertIsNotNone(runtime)
         self.assertIsNone(entry.runtime_data)
-        self.assertEqual(len(FakeStore.instances), 1)
-        self.assertEqual(FakeStore.instances[0].load_calls, 1)
-        self.assertEqual(FakeStore.instances[0].remove_calls, 0)
+        self.assertEqual(len(FakeStore.instances), 2)
+        self.assertEqual([store.load_calls for store in FakeStore.instances], [1, 1])
+        self.assertTrue(all(store.remove_calls == 0 for store in FakeStore.instances))
         self.assertEqual(hass.cancelled_intervals, 1)
+
+    def test_runtime_composes_real_http_pipeline_into_nonzero_forecast(self) -> None:
+        manager = FakeConfigEntriesManager()
+        hass = FakeHomeAssistant(manager)
+        hass.data["calendar"].entity.events = [  # type: ignore[union-attr]
+            SyntheticCalendarEvent(
+                start=datetime(2032, 4, 5, 9, 0, tzinfo=UTC),
+                end=datetime(2032, 4, 5, 10, 0, tzinfo=UTC),
+                summary="Synthetic appointment",
+                location="Synthetic destination",
+                uid="synthetic-event",
+            )
+        ]
+        hass.http_session = SequencedSyntheticSession(
+            [
+                SyntheticResponse(
+                    200,
+                    b'{"features":[{"geometry":{"type":"Point","coordinates":[-33,13]}}]}',
+                ),
+                SyntheticResponse(
+                    200,
+                    b'{"routes":[{"summary":{"distance":10000,"duration":900}}]}',
+                ),
+            ]
+        )
+        entry = FakeConfigEntry("entry-routed")
+
+        with fake_home_assistant():
+            integration = load_integration()
+            result = asyncio.run(integration.async_setup_entry(hass, entry))
+
+        self.assertTrue(result)
+        snapshot = entry.runtime_data.coordinator.data  # type: ignore[union-attr]
+        self.assertEqual(snapshot.forecasts[0].distance_p50_m, 10_000)
+        self.assertEqual(snapshot.forecasts[0].distance_p90_m, 12_500)
+        self.assertEqual(len(hass.http_session.calls), 2)  # type: ignore[attr-defined]
 
     def test_failed_platform_forwarding_releases_unloaded_runtime(self) -> None:
         manager = FakeConfigEntriesManager(
