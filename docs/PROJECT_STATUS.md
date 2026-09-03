@@ -1,22 +1,21 @@
 # Project status
 
-Last updated: 2026-09-03 16:55 CEST
+Last updated: 2026-09-03 21:12 CEST
 
 ## Current phase
 
-Phase 1 and post-phase checkpoints P1–P24 are complete. Production runtime reads
+Phase 1 and post-phase checkpoints P1–P25 are complete. Production runtime reads
 each profile's selected Home Assistant calendars on a bounded schedule, resolves its
 two explicitly selected local zone anchors, classifies reviewed standalone meeting
 URLs locally and applies the stored structural event policy. Provider configuration
 requires explicit consent, recipient disclosure and bounded request/cache policy.
-Hosted and self-hosted OpenRouteService adapters enforce those choices, budgets,
-retries, timeouts and privacy-safe persistent cache retention. HTTP transports shape
-exact ORS/Pelias/Photon/Nominatim requests, and the production sender uses Home
-Assistant's managed session with redirects disabled and bounded response reads. For
-hosted and self-hosted OpenRouteService profiles, that pipeline now resolves included
-physical locations, routes daily itineraries, persists immutable revisions and
-publishes conservative real-distance forecasts. Failures remain unknown rather than
-zero. Synthetic provider data exists only in tests.
+Hosted/self-hosted OpenRouteService and optional Google adapters enforce those choices,
+budgets, retries, timeouts and privacy-safe persistent cache retention. Their HTTP
+transports shape exact requests, and the production sender uses Home Assistant's managed
+session with redirects disabled and bounded response reads. Supported profiles resolve
+included physical locations, route daily itineraries, persist immutable revisions and
+publish conservative real-distance forecasts. Failures remain unknown rather than zero.
+Synthetic provider data exists only in tests.
 
 ## Completed
 
@@ -229,6 +228,14 @@ zero. Synthetic provider data exists only in tests.
   nonzero entity state and survives unload/reload using persistent caches. It fixes
   successful aiohttp responses represented by `HTTPStatus` being rejected by the
   strict provider-neutral response contract.
+- P25 adds exact Google Geocoding API v3 GET and Routes API v2 POST translations over
+  the shared injected sender. The v3 API key remains inside the representation-hidden
+  query, routing credentials remain in request headers, and only documented coordinate,
+  distance and duration fields are decoded.
+- P25 maps Google HTTP, sender and v3 provider-status failures to stable typed categories
+  without retaining error text. An explicitly selected Google profile now enters the
+  same refresh budgets, bounded retry/timeout, private persistent geocode/route caches,
+  immutable revision and conservative forecast pipeline as supported ORS profiles.
 - The hosted OpenRouteService endpoints follow HeiGIT's deprecation of
   `api.openrouteservice.org` and now target `api.heigit.org` with the relocated
   routing path `openrouteservice/v2/directions/driving-car` and the Pelias geocoding
@@ -240,11 +247,11 @@ zero. Synthetic provider data exists only in tests.
 
 ## Active checkpoint
 
-The hosted OpenRouteService endpoint migration to `api.heigit.org` is complete.
+P25 production Google Geocoding and Routes composition is complete.
 
-Next bounded checkpoint: P25 — implement the already selectable Google Geocoding and
-Routes family through bounded HTTP transports and the existing persistent routed-
-forecast pipeline. Automated tests must intercept all HTTP and use no real credential.
+Next bounded checkpoint: P26 — implement the remaining selectable Geoapify family
+through bounded HTTP transports and the existing persistent routed-forecast pipeline.
+Automated tests must intercept all HTTP and use no real credential.
 
 ## Verification evidence
 
@@ -1453,6 +1460,49 @@ entity surface are unchanged. Requirements and the existing exact Home Assistant
 harness pin are unchanged. No manifest, HACS, workflow, translation or packaging scope
 change is needed.
 
+P25 recovery, TDD and verification on 2026-09-03:
+
+```text
+recovered partial Google HTTP/runtime/test diff             PASS (28 focused tests)
+Google Geocoding API v3 request/response contract           RED (7 failures)
+PYTHONPATH=.venv/site /usr/bin/python3 -m pytest ... -q     PASS (29 focused tests;
+                                                            41 subtests)
+/usr/bin/python3 scripts/check_checkpoint.py                PASS (198 tests included)
+PYTHONPATH=.venv/site /usr/bin/python3 -m pytest -q         PASS (198 tests;
+                                                            186 subtests)
+PYTHONPATH=.venv/site /usr/bin/python3 -m ruff check .      PASS
+PYTHONPATH=.venv/site /usr/bin/python3 -m ruff format --check .
+                                                            PASS (102 files)
+PYTHONPATH=.venv/site /usr/bin/python3 -m pyright           PASS (0 errors; 15 expected
+                                                            missing-source warnings)
+Docker Python 3.14.7 / Home Assistant 2026.8.1 suite        PASS (4 tests; network disabled)
+Hassfest pinned image                                       PASS (1 integration; 0 invalid)
+HACS pinned image local schemas                             PASS
+/usr/bin/python3 scripts/build_test_zip.py --check ...      PASS (474838 bytes; 37 files;
+                                                            SHA-256 9223c75b07cc67d04aa29c593b677fdf2c9a287a2e806505935083109ed90819)
+sha256sum --check                                           PASS
+git diff --check and full diff/privacy review              PASS
+```
+
+Recovery found five modified tracked files and two untracked P25 files on synchronized
+`main`; the original child RED output was not retained. The recovered 28 focused tests
+passed, but review against Google's official Geocoding API v3 documentation found that
+the partial transport used a v4 field-mask/header shape and decoded the wrong response
+path. A documented v3 query/geometry/status contract was then written and observed RED
+before correction. All requests are intercepted in process; provider and Home Assistant
+validator containers ran with networking disabled. No production Home Assistant state,
+calendar text, address, coordinate, credential, external provider, vehicle, service or
+notification was accessed.
+
+Configuration review for P25: config-entry schema remains 1.6 and both storage schemas
+remain 1. The existing explicit Google selection, disclosed fixed endpoints, affirmative
+consent, one private key, request budgets, retry/timeout policy and cache retention are
+consumed without a new field, migration or default. Strict Pyright and package scope add
+the Google HTTP transport. Python/tool pins, requirements, manifest/HACS metadata,
+strings/translations, workflow pins/permissions, refresh cadence and entity surface are
+unchanged. Geoapify remains explicitly selectable but fail closed; no provider fallback
+or physical capability was added.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -1479,7 +1529,8 @@ change is needed.
   bounded attempts/timeouts and cache-retention choices have no defaults. P19 shapes
   exact ORS/Pelias/Photon/Nominatim HTTP values, P20 supplies persistent private
   caches, and P21 sends requests through Home Assistant's managed client. P23 composes
-  these boundaries for the selected hosted or self-hosted ORS configuration without
+  these boundaries for the selected hosted or self-hosted ORS configuration; P25 uses
+  the same boundaries for an explicitly selected Google profile. Neither path performs
   provider or hosted/self-hosted fallback.
 - Schema 1.6 also requires explicit bounded history, correction-ratio and cold-start
   P90 policy. These values project to the pure forecast model without defaults.
@@ -1509,7 +1560,8 @@ change is needed.
   exact seven-day window, first resolves both selected local zone anchors, then
   locally classifies reviewed meeting URLs and applies the stored structural policy;
   successful unload cancels the interval. Included physical events are geocoded and
-  routed for supported OpenRouteService profiles; incomplete routes remain unknown.
+  routed for explicitly selected OpenRouteService or Google profiles; incomplete
+  routes remain unknown.
 - Durable runtime state uses one private, atomic Home Assistant Store keyed only by config-entry identifier. Missing storage starts from explicit empty state; restart restores decoded immutable state, cross-entry calls fail, and unload retains persisted data.
 - Config-entry schema 1.6 requires every new profile to explicitly select one or
   more ordered unique calendar entities, independent zone anchors, structural event
@@ -1561,8 +1613,9 @@ change is needed.
 - P4 demonstrates full planning composition only with deterministic fakes. P11
   performs real local calendar ingestion, P12 stores explicit structural policy,
   P14 resolves configured zone anchors and P16 applies that policy after local online
-  classification. P23 now supplies event-location resolution, opaque revision-id
-  generation and routing for hosted/self-hosted OpenRouteService profiles.
+  classification. P23 supplies event-location resolution, opaque revision-id
+  generation and routing for hosted/self-hosted OpenRouteService profiles; P25 adds
+  the same production pipeline for explicitly selected Google profiles.
 - A separate privacy-safe logging policy remains unimplemented; diagnostics safety does not make arbitrary logs safe.
 - The manifest points documentation and issue support at the public repository and
   intentionally declares no code owner. An approved maintainer handle remains out of
@@ -1575,9 +1628,11 @@ change is needed.
   event-location resolver contract and deterministic fake. P17 supplies explicit
   provider/recipient, credential, timeout, retry and cache-retention configuration;
   P18 enforces it in injected ORS adapters with cache protocols, P19 shapes and
-  decodes provider HTTP values behind an injected sender, and P20 implements the
+  decodes provider HTTP values behind an injected sender, P20 implements the
   persistent cache adapter, P21 implements the Home Assistant sender, and P23 composes
-  them into the production refresh for hosted/self-hosted OpenRouteService profiles.
+  them into production refreshes for hosted/self-hosted OpenRouteService profiles.
+  P25 adds documented Google Geocoding/Routes HTTP translations and composes them
+  through those same bounded cache/runtime boundaries.
 - Config-entry schema version 1 minor version 6 and storage schema version 1 now
   exist. The 1.1 empty-calendar marker and 1.2 calendar-preserving migration guess
   no planning data; 1.3 planning entries retain their data but guess no provider or
@@ -1601,8 +1656,9 @@ change is needed.
   hosted/self-hosted HTTP shaping and conservative response/failure decoding behind an
   injected sender, P20 persists profile-local caches and privacy-key lifecycle, P21
   implements real HTTP I/O through Home Assistant's managed client, and P23 composes
-  credential injection and live forecast generation for ORS profiles. Geoapify and
-  Google still have no matching corrected adapter.
+  credential injection and live forecast generation for ORS profiles. P25 adds the
+  Google HTTP translations and matching runtime composition without fallback.
+  Geoapify remains the only explicitly selectable family without a production adapter.
 - Exact Home Assistant entity selections and personal data are deliberately absent from the repository.
 
 ## Nightly runtime

@@ -108,6 +108,7 @@ class QualityWorkflowTests(unittest.TestCase):
                 "custom_components/mobility_forecast/route_provider_config.py",
                 "custom_components/mobility_forecast/provider_guardrails.py",
                 "custom_components/mobility_forecast/google_routes.py",
+                "custom_components/mobility_forecast/google_routes_http.py",
                 "custom_components/mobility_forecast/openrouteservice.py",
                 "custom_components/mobility_forecast/openrouteservice_http.py",
                 "custom_components/mobility_forecast/provider_cache_storage.py",

@@ -11,12 +11,12 @@ The public repository can be installed as a HACS custom integration from
 - The current package reads selected calendars immediately and every 15 minutes,
   classifies reviewed standalone meeting URLs locally, applies the profile's explicit
   structural policy, resolves included physical locations and routes daily itineraries
-  for configured hosted or self-hosted OpenRouteService profiles.
+  for configured hosted/self-hosted OpenRouteService or Google profiles.
 - Production provider calls use the explicitly configured credentials/endpoints.
   Automated verification intercepts the managed HTTP session with deterministic
   responses and never calls an external provider.
-- Geoapify and Google provider families do not yet have production adapters. Profiles
-  selecting either fail closed until those optional adapters are implemented.
+- Geoapify does not yet have a production adapter. Profiles selecting it fail closed
+  until that optional adapter is implemented.
 - Calendar and zone entity IDs are stored only in the profile config entry. Event
   text, locations and coordinates are not persisted or exposed by the sensor.
 - Test only on Home Assistant **2026.8.x**. Stop if the backup fails, the checksum
@@ -125,9 +125,9 @@ https://developers.home-assistant.io/docs/creating_integration_file_structure/
 3. Open **Settings > System > Logs** and search for `mobility_forecast` and
    `Mobility Forecast`.
 4. Expected result: no import error, manifest error, config-flow error, setup
-   traceback, or repeated retry loop. A configured OpenRouteService profile may make
-   bounded geocoding and routing requests during its immediate refresh; it never makes
-   a vehicle or physical-service request.
+   traceback, or repeated retry loop. A configured OpenRouteService or Google profile
+   may make bounded geocoding and routing requests during its immediate refresh; it
+   never makes a vehicle or physical-service request.
 5. If there is an exception, copy only the relevant redacted traceback for the
    test report. Do not include calendar event text, addresses, coordinates,
    tokens, or full entity/state dumps.
@@ -173,12 +173,12 @@ Unit: km
 Forecast attributes: absent
 ```
 
-With a valid future physical event and working OpenRouteService configuration, the
-state should be a nonzero conservative P90 road distance. A geocode/route failure or
-partial itinerary remains `unknown`, never zero. The entity must not expose
-calendar text, addresses, coordinates, calendar entity IDs, route-provider data,
-or credentials. No Mobility Forecast service, button, switch, or action entity
-should exist.
+With a valid future physical event and working OpenRouteService or Google
+configuration, the state should be a nonzero conservative P90 road distance. A
+geocode/route failure or partial itinerary remains `unknown`, never zero. The entity
+must not expose calendar text, addresses, coordinates, calendar entity IDs,
+route-provider data, or credentials. No Mobility Forecast service, button, switch, or
+action entity should exist.
 
 After checking the entity, inspect **Settings > System > Logs** once more for new
 `mobility_forecast` exceptions. Record the Home Assistant version, ZIP SHA-256,
@@ -200,8 +200,8 @@ Normal uninstall:
    longer listed.
 
 The current artifact performs read-only local calendar refreshes and may create routed
-plan revisions through the selected OpenRouteService provider. Do not hand-edit Home
-Assistant's `.storage` files. If
-startup, config entries, or unrelated state do not return to the pre-test
-condition, use Home Assistant's supported backup restore flow with the backup
-created in step 1 instead of manually modifying internal storage.
+plan revisions through the selected OpenRouteService or Google provider. Do not
+hand-edit Home Assistant's `.storage` files. If startup, config entries, or unrelated
+state do not return to the pre-test condition, use Home Assistant's supported backup
+restore flow with the backup created in step 1 instead of manually modifying internal
+storage.

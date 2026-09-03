@@ -15,20 +15,25 @@ from typing import TYPE_CHECKING, Protocol, cast
 from .coordinator import ProfileCoordinator
 from .diagnostics import DiagnosticsSnapshot
 from .forecast_config import ProfileForecastConfig
+from .google_routes import build_google_adapters
+from .google_routes_http import (
+    GoogleHttpGeocodeTransport,
+    GoogleHttpRouteTransport,
+)
 from .ha_calendar import (
     CalendarSourceConfig,
     HomeAssistantCalendarSource,
     classify_online_event,
 )
 from .ha_zone_anchors import HomeAssistantZoneAnchorResolver
-from .openrouteservice import OpenRouteServiceAdapters, build_openrouteservice_adapters
+from .openrouteservice import build_openrouteservice_adapters
 from .openrouteservice_http import (
     OpenRouteServiceHttpGeocodeTransport,
     OpenRouteServiceHttpRouteTransport,
 )
 from .profile_config import ProfilePlanningConfig
-from .route_provider_config import ProfileRouteConfig
-from .routed_profile_source import RoutedCalendarProfileSource
+from .route_provider_config import ProfileRouteConfig, RouteProviderKind
+from .routed_profile_source import ProviderAdapters, RoutedCalendarProfileSource
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -134,7 +139,25 @@ async def build_runtime(
     )
     sender = build_home_assistant_http_sender(hass)
 
-    def build_adapters() -> OpenRouteServiceAdapters:
+    def build_adapters() -> ProviderAdapters:
+        if route_config.provider is RouteProviderKind.GOOGLE:
+            if route_config.api_key is None:
+                raise ValueError("Google profile credential is unavailable")
+            return build_google_adapters(
+                config=route_config,
+                geocode_transport=GoogleHttpGeocodeTransport(
+                    sender=sender, now=dt_util.now
+                ),
+                route_transport=GoogleHttpRouteTransport(
+                    sender=sender,
+                    api_key=route_config.api_key,
+                    now=dt_util.now,
+                ),
+                geocode_cache=provider_caches.geocode_cache,
+                route_cache=provider_caches.route_cache,
+                privacy_key=provider_caches.privacy_key,
+                now=dt_util.now,
+            )
         return build_openrouteservice_adapters(
             config=route_config,
             geocode_transport=OpenRouteServiceHttpGeocodeTransport(

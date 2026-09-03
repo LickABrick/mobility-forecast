@@ -336,6 +336,10 @@ class GoogleRouter:
         self._privacy_key = privacy_key
         self._now = now
 
+    @property
+    def cache_namespace(self) -> str:
+        return self._provider.cache_namespace
+
     async def route(self, request: RouteRequest) -> RouteResult:
         evaluated_at = self._now()
         _require_aware(evaluated_at, "current time")

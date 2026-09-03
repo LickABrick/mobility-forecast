@@ -247,7 +247,7 @@ planning and provider configuration during migration but gain no guessed forecas
 policy, so reconfiguration is required before routed composition. P23 owns that
 composition.
 
-P23 composes the supported production path. Config-entry setup initializes the
+P23 composes the first supported production path. Config-entry setup initializes the
 profile-local privacy key and persistent provider caches, then each refresh constructs
 a new budget-scoped hosted or self-hosted OpenRouteService geocoder/router pair over
 Home Assistant's managed session. Only structurally included physical event locations
@@ -255,8 +255,8 @@ are geocoded. Included no-location events use the independently configured end a
 as an explicit partial fallback; online events create no physical trip. Daily
 itineraries start at the configured start anchor, retain failed legs as degraded data,
 append a new immutable revision and use the schema-1.6 policy to publish P50/P90
-distance. Provider or input failures remain unavailable rather than zero. Geoapify
-and Google selections still have no production adapter and fail closed.
+distance. Provider or input failures remain unavailable rather than zero. Geoapify and
+Google selections still fail closed at this checkpoint.
 
 P24 verifies that composition inside Home Assistant 2026.8.1 rather than only through
 structural stand-ins. An intercepted managed session returns one geocode and one route;
@@ -265,6 +265,16 @@ caches on setup and republishes the forecast without another request. This uncov
 that aiohttp exposes response status as an `HTTPStatus` integer enum. The production
 sender now normalizes that public integer-compatible value before constructing the
 strict provider-neutral response object.
+
+P25 composes the optional Google family without changing the provider-neutral runtime
+pipeline. Its Geocoding API v3 transport sends only the physical location text and
+explicit key to the disclosed fixed geocoding endpoint, then reads only the first
+result's geometry coordinates. Its Routes API v2 transport sends coordinates, explicit
+route choices and departure time to the separately disclosed routing endpoint and asks
+only for distance and duration. HTTP failures, v3 provider statuses and malformed
+successes become stable typed failures without body or error text. Both transports use
+the existing sender, request budgets, bounded retries/timeouts and profile-private
+persistent caches; no provider fallback is introduced. Geoapify remains fail closed.
 
 P14 adds a read-only Home Assistant state-machine boundary for the two configured
 zone anchors. Each refresh looks up exactly those selected zone entities and reads
@@ -275,8 +285,9 @@ snapshot and error representations. Missing state, missing coordinates, nonnumer
 values and out-of-range values fail closed with stable role-specific reasons before
 calendar ingestion, which makes the latest entity update unavailable while retaining
 prior immutable coordinator data. The resolved coordinates are not projected. P16
-applies structural filtering after anchor resolution, and P23 supplies event
-geocoding, routing and road kilometres for supported OpenRouteService configurations.
+applies structural filtering after anchor resolution; P23 supplies event geocoding,
+routing and road kilometres for supported OpenRouteService configurations, and P25
+adds the same provider-neutral pipeline for explicitly selected Google profiles.
 
 ## Test strategy
 

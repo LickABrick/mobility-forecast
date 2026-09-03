@@ -13,10 +13,10 @@ kilometres; failed or incomplete inputs remain unknown rather than becoming zero
 The project must not wake vehicles or execute charging actions.
 
 Profile-scoped provider caches and the bounded production HTTP sender are connected to
-the refresh runtime for hosted and self-hosted OpenRouteService profiles. Raw event
-locations are sent only to the explicitly selected geocoder, and coordinates only to
-the selected router. Geoapify and Google remain selectable future families without a
-production adapter and therefore fail closed today.
+the refresh runtime for hosted/self-hosted OpenRouteService and optional Google
+profiles. Raw event locations are sent only to the explicitly selected geocoder, and
+coordinates only to the selected router. Geoapify remains a selectable future family
+without a production adapter and therefore fails closed today.
 
 Schema 1.6 also requires every profile to choose its history threshold, accepted
 actual-to-planned correction range and cold-start P90 conservatism explicitly. The

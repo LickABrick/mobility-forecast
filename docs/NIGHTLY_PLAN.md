@@ -250,10 +250,22 @@ proved only with isolated Home Assistant contract fixtures.
     production sender boundary. Both lifecycle tests and all four real-HA tests pass
     without an external request.
 
-Next checkpoint: **P25 — Production Google Geocoding and Routes composition**. Add
-bounded HTTP transports and runtime adapters for the already disclosed and explicitly
-selectable Google family, using the same persistent cache and uncertainty pipeline.
-Tests must intercept every request and use no real credential or external call.
+- [x] **P25 — Production Google Geocoding and Routes composition**
+  - The optional Google family now shapes the documented Geocoding API v3 GET and
+    Routes API v2 POST through the existing bounded Home Assistant sender. Provider
+    status payloads, HTTP/sender failures and malformed successes map to stable typed
+    failures without retaining response details.
+  - Explicit Google profiles compose into the same refresh-scoped budgets, bounded
+    retries/timeouts, profile-private persistent caches, immutable itinerary and
+    conservative forecast pipeline as ORS. Nine new synthetic tests bring the
+    dependency-free suite to 198 tests; all configured local gates pass without an
+    external request.
+
+Next checkpoint: **P26 — Production Geoapify composition**. Add bounded geocoding and
+routing HTTP transports plus runtime composition for the remaining explicitly
+selectable optional family, using the existing persistent cache and uncertainty
+pipeline. Tests must intercept every request and use no real credential or external
+call.
 
 ## Checkpoint definition of done
 

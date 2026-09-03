@@ -11,6 +11,10 @@ from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from typing import Any, ClassVar
 
+from custom_components.mobility_forecast.route_provider_config import (
+    GOOGLE_GEOCODING_ENDPOINT,
+    GOOGLE_ROUTING_ENDPOINT,
+)
 from tests.synthetic_pipeline import SyntheticCalendarEvent
 from tests.test_ha_http_sender import SyntheticResponse, SyntheticSession
 
@@ -568,6 +572,83 @@ class ConfigEntryLifecycleTests(unittest.TestCase):
         self.assertEqual(snapshot.forecasts[0].distance_p50_m, 10_000)
         self.assertEqual(snapshot.forecasts[0].distance_p90_m, 12_500)
         self.assertEqual(len(hass.http_session.calls), 2)  # type: ignore[attr-defined]
+
+    def test_google_runtime_composes_http_pipeline_into_nonzero_forecast(self) -> None:
+        manager = FakeConfigEntriesManager()
+        hass = FakeHomeAssistant(manager)
+        hass.data["calendar"].entity.events = [  # type: ignore[union-attr]
+            SyntheticCalendarEvent(
+                start=datetime(2032, 4, 5, 9, 0, tzinfo=UTC),
+                end=datetime(2032, 4, 5, 10, 0, tzinfo=UTC),
+                summary="Synthetic appointment",
+                location="Synthetic destination",
+                uid="synthetic-event",
+            )
+        ]
+        hass.http_session = SequencedSyntheticSession(
+            [
+                SyntheticResponse(
+                    200,
+                    (
+                        b'{"status":"OK","results":[{"geometry":{"location":'
+                        b'{"lat":13,"lng":-33}}}]}'
+                    ),
+                ),
+                SyntheticResponse(
+                    200,
+                    b'{"routes":[{"distanceMeters":"10000","duration":"900s"}]}',
+                ),
+            ]
+        )
+        entry = FakeConfigEntry(
+            "entry-google",
+            data={
+                "calendar_entity_ids": ["calendar.synthetic"],
+                "start_anchor_entity_id": "zone.synthetic_start",
+                "end_anchor_entity_id": "zone.synthetic_end",
+                "physical_event_policy": "include",
+                "online_event_policy": "exclude",
+                "all_day_event_policy": "exclude",
+                "no_location_event_policy": "exclude",
+                "route_provider": "google",
+                "route_provider_api_key": "synthetic-google-key",
+                "location_data_consent": "accepted",
+                "max_geocode_requests_per_refresh": 8,
+                "max_route_requests_per_refresh": 16,
+                "max_request_attempts": 2,
+                "request_timeout_seconds": 10,
+                "geocode_cache_retention_hours": 72,
+                "route_cache_fresh_hours": 6,
+                "route_cache_stale_hours": 24,
+                "toll_policy": "avoid",
+                "highway_policy": "allow",
+                "minimum_history_samples": 5,
+                "minimum_correction_percent": 60,
+                "maximum_correction_percent": 180,
+                "cold_start_p90_percent": 125,
+            },
+        )
+
+        with fake_home_assistant():
+            integration = load_integration()
+            result = asyncio.run(integration.async_setup_entry(hass, entry))
+
+        self.assertTrue(result)
+        snapshot = entry.runtime_data.coordinator.data  # type: ignore[union-attr]
+        self.assertEqual(snapshot.forecasts[0].distance_p50_m, 10_000)
+        self.assertEqual(snapshot.forecasts[0].distance_p90_m, 12_500)
+        calls = hass.http_session.calls  # type: ignore[attr-defined]
+        self.assertEqual(len(calls), 2)
+        self.assertEqual(calls[0]["url"], GOOGLE_GEOCODING_ENDPOINT)
+        self.assertEqual(
+            calls[0]["params"],
+            (
+                ("address", "Synthetic destination"),
+                ("key", "synthetic-google-key"),
+            ),
+        )
+        self.assertEqual(calls[1]["url"], GOOGLE_ROUTING_ENDPOINT)
+        self.assertIn("departureTime", calls[1]["json"])  # type: ignore[index]
 
     def test_failed_platform_forwarding_releases_unloaded_runtime(self) -> None:
         manager = FakeConfigEntriesManager(
