@@ -243,10 +243,17 @@ proved only with isolated Home Assistant contract fixtures.
     whole-number floats are normalized for the P22 policy. Automated tests intercept
     all HTTP and make no external request.
 
-Next checkpoint: **P24 — Real Home Assistant routed-runtime compatibility**. Drive a
-current profile through the installed Home Assistant lifecycle with an intercepted
-managed session and prove a nonzero forecast entity, persistent caches and unload
-behavior without external calls.
+- [x] **P24 — Real Home Assistant routed-runtime compatibility**
+  - Home Assistant 2026.8.1 drives a current ORS profile through setup, an intercepted
+    geocode and route, a 12.5 km sensor state, unload, cache-backed reload and final
+    unload. The test exposed and fixed aiohttp's `HTTPStatus` representation at the
+    production sender boundary. Both lifecycle tests and all four real-HA tests pass
+    without an external request.
+
+Next checkpoint: **P25 — Production Google Geocoding and Routes composition**. Add
+bounded HTTP transports and runtime adapters for the already disclosed and explicitly
+selectable Google family, using the same persistent cache and uncertainty pipeline.
+Tests must intercept every request and use no real credential or external call.
 
 ## Checkpoint definition of done
 

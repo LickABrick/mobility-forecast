@@ -98,7 +98,9 @@ class HomeAssistantHttpSender:
                 json=request.json_body,
                 allow_redirects=False,
             ) as response:
-                status_code = response.status
+                # aiohttp may expose an HTTPStatus IntEnum even though its public
+                # value is integer-compatible. Normalize it at this boundary.
+                status_code = int(response.status)
                 if status_code != 200:
                     return InjectedHttpResponse(status_code, None)
                 body = await self._read_bounded(response.content)

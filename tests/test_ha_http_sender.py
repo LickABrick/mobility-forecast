@@ -6,6 +6,7 @@ import sys
 import types
 import unittest
 from collections.abc import Mapping
+from http import HTTPStatus
 from types import TracebackType
 
 from custom_components.mobility_forecast.ha_http import (
@@ -39,7 +40,7 @@ class SyntheticContent:
 
 
 class SyntheticResponse:
-    def __init__(self, status: int, body: bytes) -> None:
+    def __init__(self, status: int | HTTPStatus, body: bytes) -> None:
         self.status = status
         self.content = SyntheticContent(body)
 
@@ -115,7 +116,7 @@ class HomeAssistantHttpSenderTests(unittest.TestCase):
     def test_sends_exact_private_values_with_redirects_disabled(self) -> None:
         body = {"features": []}
         session = SyntheticSession(
-            SyntheticResponse(200, json.dumps(body).encode("utf-8"))
+            SyntheticResponse(HTTPStatus.OK, json.dumps(body).encode("utf-8"))
         )
         sender = HomeAssistantHttpSender(session, maximum_response_bytes=1024)
 

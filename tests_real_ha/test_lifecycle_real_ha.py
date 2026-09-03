@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import re
+from datetime import UTC, datetime, timedelta
 from importlib.metadata import version
+from unittest.mock import patch
 
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import STATE_UNAVAILABLE, UnitOfLength
@@ -11,13 +14,21 @@ from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.mobility_forecast.config_flow import DOMAIN
+from custom_components.mobility_forecast.domain.models import SourceEvent
 from custom_components.mobility_forecast.forecast_config import (
     CONF_COLD_START_P90_PERCENT,
     CONF_MAXIMUM_CORRECTION_PERCENT,
     CONF_MINIMUM_CORRECTION_PERCENT,
     CONF_MINIMUM_HISTORY_SAMPLES,
 )
-from custom_components.mobility_forecast.ha_calendar import CONF_CALENDAR_ENTITY_IDS
+from custom_components.mobility_forecast.ha_calendar import (
+    CONF_CALENDAR_ENTITY_IDS,
+    HomeAssistantCalendarSource,
+)
+from custom_components.mobility_forecast.openrouteservice import (
+    ORS_HOSTED_GEOCODING_ENDPOINT,
+    ORS_HOSTED_ROUTING_ENDPOINT,
+)
 from custom_components.mobility_forecast.profile_config import (
     CONF_ALL_DAY_EVENT_POLICY,
     CONF_END_ANCHOR_ENTITY_ID,
@@ -107,3 +118,107 @@ async def test_entry_lifecycle_registers_unavailable_read_only_sensor(
     assert restored_state is not None
     assert restored_state.state == STATE_UNAVAILABLE
     assert restored_state.attributes["restored"] is True
+
+
+async def test_routed_runtime_publishes_and_restores_cached_real_ha_forecast(
+    hass: HomeAssistant,
+    aioclient_mock,
+) -> None:
+    """Prove the production runtime through HA while intercepting provider HTTP."""
+
+    starts_at = datetime.now(UTC) + timedelta(days=1)
+    event = SourceEvent(
+        source_id="calendar.synthetic_routed",
+        event_id="synthetic-routed-event",
+        starts_at=starts_at,
+        ends_at=starts_at + timedelta(hours=1),
+        all_day=False,
+        is_online=False,
+        summary="Synthetic routed appointment",
+        location_text="Synthetic destination",
+    )
+
+    async def synthetic_calendar_read(self, window_start, window_end):
+        del self, window_start, window_end
+        return (event,)
+
+    aioclient_mock.get(
+        re.compile(rf"^{re.escape(ORS_HOSTED_GEOCODING_ENDPOINT)}"),
+        json={"features": [{"geometry": {"type": "Point", "coordinates": [-33, 13]}}]},
+    )
+    aioclient_mock.post(
+        ORS_HOSTED_ROUTING_ENDPOINT,
+        json={"routes": [{"summary": {"distance": 10000, "duration": 900}}]},
+    )
+    hass.states.async_set(
+        "zone.synthetic_start", "zoning", {"latitude": 12.0, "longitude": -34.0}
+    )
+    hass.states.async_set(
+        "zone.synthetic_end", "zoning", {"latitude": 12.5, "longitude": -33.5}
+    )
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        title="Synthetic routed profile",
+        data={
+            CONF_CALENDAR_ENTITY_IDS: ["calendar.synthetic_routed"],
+            CONF_START_ANCHOR_ENTITY_ID: "zone.synthetic_start",
+            CONF_END_ANCHOR_ENTITY_ID: "zone.synthetic_end",
+            CONF_PHYSICAL_EVENT_POLICY: "include",
+            CONF_ONLINE_EVENT_POLICY: "exclude",
+            CONF_ALL_DAY_EVENT_POLICY: "exclude",
+            CONF_NO_LOCATION_EVENT_POLICY: "exclude",
+            CONF_ROUTE_PROVIDER: "openrouteservice_hosted",
+            CONF_ROUTE_PROVIDER_API_KEY: "synthetic-test-key",
+            CONF_LOCATION_DATA_CONSENT: "accepted",
+            CONF_MAX_GEOCODE_REQUESTS_PER_REFRESH: 8,
+            CONF_MAX_ROUTE_REQUESTS_PER_REFRESH: 16,
+            CONF_MAX_REQUEST_ATTEMPTS: 2,
+            CONF_REQUEST_TIMEOUT_SECONDS: 10,
+            CONF_GEOCODE_CACHE_RETENTION_HOURS: 72,
+            CONF_ROUTE_CACHE_FRESH_HOURS: 6,
+            CONF_ROUTE_CACHE_STALE_HOURS: 24,
+            CONF_TOLL_POLICY: "avoid",
+            CONF_HIGHWAY_POLICY: "allow",
+            CONF_MINIMUM_HISTORY_SAMPLES: 5,
+            CONF_MINIMUM_CORRECTION_PERCENT: 60,
+            CONF_MAXIMUM_CORRECTION_PERCENT: 180,
+            CONF_COLD_START_P90_PERCENT: 125,
+        },
+        version=1,
+        minor_version=6,
+    )
+    entry.add_to_hass(hass)
+
+    with patch.object(
+        HomeAssistantCalendarSource,
+        "async_read",
+        synthetic_calendar_read,
+    ):
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+        entity_id = er.async_get(hass).async_get_entity_id(
+            "sensor", DOMAIN, f"{entry.entry_id}_forecast_distance"
+        )
+        assert entity_id is not None
+        state = hass.states.get(entity_id)
+        assert state is not None
+        assert state.state == "12.5"
+        assert state.attributes["distance_p50_km"] == 10.0
+        assert state.attributes["quality"] == "partial"
+        assert aioclient_mock.call_count == 2
+
+        assert await hass.config_entries.async_unload(entry.entry_id)
+        await hass.async_block_till_done()
+        assert await hass.config_entries.async_setup(entry.entry_id)
+        await hass.async_block_till_done()
+
+        restored = hass.states.get(entity_id)
+        assert restored is not None
+        assert restored.state == "12.5"
+        assert aioclient_mock.call_count == 2
+
+        assert await hass.config_entries.async_unload(entry.entry_id)
+        await hass.async_block_till_done()
+
+    assert entry.state is ConfigEntryState.NOT_LOADED

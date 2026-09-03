@@ -258,6 +258,14 @@ append a new immutable revision and use the schema-1.6 policy to publish P50/P90
 distance. Provider or input failures remain unavailable rather than zero. Geoapify
 and Google selections still have no production adapter and fail closed.
 
+P24 verifies that composition inside Home Assistant 2026.8.1 rather than only through
+structural stand-ins. An intercepted managed session returns one geocode and one route;
+the real entity lifecycle publishes 12.5 km, unloads, restores the persistent provider
+caches on setup and republishes the forecast without another request. This uncovered
+that aiohttp exposes response status as an `HTTPStatus` integer enum. The production
+sender now normalizes that public integer-compatible value before constructing the
+strict provider-neutral response object.
+
 P14 adds a read-only Home Assistant state-machine boundary for the two configured
 zone anchors. Each refresh looks up exactly those selected zone entities and reads
 only their latitude/longitude attributes. Valid coordinates become independent

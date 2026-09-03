@@ -4,7 +4,7 @@ Last updated: 2026-09-03 10:11 CEST
 
 ## Current phase
 
-Phase 1 and post-phase checkpoints P1–P23 are complete. Production runtime reads
+Phase 1 and post-phase checkpoints P1–P24 are complete. Production runtime reads
 each profile's selected Home Assistant calendars on a bounded schedule, resolves its
 two explicitly selected local zone anchors, classifies reviewed standalone meeting
 URLs locally and applies the stored structural event policy. Provider configuration
@@ -225,14 +225,18 @@ zero. Synthetic provider data exists only in tests.
   append-only revisions and conservative forecasts. Persistent provider caches are
   initialized before refresh, and selector-shaped whole-number forecast values decode
   without weakening integer validation.
+- P24 proves that routed composition through Home Assistant 2026.8.1 publishes a
+  nonzero entity state and survives unload/reload using persistent caches. It fixes
+  successful aiohttp responses represented by `HTTPStatus` being rejected by the
+  strict provider-neutral response contract.
 
 ## Active checkpoint
 
-P23 — Production routed-forecast composition is complete.
+P24 — Real Home Assistant routed-runtime compatibility is complete.
 
-Next bounded checkpoint: P24 — prove the routed production composition through the
-real Home Assistant lifecycle and entity state with an intercepted managed HTTP
-session. No unattended external request is allowed.
+Next bounded checkpoint: P25 — implement the already selectable Google Geocoding and
+Routes family through bounded HTTP transports and the existing persistent routed-
+forecast pipeline. Automated tests must intercept all HTTP and use no real credential.
 
 ## Verification evidence
 
@@ -1391,6 +1395,56 @@ Pyright now includes the routed source. Manifest/HACS metadata, dependencies, wo
 pins/permissions, translations and entity surface are unchanged. Geoapify and Google
 remain explicit optional selections without production adapters and fail closed.
 
+P24 compatibility TDD and verification on 2026-09-03:
+
+```text
+docker ... tests_real_ha/test_lifecycle_real_ha.py -vv
+                                                     RED (HTTPStatus rejected;
+                                                     routed sensor unavailable)
+.venv/bin/python -m pytest tests/test_ha_http_sender.py \
+  tests/test_lifecycle.py -q                         PASS (19 tests; 7 subtests)
+docker ... tests_real_ha/test_lifecycle_real_ha.py -vv
+                                                     PASS (2 lifecycle tests)
+docker ... tests_real_ha -q                          PASS (4 real-HA tests)
+python3 scripts/check_checkpoint.py                  PASS (189 tests)
+.venv/bin/python -m pytest                           PASS (189 tests)
+.venv/bin/ruff check .                               PASS
+.venv/bin/ruff format --check .                      PASS (100 files)
+.venv/bin/pyright                                    PASS (0 errors; 15 expected
+                                                     missing-source warnings)
+python3 scripts/build_test_zip.py --check ...        PASS
+                                                     (453005 bytes; SHA-256
+                                                     37e03e1f2579f76159cac8e2ed638a6def1b8cef8c9e9b6693246e892f8fc462)
+git diff --check                                     PASS
+```
+
+P24 lets the exact pinned Home Assistant 2026.8.1 harness load a current schema-1.6
+hosted ORS profile with synthetic zone states and one injected normalized calendar
+event. Home Assistant's actual managed aiohttp session is intercepted at both fixed
+provider recipients: a synthetic successful geocode and 10 km route produce a 10 km
+P50 and conservative 12.5 km P90 entity state. The test unloads and reloads the entry,
+then proves the persisted privacy key, geocode and route caches reproduce the numeric
+forecast with no additional HTTP call before a clean final unload.
+
+The red test exposed an integration compatibility defect: aiohttp's response status is
+an `HTTPStatus` integer enum rather than exactly `int`, so the strict injected-response
+value rejected successful provider replies. The Home Assistant sender now converts the
+public integer-compatible status at its boundary. A dependency-free regression uses
+`HTTPStatus.OK` and verifies the downstream value remains an exact integer.
+
+All calendar, zone, event, credential and provider responses in P24 are synthetic. The
+real Home Assistant container made no provider request: its managed HTTP session was
+intercepted for both fixed URLs, and the second lifecycle had no request at all. No
+production Home Assistant data, real address/coordinate/credential, vehicle, service or
+notification was accessed.
+
+Configuration review for P24: config-entry schema remains 1.6; forecast and provider-
+cache storage schemas remain 1. Provider selection, endpoint disclosure, credentials,
+consent, budgets, retry/timeout/cache policy, forecast behavior, refresh cadence and
+entity surface are unchanged. Requirements and the existing exact Home Assistant test
+harness pin are unchanged. No manifest, HACS, workflow, translation or packaging scope
+change is needed.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -1468,8 +1522,8 @@ remain explicit optional selections without production adapters and fail closed.
   managed HTTP. Automated evidence makes no external request.
 - Real Home Assistant compatibility tests are isolated from the dependency-free
   suite and pin the matching test harness for Home Assistant 2026.8.1. They prove
-  config-flow creation, planning-policy reconfiguration and one current-schema
-  setup/entity/unload path; they do not yet prove routed forecast composition.
+  config-flow creation, planning-policy reconfiguration, fail-closed setup and a
+  nonzero routed setup/cache-backed reload/entity/unload path.
 - Current Hassfest and HACS metadata schemas validate the custom integration. CI
   keeps those checks separate from the dependency-free and real-HA test jobs.
 - Manual test packages are generated, not committed: exact Git-tracked integration
@@ -1523,13 +1577,13 @@ remain explicit optional selections without production adapters and fail closed.
   replacement. Reconfiguration exists, but profiles with an empty legacy calendar
   still need a future source-repair flow; options remain unbuilt.
 - The isolated disposable Home Assistant 2026.8.1 environment now covers config
-  flow, planning reconfiguration and one setup/platform/entity/unload path. It does
-  not cover migration, multiple simultaneously loaded profiles, restart restoration,
-  diagnostics or future routed forecast composition.
+  flow, planning reconfiguration, fail-closed setup and a routed cache-backed reload.
+  It does not cover migration, multiple simultaneously loaded profiles, full process
+  restart restoration or diagnostics.
 - The deterministic ZIP is locally verified but has not yet been installed or
-  smoke-tested by Guus in his Home Assistant environment. Its expected
-  `unavailable` sensor proves fail-safe lifecycle behavior only, not forecast
-  generation. HACS installation from the public repository and documented manual
+  smoke-tested by Guus in his Home Assistant environment. Automated Home Assistant
+  tests prove both fail-safe unavailable behavior and intercepted routed forecast
+  generation; HACS installation from the public repository and documented manual
   installation both retain backup-based rollback instructions.
 - Public `origin` is configured; pushes still require explicit user approval.
 - No real route-provider credentials or calls are permitted during unattended work.
