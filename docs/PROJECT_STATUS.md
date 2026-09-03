@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 2026-09-03 10:11 CEST
+Last updated: 2026-09-03 16:55 CEST
 
 ## Current phase
 
@@ -229,10 +229,18 @@ zero. Synthetic provider data exists only in tests.
   nonzero entity state and survives unload/reload using persistent caches. It fixes
   successful aiohttp responses represented by `HTTPStatus` being rejected by the
   strict provider-neutral response contract.
+- The hosted OpenRouteService endpoints follow HeiGIT's deprecation of
+  `api.openrouteservice.org` and now target `api.heigit.org` with the relocated
+  routing path `openrouteservice/v2/directions/driving-car` and the Pelias geocoding
+  path `pelias/v1/search`. The disclosed config-flow recipients, the strict
+  self-hosted-vs-hosted boundary and every affected contract test move together;
+  self-hosted base URLs keep their root-relative family paths unchanged. Both hosted
+  URLs were verified live to accept an API key (they answer `401` only when the key
+  is absent).
 
 ## Active checkpoint
 
-P24 — Real Home Assistant routed-runtime compatibility is complete.
+The hosted OpenRouteService endpoint migration to `api.heigit.org` is complete.
 
 Next bounded checkpoint: P25 — implement the already selectable Google Geocoding and
 Routes family through bounded HTTP transports and the existing persistent routed-

@@ -64,11 +64,11 @@ class ProfileRouteConfigTests(unittest.TestCase):
             [
                 (
                     "OpenRouteService hosted Pelias geocoder",
-                    "https://api.heigit.org/geocode/search",
+                    "https://api.heigit.org/pelias/v1/search",
                 ),
                 (
                     "OpenRouteService hosted routing",
-                    "https://api.heigit.org/v2/directions/driving-car",
+                    "https://api.heigit.org/openrouteservice/v2/directions/driving-car",
                 ),
             ],
         )

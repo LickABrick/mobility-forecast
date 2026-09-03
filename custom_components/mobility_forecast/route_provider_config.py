@@ -34,9 +34,9 @@ CONF_HIGHWAY_POLICY = "highway_policy"
 MAX_ROUTE_CACHE_FRESH_HOURS: Final = 24
 MAX_ROUTE_CACHE_STALE_HOURS: Final = 720
 
-ORS_HOSTED_GEOCODING_ENDPOINT: Final = "https://api.heigit.org/geocode/search"
+ORS_HOSTED_GEOCODING_ENDPOINT: Final = "https://api.heigit.org/pelias/v1/search"
 ORS_HOSTED_ROUTING_ENDPOINT: Final = (
-    "https://api.heigit.org/v2/directions/driving-car"
+    "https://api.heigit.org/openrouteservice/v2/directions/driving-car"
 )
 GEOAPIFY_GEOCODING_ENDPOINT: Final = "https://api.geoapify.com/v1/geocode/search"
 GEOAPIFY_ROUTING_ENDPOINT: Final = "https://api.geoapify.com/v1/routing"

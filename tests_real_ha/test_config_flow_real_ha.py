@@ -88,9 +88,9 @@ async def test_user_flow_creates_explicit_synthetic_profile(
     assert form["step_id"] == "user"
     assert form["errors"] is None
     assert form["description_placeholders"] == {
-        "ors_geocoding_endpoint": "https://api.heigit.org/geocode/search",
+        "ors_geocoding_endpoint": "https://api.heigit.org/pelias/v1/search",
         "ors_routing_endpoint": (
-            "https://api.heigit.org/v2/directions/driving-car"
+            "https://api.heigit.org/openrouteservice/v2/directions/driving-car"
         ),
         "geoapify_geocoding_endpoint": "https://api.geoapify.com/v1/geocode/search",
         "geoapify_routing_endpoint": "https://api.geoapify.com/v1/routing",
