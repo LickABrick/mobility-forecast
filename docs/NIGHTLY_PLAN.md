@@ -188,11 +188,22 @@ proved only with isolated Home Assistant contract fixtures.
     147 tests; three real-HA tests, strict Pyright, Ruff, formatting, checkpoint/package
     checks, Hassfest and HACS validation passed on 2026-09-03.
 
-Next checkpoint: **P18 — Injected OpenRouteService adapter contracts**. Add synthetic,
-transport-injected hosted/self-hosted geocoding and routing adapters that consume only
-the explicitly selected endpoints and map failures to existing privacy-safe types.
-Enforce the P17 budgets/retry/cache contracts in the adapter execution boundary; do
-not add an HTTP client or compose production network transport in this checkpoint.
+- [x] **P18 — Injected OpenRouteService adapter contracts**
+  - Hosted ORS uses only its fixed Pelias/routing endpoints and one explicit key;
+    self-hosted ORS keeps the configured routing and Pelias/Photon/Nominatim geocoder
+    endpoints separate and keyless. Both adapters stop at injected typed transports.
+  - One refresh-scoped guard enforces geocode/route attempt budgets, typed bounded
+    retries and per-attempt timeouts. Profile-keyed opaque geocode keys and directional
+    route keys drive fresh/retained caches; expired private entries are deleted and
+    stale route fallback remains explicit. Nine synthetic adapter tests bring the
+    dependency-free suite to 156 tests; all configured local gates passed on
+    2026-09-03.
+
+Next checkpoint: **P19 — Injected HTTP request/response transports**. Add exact ORS
+hosted and self-hosted request shaping plus Pelias/Photon/Nominatim response decoding
+behind an injected HTTP sender, with synthetic fixtures only. Keep production runtime
+composition disabled until transport error/status mapping and credential handling are
+fully tested; add no provider fallback and make no real external request.
 
 ## Checkpoint definition of done
 

@@ -176,6 +176,10 @@ class RouteCache(Protocol):
         """Store a successful current route."""
         ...
 
+    async def delete(self, key: RouteCacheKey) -> None:
+        """Remove an entry once its configured retention expires."""
+        ...
+
 
 def build_route_cache_key(
     request: RouteRequest,
@@ -255,6 +259,9 @@ class InMemoryRouteCache:
     ) -> None:
         self._entries[key] = RouteCacheEntry(route, stored_at)
 
+    async def delete(self, key: RouteCacheKey) -> None:
+        self._entries.pop(key, None)
+
 
 def _validate_route_direction(request: RouteRequest, route: Route) -> None:
     if route.origin != request.origin or route.destination != request.destination:
@@ -293,6 +300,8 @@ async def route_with_cache(
             return RouteSuccess(entry.route, RouteResultSource.CACHE)
         if age <= policy.maximum_stale_age:
             stale_entry = entry
+        else:
+            await cache.delete(key)
 
     result = await provider.route(request)
     if isinstance(result, RouteSuccess):

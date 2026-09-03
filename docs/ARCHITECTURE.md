@@ -178,6 +178,20 @@ its provider marker and credential without choosing a replacement. HMAC cache ke
 retain no raw location text or coordinates. This remains configuration/domain policy;
 no HTTP client, provider fallback or production network composition exists.
 
+P18 adds the OpenRouteService execution adapters without crossing that network
+boundary. Hosted mode binds only the fixed ORS Pelias and routing endpoints to the
+same explicit key; self-hosted mode binds the independently configured geocoder type,
+geocoder endpoint and routing endpoint with no implied bundled geocoder. A shared
+refresh-scoped counter charges every transport attempt against separate geocode and
+route budgets. Only typed rate-limit/transient failures retry, every attempt has the
+configured timeout, and budget exhaustion fails closed. Successful geocodes use
+profile-keyed HMAC cache keys and are deleted after their configured retention;
+routes use the existing directional cache contract, which now also deletes expired
+entries while retaining explicit stale fallback. All request objects hide location
+text, coordinates, credentials and configured endpoints from representations. The
+adapters accept injected typed transports only: there is still no HTTP client,
+production runtime composition, provider fallback or unattended external request.
+
 P14 adds a read-only Home Assistant state-machine boundary for the two configured
 zone anchors. Each refresh looks up exactly those selected zone entities and reads
 only their latitude/longitude attributes. Valid coordinates become independent

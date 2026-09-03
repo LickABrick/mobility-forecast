@@ -1,17 +1,18 @@
 # Project status
 
-Last updated: 2026-09-03 05:24 CEST
+Last updated: 2026-09-03 05:43 CEST
 
 ## Current phase
 
-Phase 1 and post-phase checkpoints P1–P17 are complete. Production runtime reads
+Phase 1 and post-phase checkpoints P1–P18 are complete. Production runtime reads
 each profile's selected Home Assistant calendars on a bounded schedule, resolves its
 two explicitly selected local zone anchors, classifies reviewed standalone meeting
 URLs locally and applies the stored structural event policy. Provider configuration
-now requires explicit consent, recipient disclosure and bounded request/cache policy
-for hosted ORS, self-hosted ORS plus a separate geocoder, optional Geoapify or optional
-Google. No network transport consumes that configuration yet, so included service
-dates remain explicitly unknown for distance.
+requires explicit consent, recipient disclosure and bounded request/cache policy.
+Synthetic-only hosted and self-hosted OpenRouteService adapters now enforce those
+choices, budgets, retries, timeouts and privacy-safe cache retention behind injected
+transport protocols. No HTTP or production provider transport exists yet, so included
+service dates remain explicitly unknown for distance.
 
 ## Completed
 
@@ -182,16 +183,28 @@ dates remain explicitly unknown for distance.
   cache retention. Geocode keys are profile-keyed, provider-scoped HMAC-SHA-256
   digests that retain no raw location text; existing route keys remain HMAC digests
   without raw coordinates. No HTTP client or runtime provider call was added.
+- P18 adds one factory that accepts only explicitly selected hosted or self-hosted
+  OpenRouteService configuration. Hosted geocoding/routing use their two fixed
+  recipients and one key; self-hosted routing and the selected Pelias/Photon/Nominatim
+  geocoder keep their configured endpoints separate and carry no hosted credential.
+- P18's injected transport queries hide endpoint, key, location text and coordinates
+  from representations. Validated synthetic responses map to the existing typed
+  event-location and directional-route results; transport failures retain only stable
+  existing categories and never trigger provider or hosted/self-hosted fallback.
+- P18 enforces a shared per-refresh attempt budget, configured per-attempt timeout and
+  retries only for typed rate-limit/transient failures. Fresh geocodes and routes skip
+  transport; expired geocodes and routes are deleted, while in-retention stale routes
+  preserve explicit stale quality and refresh-failure context. No HTTP implementation
+  or production runtime composition was added.
 
 ## Active checkpoint
 
-P17 — Provider-neutral configuration correction is complete.
+P18 — Injected OpenRouteService adapter contracts is complete.
 
-Next bounded checkpoint: P18 — add transport-injected OpenRouteService hosted and
-self-hosted geocoding/routing adapter contracts using only synthetic responses. The
-execution boundary must enforce P17's exact provider selection, budgets, typed retry
-rules and privacy-safe cache policy without adding an HTTP client or runtime network
-composition.
+Next bounded checkpoint: P19 — add exact OpenRouteService hosted/self-hosted HTTP
+request shaping and Pelias/Photon/Nominatim response decoding behind an injected HTTP
+sender. Use synthetic fixtures only, keep runtime network composition disabled, and
+fail closed without provider fallback.
 
 ## Verification evidence
 
@@ -1052,6 +1065,56 @@ workflow actions/permissions, calendar horizon and refresh interval are unchange
 No transport, provider fallback, persisted forecast state or physical capability was
 added.
 
+P18 TDD and verification on 2026-09-03:
+
+```text
+/usr/bin/python3 -m unittest tests.test_openrouteservice_adapters -v
+                                                            RED: adapter module absent
+                                                            PASS (9 focused tests)
+/usr/bin/python3 -m unittest ...expired_failure_is_explicit -v
+                                                            RED: expired route retained
+                                                            PASS
+/usr/bin/python3 -m unittest ...test_strict_typing_boundary_is_explicit -v
+                                                            RED: new module not gated
+/usr/bin/python3 scripts/check_checkpoint.py                PASS (156 tests included)
+PYTHONPATH=.venv/site /usr/bin/python3 -m pytest             PASS (156 tests)
+PYTHONPATH=.venv/site /usr/bin/python3 -m ruff check .       PASS
+PYTHONPATH=.venv/site /usr/bin/python3 -m ruff format --check .
+                                                            PASS (87 files)
+PYTHONPATH=.venv/site /usr/bin/python3 -m pyright            PASS (0 errors; 11 expected missing-source warnings)
+Docker Python 3.14.7 / Home Assistant 2026.8.1 suite         PASS (3 tests; network disabled)
+Hassfest pinned image                                       PASS (1 integration; 0 invalid)
+HACS pinned image local schemas                             PASS
+/usr/bin/python3 scripts/build_test_zip.py --check ...       PASS (397945 bytes; 30 files; SHA-256 aa810845e6e965d484c44a00dd051aaa094dd70fc7fbeb318af7fe92864b7845)
+sha256sum --check                                           PASS
+git diff --check                                            PASS
+```
+
+Recovery found the implementation/tests already staged, the checkpoint documentation
+unstaged, no untracked file and no local/remote divergence. The complete combined diff
+was reviewed before any new feature work; all gates above were rerun against that exact
+recovered tree on 2026-09-03 and passed. No P19 work was started.
+
+All P18 endpoints, credentials, location text, coordinates, times and transport
+responses are synthetic or the already disclosed fixed ORS endpoints. Every transport
+is an in-memory injected fixture; no HTTP implementation, DNS resolution or external
+provider call exists. The real-HA and validator containers ran with networking
+disabled and a read-only repository mount. No production Home Assistant, calendar,
+credential, address, GPS state, vehicle, service or notification was accessed.
+Diff/privacy review found no real secret, personal data, private-value representation,
+provider fallback or scope outside the ORS execution/cache boundary and checkpoint
+documentation.
+
+Configuration review for P18: config-entry schema remains 1.5 and storage remains
+schema 1; all provider, consent, request and cache values are the existing required P17
+fields, with no new setting, migration or default. Strict Pyright now includes the ORS
+adapter module. The generated package contains 30 tracked integration files and passed
+byte-for-byte verification. Python/tool pins, requirements, manifest/HACS metadata,
+source/English translations, workflow actions/permissions, calendar horizon and
+refresh interval are unchanged. Route-cache expiry now deletes the opaque entry to
+enforce existing retention rather than merely refusing to return it. No HTTP client,
+runtime provider composition, persistent cache or physical capability was added.
+
 ## Current decisions
 
 - Name/domain: Mobility Forecast / `mobility_forecast`.
@@ -1159,9 +1222,10 @@ added.
 - C4 defines required freshness/accuracy/horizon fields but intentionally supplies no product defaults. Their config-flow representation and migration policy remain future product work and must be reviewed before introduction.
 - Location candidates cover passive vehicle GPS and already-resolved event/zone
   coordinates. P14 supplies the Home Assistant zone adapter, while P15 defines the
-  event-location resolver contract and deterministic fake. P17 now supplies explicit
+  event-location resolver contract and deterministic fake. P17 supplies explicit
   provider/recipient, credential, timeout, retry and cache-retention configuration;
-  injected geocoder adapters, cache storage and runtime composition remain deferred.
+  P18 enforces it in injected ORS adapters with in-memory cache fakes. HTTP transports,
+  persistent cache storage and runtime composition remain deferred.
 - Config-entry schema version 1 minor version 5 and storage schema version 1 now
   exist. The 1.1 empty-calendar marker and 1.2 calendar-preserving migration guess
   no planning data; 1.3 planning entries retain their data but guess no provider or
@@ -1180,13 +1244,12 @@ added.
 - Private `origin` is configured and authorized for checkpoint pushes; repository
   visibility/settings and external publication remain out of scope.
 - No real route-provider credentials or calls are permitted during unattended work.
-- P17 corrects the schema-1.4 Google-only selection before any network transport.
-  Provider and consent configuration now identifies all hosted recipients, keeps
-  self-hosted ORS and its separate geocoder endpoints distinct, and retains Geoapify
-  and Google as explicit optional families without fallback. Request budgets,
-  attempts/timeouts, HMAC keys and retention are bounded, but persistent geocode/route
-  cache implementations, provider credential injection, synthetic adapter execution
-  and fail-closed HTTP error mapping remain required before live kilometres.
+- P17 corrects the schema-1.4 Google-only selection before network transport. P18
+  enforces the resulting ORS provider, budget, retry, timeout and in-memory retention
+  contracts through injected synthetic transports without fallback. Persistent
+  geocode/route cache implementations, HTTP request/response transports, provider
+  credential injection and production forecast composition remain required before
+  live kilometres. Geoapify and Google still have no matching corrected adapter.
 - Exact Home Assistant entity selections and personal data are deliberately absent from the repository.
 
 ## Nightly runtime

@@ -258,6 +258,7 @@ class CachedRoutingTests(unittest.IsolatedAsyncioTestCase):
             evaluated_at=NOW + timedelta(hours=2, seconds=1),
         )
         self.assertEqual(expired_result, failure)
+        self.assertIsNone(await expired_cache.get(key))
 
     async def test_cache_rejects_future_evaluation_and_provider_mismatch(self) -> None:
         cache = InMemoryRouteCache()

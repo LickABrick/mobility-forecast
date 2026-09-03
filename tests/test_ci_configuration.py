@@ -108,6 +108,7 @@ class QualityWorkflowTests(unittest.TestCase):
                 "custom_components/mobility_forecast/route_provider_config.py",
                 "custom_components/mobility_forecast/provider_guardrails.py",
                 "custom_components/mobility_forecast/google_routes.py",
+                "custom_components/mobility_forecast/openrouteservice.py",
             ],
         )
         self.assertEqual(pyright["stubPath"], "typings")
