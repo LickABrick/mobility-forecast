@@ -1,10 +1,10 @@
 # Project status
 
-Last updated: 2026-09-04 01:18 CEST
+Last updated: 2026-09-04 18:11 CEST
 
 ## Current phase
 
-Phase 1 and post-phase checkpoints P1–P26 are complete. Production runtime reads
+Phase 1 and post-phase checkpoints P1–P26a are complete. Production runtime reads
 each profile's selected Home Assistant calendars on a bounded schedule, resolves its
 two explicitly selected local zone anchors, classifies reviewed standalone meeting
 URLs locally and applies the stored structural event policy. Provider configuration
@@ -244,6 +244,25 @@ Synthetic provider data exists only in tests.
 - P26 composes only explicitly selected Geoapify profiles into the existing shared
   request budget, bounded retries/timeouts, profile-private persistent caches,
   immutable planning and conservative forecast pipeline. It adds no provider fallback.
+- P26a makes the public default-branch HACS path explicit and testable for Home
+  Assistant 2026.8.1. HACS metadata declares the minimum supported version and keeps
+  the standard single-integration `custom_components` layout without release-ZIP or
+  hidden-default-branch overrides. The manifest now truthfully classifies the active
+  hosted polling path as `cloud_polling`.
+- P26a removes Home Assistant's implicit first-option behavior from every policy,
+  provider, consent and route-preference select by making the first value an invalid
+  explicit placeholder. Hosted setup accepts the empty self-hosted-only controls shown
+  by the shared form, while the strict decoder still rejects missing hosted credentials,
+  consent, budgets or policies and never selects a provider fallback.
+- P26a makes reconfiguration a complete tester path: calendars can be changed, existing
+  non-secret anchors/policies are suggested through Home Assistant's documented helper,
+  and the stored API key is never suggested or returned to the form. Submission replaces
+  provider-specific data and reloads the profile.
+- P26a corrects hosted Pelias authentication to the documented `api_key` query parameter;
+  hosted ORS directions retain the documented `Authorization` header. An intercepted
+  Home Assistant 2026.8.1 success test proves both exact recipients/auth shapes and a
+  cache-backed reload, while a rejected synthetic geocode remains unknown, makes no
+  route request and exposes no location, credential or response text in state or logs.
 - The hosted OpenRouteService endpoints follow HeiGIT's deprecation of
   `api.openrouteservice.org` and now target `api.heigit.org` with the relocated
   routing path `openrouteservice/v2/directions/driving-car` and the Pelias geocoding
@@ -255,7 +274,7 @@ Synthetic provider data exists only in tests.
 
 ## Active checkpoint
 
-P26 production Geoapify composition is complete.
+P26a public hosted OpenRouteService tester readiness is complete.
 
 Next bounded checkpoint: P27 — define provider-neutral read-only vehicle-energy inputs
 and explicit consumption/usable-SOC policy without selecting vehicle entities, adding
@@ -1557,6 +1576,69 @@ default. Strict Pyright scope adds both Geoapify modules; deterministic package 
 includes them automatically. Python/tool pins, requirements, manifest/HACS metadata,
 strings/translations, workflow pins/permissions, refresh cadence and entity surface are
 unchanged. No provider fallback or physical capability was added.
+
+P26a recovery, TDD and verification on 2026-09-04:
+
+```text
+recovered synchronized ORS-readiness worktree                    PASS (12 files;
+                                                                  parked stash untouched)
+focused config/ORS/package tests                                 PASS (27 tests;
+                                                                  18 subtests)
+real-HA rejected-provider fixture                                RED (unsupported body=)
+Home Assistant 2026.8.1 rejected-provider test                   PASS (1 test)
+cache-disclosure guide contract                                  RED, then PASS (1 test)
+hosted credential-method translation contract                   RED, then PASS (1 test)
+/usr/bin/python3 scripts/check_checkpoint.py                     PASS (214 tests included)
+PYTHONPATH=.venv/site /usr/bin/python3 -m pytest -q              PASS (214 tests;
+                                                                  209 subtests)
+PYTHONPATH=.venv/site /usr/bin/python3 -m ruff check .           PASS
+PYTHONPATH=.venv/site /usr/bin/python3 -m ruff format --check .  PASS (106 files)
+PYTHONPATH=.venv/site /usr/bin/python3 -m pyright                PASS (0 errors;
+                                                                  15 expected warnings)
+Docker Python 3.14 / Home Assistant 2026.8.1 suite               PASS (5 tests;
+                                                                  network disabled)
+Hassfest pinned image                                            PASS (1 integration;
+                                                                  0 invalid)
+HACS pinned image local schemas                                  PASS
+/usr/bin/python3 scripts/build_test_zip.py --check ...           PASS (SHA-256
+                                                                  f0883d1fe9900d6dc5cd749e3f792341335f394ea2209f67624b12bb0a63234d)
+sha256sum --check                                                PASS
+git diff --check and full diff/privacy review                   PASS
+```
+
+The recovered tree was synchronized with `origin/main`, contained no staged files or
+untracked files, and kept the existing stash unchanged. Its focused tests passed before
+additional work. The first new real-HA test then reproduced its incomplete synthetic
+fixture before correction; separate test-first guide and translation contracts caught
+an inaccurate cache-persistence statement and missing user-visible credential-method
+disclosure before those texts were fixed.
+
+The audit used current authoritative HACS custom-repository, integration-layout,
+dashboard/update and publisher documentation; Home Assistant's manifest, data-entry
+flow and reconfiguration documentation; the exact pinned Home Assistant 2026.8.1 test
+harness; and current OpenRouteService geocoder/directions documentation plus HeiGIT's
+official JavaScript client. These sources establish the default-branch layout, restart
+and redownload behavior, first-option select behavior, suggested-value mechanism,
+`cloud_polling` classification, separately hosted Pelias service, Pelias `api_key`
+query and ORS directions `Authorization` header. Live GitHub readback confirmed the
+origin is public, its default branch is `main`, and it has no release or tag. The audit
+made no repository-settings change.
+
+All provider calls in P26a are intercepted in process or by Home Assistant's synthetic
+managed session. Validator and real-HA containers ran with networking disabled. No
+production Home Assistant state, calendar text, address, coordinate, credential,
+external geocoder/router, vehicle, service or notification was accessed. The public
+manual guide now distinguishes raw location non-persistence from bounded private cache
+retention and makes no claim that an unattended live route was tested.
+
+Configuration review for P26a: config-entry schema remains 1.6 and both storage schemas
+remain 1. No default, migration, provider fallback, physical capability or dependency
+was added. `hacs.json` now declares Home Assistant 2026.8.1 while retaining standard
+root `custom_components` discovery; the manifest IoT class changes from local to cloud
+polling to match the hosted runtime. Source/English translations remain identical and
+add no field. The form's empty select entries are deliberately invalid sentinels, not
+behavioral defaults. Package scope remains every tracked file under the single
+integration directory and passed byte-for-byte, checksum, Hassfest and HACS validation.
 
 ## Current decisions
 

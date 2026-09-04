@@ -138,10 +138,12 @@ def _geocode_request(query: OpenRouteServiceGeocodeQuery) -> InjectedHttpRequest
             ("format", "jsonv2"),
             ("limit", "1"),
         )
+    if query.api_key is not None:
+        parameters = (*parameters, ("api_key", query.api_key))
     return InjectedHttpRequest(
         method="GET",
         url=url,
-        headers=_headers(api_key=query.api_key, json_request=False),
+        headers=_headers(api_key=None, json_request=False),
         query=parameters,
         json_body=None,
     )

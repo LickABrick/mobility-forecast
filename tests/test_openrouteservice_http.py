@@ -50,7 +50,9 @@ class SyntheticHttpSender:
 
 
 class OpenRouteServiceHttpTransportTests(unittest.TestCase):
-    def test_hosted_pelias_uses_fixed_get_recipient_and_header_key(self) -> None:
+    def test_hosted_pelias_uses_fixed_get_recipient_and_documented_query_key(
+        self,
+    ) -> None:
         sender = SyntheticHttpSender(
             [
                 InjectedHttpResponse(
@@ -87,11 +89,12 @@ class OpenRouteServiceHttpTransportTests(unittest.TestCase):
                 InjectedHttpRequest(
                     method="GET",
                     url=ORS_HOSTED_GEOCODING_ENDPOINT,
-                    headers=(
-                        ("Accept", "application/json"),
-                        ("Authorization", PRIVATE_KEY),
+                    headers=(("Accept", "application/json"),),
+                    query=(
+                        ("text", PRIVATE_TEXT),
+                        ("size", "1"),
+                        ("api_key", PRIVATE_KEY),
                     ),
-                    query=(("text", PRIVATE_TEXT), ("size", "1")),
                     json_body=None,
                 )
             ],

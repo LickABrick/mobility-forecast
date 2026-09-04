@@ -45,8 +45,13 @@ FORECAST_FIELDS = {
     "maximum_correction_percent",
     "cold_start_p90_percent",
 }
-CONFIG_FIELDS = POLICY_FIELDS | ROUTE_FIELDS | FORECAST_FIELDS
-PROFILE_INPUT_FIELDS = {"name", "calendar_entity_ids", *CONFIG_FIELDS}
+CONFIG_FIELDS = {
+    "calendar_entity_ids",
+    *POLICY_FIELDS,
+    *ROUTE_FIELDS,
+    *FORECAST_FIELDS,
+}
+PROFILE_INPUT_FIELDS = {"name", *CONFIG_FIELDS}
 POLICY_INPUT = {
     "start_anchor_entity_id": "zone.synthetic_start",
     "end_anchor_entity_id": "zone.synthetic_end",
@@ -167,6 +172,14 @@ class FakeConfigFlow:
     def async_create_entry(self, **kwargs: object) -> dict[str, object]:
         return {"type": "create_entry", **kwargs}
 
+    def add_suggested_values_to_schema(
+        self, data_schema: FakeSchema, suggested_values: dict[str, object] | None
+    ) -> FakeSchema:
+        self.suggested_values = (
+            None if suggested_values is None else dict(suggested_values)
+        )
+        return data_schema
+
     def _get_reconfigure_entry(self) -> SimpleNamespace:
         return self.reconfigure_entry
 
@@ -251,7 +264,7 @@ class IntegrationMetadataTests(unittest.TestCase):
             manifest["issue_tracker"],
             "https://github.com/LickABrick/mobility-forecast/issues",
         )
-        self.assertEqual(manifest["iot_class"], "local_polling")
+        self.assertEqual(manifest["iot_class"], "cloud_polling")
         self.assertEqual(manifest["codeowners"], [])
         self.assertEqual(manifest["dependencies"], ["calendar"])
         self.assertEqual(manifest["requirements"], [])
@@ -259,7 +272,10 @@ class IntegrationMetadataTests(unittest.TestCase):
             manifest["documentation"],
             "https://github.com/LickABrick/mobility-forecast",
         )
-        self.assertEqual(hacs, {"name": "Mobility Forecast"})
+        self.assertEqual(
+            hacs,
+            {"name": "Mobility Forecast", "homeassistant": "2026.8.1"},
+        )
 
     def test_strings_and_translations_cover_profile_inputs(self) -> None:
         strings = json.loads((INTEGRATION / "strings.json").read_text())
@@ -287,6 +303,9 @@ class IntegrationMetadataTests(unittest.TestCase):
                 "configured routing base URL followed by /v2/directions/driving-car",
                 descriptions["routing_base_url"],
             )
+            credential_description = descriptions["route_provider_api_key"]
+            self.assertIn("api_key query parameter", credential_description)
+            self.assertIn("Authorization header", credential_description)
             for suffix in (
                 "/v1/search for Pelias",
                 "/api for Photon",
@@ -404,11 +423,16 @@ class ConfigFlowTests(unittest.TestCase):
             self.assertIsInstance(validator, FakeIn)
             self.assertEqual(
                 validator.container,
-                {"include": "Include", "exclude": "Exclude"},
+                {
+                    "": "Select explicitly",
+                    "include": "Include",
+                    "exclude": "Exclude",
+                },
             )
         self.assertEqual(
             schema.schema["route_provider"].container,
             {
+                "": "Select explicitly",
                 "openrouteservice_hosted": "OpenRouteService hosted (recommended)",
                 "openrouteservice_self_hosted": (
                     "Self-hosted OpenRouteService + separate geocoder"
@@ -419,16 +443,25 @@ class ConfigFlowTests(unittest.TestCase):
         )
         self.assertEqual(
             schema.schema["geocoder_provider"].container,
-            {"pelias": "Pelias", "photon": "Photon", "nominatim": "Nominatim"},
+            {
+                "": "Not applicable for hosted providers",
+                "pelias": "Pelias",
+                "photon": "Photon",
+                "nominatim": "Nominatim",
+            },
         )
         self.assertEqual(
             schema.schema["location_data_consent"].container,
-            {"accepted": "I understand and consent"},
+            {"": "Select explicitly", "accepted": "I understand and consent"},
         )
         for field in ("toll_policy", "highway_policy"):
             self.assertEqual(
                 schema.schema[field].container,
-                {"allow": "Allow", "avoid": "Avoid"},
+                {
+                    "": "Select explicitly",
+                    "allow": "Allow",
+                    "avoid": "Avoid",
+                },
             )
         credential = schema.schema["route_provider_api_key"]
         self.assertIsInstance(credential, FakeTextSelector)
@@ -574,6 +607,122 @@ class ConfigFlowTests(unittest.TestCase):
             self.assertEqual(result["data"][key], value)
             self.assertIsInstance(result["data"][key], int)
 
+    def test_placeholder_choices_fail_closed_without_silent_defaults(self) -> None:
+        cases = (
+            ({**POLICY_INPUT, "physical_event_policy": ""}, ROUTE_INPUT),
+            (POLICY_INPUT, {**ROUTE_INPUT, "route_provider": ""}),
+            (POLICY_INPUT, {**ROUTE_INPUT, "location_data_consent": ""}),
+            (POLICY_INPUT, {**ROUTE_INPUT, "toll_policy": ""}),
+        )
+        for planning_input, route_input in cases:
+            with self.subTest(route_input=route_input), fake_home_assistant():
+                module = importlib.import_module(
+                    "custom_components.mobility_forecast.config_flow"
+                )
+                result = asyncio.run(
+                    module.MobilityForecastConfigFlow().async_step_user(
+                        {
+                            "name": "Explicit choices",
+                            "calendar_entity_ids": ["calendar.synthetic"],
+                            **planning_input,
+                            **route_input,
+                            **FORECAST_INPUT,
+                        }
+                    )
+                )
+            self.assertEqual(result["type"], "form")
+            self.assertIn(
+                result["errors"],
+                (
+                    {"base": "invalid_planning_policy"},
+                    {"base": "invalid_route_provider"},
+                ),
+            )
+
+    def test_hosted_flow_ignores_blank_self_hosted_only_fields(self) -> None:
+        with fake_home_assistant():
+            module = importlib.import_module(
+                "custom_components.mobility_forecast.config_flow"
+            )
+            result = asyncio.run(
+                module.MobilityForecastConfigFlow().async_step_user(
+                    {
+                        "name": "Hosted",
+                        "calendar_entity_ids": ["calendar.synthetic"],
+                        **POLICY_INPUT,
+                        **ROUTE_INPUT,
+                        "routing_base_url": "",
+                        "geocoder_provider": "",
+                        "geocoder_base_url": "",
+                        **FORECAST_INPUT,
+                    }
+                )
+            )
+
+        self.assertEqual(result["type"], "create_entry")
+        self.assertNotIn("routing_base_url", result["data"])
+        self.assertNotIn("geocoder_provider", result["data"])
+        self.assertNotIn("geocoder_base_url", result["data"])
+
+    def test_user_error_preserves_nonsecret_values_without_suggesting_key(self) -> None:
+        submitted = {
+            "name": "Retry hosted setup",
+            "calendar_entity_ids": ["calendar.synthetic"],
+            **POLICY_INPUT,
+            **ROUTE_INPUT,
+            "route_provider_api_key": "synthetic-secret-retry-key",
+            "route_cache_fresh_hours": 25,
+            **FORECAST_INPUT,
+        }
+        with fake_home_assistant():
+            module = importlib.import_module(
+                "custom_components.mobility_forecast.config_flow"
+            )
+            flow = module.MobilityForecastConfigFlow()
+            result = asyncio.run(flow.async_step_user(submitted))
+
+        self.assertEqual(result["type"], "form")
+        self.assertEqual(result["errors"], {"base": "invalid_route_provider"})
+        self.assertEqual(
+            flow.suggested_values,
+            {
+                key: value
+                for key, value in submitted.items()
+                if key != "route_provider_api_key"
+            },
+        )
+        self.assertNotIn("synthetic-secret-retry-key", repr(result))
+
+    def test_reconfigure_form_prefills_nonsecret_values_and_allows_calendar_change(
+        self,
+    ) -> None:
+        entry = SimpleNamespace(
+            data={
+                "calendar_entity_ids": ["calendar.synthetic_existing"],
+                **POLICY_INPUT,
+                **ROUTE_INPUT,
+                **FORECAST_INPUT,
+            }
+        )
+        with fake_home_assistant():
+            module = importlib.import_module(
+                "custom_components.mobility_forecast.config_flow"
+            )
+            flow = module.MobilityForecastConfigFlow()
+            flow.reconfigure_entry = entry
+            result = asyncio.run(flow.async_step_reconfigure(None))
+
+        self.assertEqual(result["type"], "form")
+        self.assertEqual(set(result["data_schema"].schema), CONFIG_FIELDS)
+        self.assertEqual(
+            flow.suggested_values,
+            {
+                key: value
+                for key, value in entry.data.items()
+                if key != "route_provider_api_key"
+            },
+        )
+
     def test_reconfigure_replaces_provider_specific_fields_without_fallback(
         self,
     ) -> None:
@@ -586,6 +735,7 @@ class ConfigFlowTests(unittest.TestCase):
             }
         )
         self_hosted = {
+            "calendar_entity_ids": ["calendar.synthetic_updated"],
             **POLICY_INPUT,
             **{
                 key: value
@@ -623,6 +773,7 @@ class ConfigFlowTests(unittest.TestCase):
             data={"calendar_entity_ids": ["calendar.synthetic_existing"]}
         )
         updated_policy = {
+            "calendar_entity_ids": ["calendar.synthetic_updated"],
             **POLICY_INPUT,
             "physical_event_policy": "exclude",
             "online_event_policy": "include",

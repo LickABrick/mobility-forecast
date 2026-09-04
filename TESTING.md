@@ -1,7 +1,9 @@
-# Testing Mobility Forecast on Home Assistant 2026.8.x
+# Testing Mobility Forecast on Home Assistant 2026.8.1
 
 The public repository can be installed as a HACS custom integration from
-`https://github.com/LickABrick/mobility-forecast`. The manually built
+`https://github.com/LickABrick/mobility-forecast`. HACS installs the default
+branch (`main`) because the repository has no releases, and `hacs.json` declares
+Home Assistant 2026.8.1 as the minimum supported version. The manually built
 `mobility_forecast-0.0.0.zip` remains available as a checked fallback.
 
 ## Safety and current limitations
@@ -15,25 +17,85 @@ The public repository can be installed as a HACS custom integration from
 - Production provider calls use the explicitly configured credentials/endpoints.
   Automated verification intercepts the managed HTTP session with deterministic
   responses and never calls an external provider.
-- Calendar and zone entity IDs are stored only in the profile config entry. Event
-  text, locations and coordinates are not persisted or exposed by the sensor.
-- Test only on Home Assistant **2026.8.x**. Stop if the backup fails, the checksum
-  fails, files already exist unexpectedly, or startup logs contain an exception.
+- Raw event text and location text are not persisted or exposed by the sensor.
+  Calendar and zone entity IDs stay in the profile config entry. Resolved coordinates
+  and route results may be cached. A private profile-scoped cache stores them under
+  opaque HMAC keys for only the configured retention periods; they are never exposed
+  by the sensor or diagnostics.
+- Test the automated compatibility target, Home Assistant **2026.8.1**. Stop if the
+  backup fails, files already exist unexpectedly, or startup logs contain an
+  exception. The manual ZIP path also requires a valid checksum.
 
 ## Install or update from public `main` through HACS
 
-1. Add `https://github.com/LickABrick/mobility-forecast` under **HACS > Custom
-   repositories** with category **Integration**.
-2. Open Mobility Forecast in HACS and select **Download**.
-3. This pre-release repository does not have tagged releases yet and its manifest
-   version is still `0.0.0`. After a fix on `main`, HACS may not show a normal
-   version update badge; open the repository menu and use **Redownload** instead.
-4. Restart Home Assistant fully after every download or redownload. Reloading the
-   config entry alone does not reload custom-integration Python modules.
-5. Continue with the log and config-flow checks below.
+1. Make the Home Assistant backup in section 1 before downloading anything.
+2. In the HACS dashboard, open the top-right 3-dot menu and select **Custom
+   repositories**. Enter `https://github.com/LickABrick/mobility-forecast`, select
+   category **Integration**, and select **Add**.
+3. Open Mobility Forecast in HACS and select **Download**. There are no releases;
+   HACS therefore installs the public repository's default branch, `main`. If a
+   version selector is shown, choose the default branch rather than an old commit.
+4. For a later checkpoint, first use **Update information** to refresh repository
+   metadata, then open the repository's 3-dot menu and select **Redownload**.
+   Updating information alone does not replace downloaded files. With no releases,
+   HACS identifies versions by the first seven characters of the `main` commit.
+5. Confirm HACS shows **Pending restart**, then restart Home Assistant fully.
+   Reloading the config entry alone does not reload custom-integration Python modules.
+6. Continue with the log and config-flow checks below.
 
 Do not mix a HACS installation with manual ZIP extraction. Remove or back up the
 whole existing integration directory before switching installation methods.
+
+## Hosted OpenRouteService test profile
+
+The recommended simple path uses one free user-supplied HeiGIT/OpenRouteService API
+key. Create or review the key at `https://account.heigit.org/`; never paste it into
+an issue, log excerpt, screenshot, calendar, or this repository. The integration sends
+that same key as the documented `api_key` query parameter to hosted Pelias and as the
+`Authorization` header to hosted ORS routing. The disclosed recipients are:
+
+- calendar location text goes to the hosted Pelias geocoder at
+  `https://api.heigit.org/pelias/v1/search`;
+- the resulting start/destination coordinates go to hosted routing at
+  `https://api.heigit.org/openrouteservice/v2/directions/driving-car`.
+
+Self-hosted ORS does not bundle geocoding. The fields **Self-hosted ORS routing base
+URL**, **Self-hosted geocoder family**, and **Self-hosted geocoder base URL** are not
+part of this hosted test and must remain empty. No request or credential falls back
+to a self-hosted endpoint, Geoapify, Google, or another geocoder.
+
+Use these conservative values for this checkpoint's manual smoke test. They are
+explicit test choices, not integration defaults:
+
+| Home Assistant field | Test choice |
+| --- | --- |
+| Calendars | One disposable calendar with synthetic events |
+| Start anchor / End anchor | Explicitly selected HA zones; each is independent |
+| Physical events | Include |
+| Online events | Exclude |
+| All-day events | Exclude |
+| Events without a location | Exclude |
+| Routing and geocoding provider family | OpenRouteService hosted (recommended) |
+| Hosted provider API key | The tester's HeiGIT/OpenRouteService key |
+| Location-data consent | I understand and consent |
+| Maximum geocode requests per refresh | 4 |
+| Maximum route requests per refresh | 8 |
+| Maximum attempts per request | 2 |
+| Timeout per attempt | 10 seconds |
+| Geocode cache retention | 24 hours |
+| Fresh route cache age | 6 hours |
+| Maximum stale route cache age | 24 hours |
+| Tolls | Avoid |
+| Highways | Allow |
+| Minimum history samples | 5 |
+| Minimum / maximum correction | 60% / 180% |
+| Cold-start conservative estimate | 125% |
+
+Every choice selector starts on **Select explicitly**; leaving that placeholder in
+place fails closed. A submitted valid profile loads immediately. If its selected
+calendar already contains an included future physical event, that initial refresh
+can send the event location and route coordinates to the two recipients above.
+Create the API key and synthetic calendar before submitting the form.
 
 ## Build the artifact from this checkout
 
@@ -63,7 +125,7 @@ checkout. Keep the ZIP and checksum sidecar together.
    recognizable pre-test name.
 3. Wait for the backup to finish successfully and download a copy off the Home
    Assistant host.
-4. Confirm Home Assistant reports a 2026.8.x version under **Settings > About**.
+4. Confirm Home Assistant reports version 2026.8.1 under **Settings > About**.
 5. Check whether `/config/custom_components/mobility_forecast` already exists.
    Do not overwrite it. If it is an intentional earlier test copy, stop Home
    Assistant and move that whole directory to a safe backup location first.
@@ -137,21 +199,26 @@ Do not continue to config flow if Home Assistant does not return cleanly.
 1. Open **Settings > Devices & services**.
 2. Select **Add integration**, search for **Mobility Forecast**, and open it.
 3. Enter a non-sensitive test profile name, for example `Synthetic commute`.
-4. Select one or more calendars. Prefer a disposable Local Calendar containing
-   only synthetic test events; an empty synthetic calendar is sufficient for this
-   lifecycle checkpoint. Calendar order is retained per profile.
-5. Select separate start and end Home Assistant zones. Synthetic test zones may be
-   the same, but each choice is stored independently.
-6. Explicitly choose Include or Exclude for physical, online, all-day and
-   no-location events. These choices have no hidden defaults.
-7. Supply the required history sample count, accepted minimum/maximum correction
-   percentages and cold-start conservative P90 percentage. These values have no
-   hidden defaults.
-8. Submit the form.
-9. Expected result: one new Mobility Forecast config entry is created and loads.
-10. After updating an older profile, use **Reconfigure** on its integration entry
-   to add the new anchors and event policy without replacing its calendars.
-11. Optionally repeat with another synthetic profile to confirm profiles are
+4. Select one or more calendars. Use a disposable Local Calendar containing only
+   synthetic events. To test routing, add one future physical event with a
+   non-sensitive public-place location chosen by the tester; do not record that
+   location in an issue or test report. Calendar order is retained per profile.
+5. Complete every field exactly as listed under **Hosted OpenRouteService test
+   profile**. Select the start/end zones independently, leave all three self-hosted
+   fields empty, paste the one hosted API key only into **Hosted provider API key**,
+   and explicitly select **I understand and consent**.
+6. Submit the form. Submission creates and loads one config entry, schedules a
+   15-minute refresh, and runs the first refresh immediately. With an included
+   located event, expect one Pelias geocode followed by one ORS route unless a fresh
+   cache entry already exists.
+7. Expected result: the Mobility Forecast config entry is loaded and exposes exactly
+   the sensor described below.
+8. To change an installed profile, open its integration entry and select
+   **Reconfigure**. Current non-secret calendars, anchors and policies are suggested;
+   the API key is deliberately not suggested and must be entered again. Calendar
+   selection can be changed. Submitting reloads the profile and can immediately call
+   the selected provider under the new explicit configuration.
+9. Optionally repeat with another synthetic profile to confirm profiles are
    independent. This is not required for the minimum smoke test.
 
 Failure indicators are a missing integration, a form that cannot list calendar
@@ -163,20 +230,37 @@ Open the created Mobility Forecast entry and its entities. It should expose one
 read-only sensor named **Forecast distance** (Home Assistant may derive the exact
 entity ID from the profile/device naming context).
 
-With an empty or unavailable calendar, the expected state is:
+Expected states are deliberately distinct:
 
 ```text
-State: unavailable
+No included future physical event:
+State: unknown
 Unit: km
 Forecast attributes: absent
+
+Included event, but geocode/route is rejected, unavailable or incomplete:
+State: unknown
+Unit: km
+Quality: partial or unavailable
+Distance: never zero
+
+Calendar/anchor/storage refresh itself fails:
+State: unavailable
+Unit: km
+
+Complete hosted Pelias + ORS route:
+State: positive conservative P90 road distance
+Unit: km
+Attributes: service_date, distance_p50_km, quality, generated_at
 ```
 
-With a valid future physical event and working OpenRouteService, Geoapify or Google
-configuration, the state should be a nonzero conservative P90 road distance. A
-geocode/route failure or partial itinerary remains `unknown`, never zero. The entity
-must not expose calendar text, addresses, coordinates, calendar entity IDs,
-route-provider data, or credentials. No Mobility Forecast service, button, switch, or
-action entity should exist.
+The entity must not expose calendar text, addresses, coordinates, calendar entity
+IDs, route-provider data, or credentials. No Mobility Forecast service, button,
+switch, or action entity should exist. HTTP 401/403, quota, timeout, malformed body
+and transport failures fail closed without consuming provider response bodies or
+putting credentials/private request values in integration logs. A provider failure
+can therefore appear as `unknown` without a traceback; it must not become a cached
+zero or trigger a request to any other provider.
 
 After checking the entity, inspect **Settings > System > Logs** once more for new
 `mobility_forecast` exceptions. Record the Home Assistant version, ZIP SHA-256,
@@ -185,16 +269,25 @@ states or diagnostics containing unrelated Home Assistant data.
 
 ## 7. Uninstall or roll back
 
-Normal uninstall:
+Normal HACS uninstall:
 
 1. In **Settings > Devices & services**, open each Mobility Forecast config entry
-   and delete it.
+   and delete it. This removes config-entry data; removing only repository files does
+   not.
 2. Restart Home Assistant and confirm the entries are gone.
-3. Stop Home Assistant before deleting files.
-4. Remove only `/config/custom_components/mobility_forecast`.
-5. If an earlier integration directory was moved aside, restore that whole
+3. In **HACS > Mobility Forecast > 3 dots > Remove**, remove the downloaded
+   repository. HACS deletes the managed integration directory but not related data.
+4. Restart Home Assistant again, check the logs, and confirm Mobility Forecast is no
+   longer listed under **Add integration**.
+
+Manual-install rollback:
+
+1. Delete every Mobility Forecast config entry and restart as above.
+2. Stop Home Assistant before deleting files.
+3. Remove only `/config/custom_components/mobility_forecast`.
+4. If an earlier integration directory was moved aside, restore that whole
    directory now; otherwise leave the path absent.
-6. Start Home Assistant, check the logs, and confirm Mobility Forecast is no
+5. Start Home Assistant, check the logs, and confirm Mobility Forecast is no
    longer listed.
 
 The current artifact performs read-only local calendar refreshes and may create routed

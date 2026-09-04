@@ -84,10 +84,12 @@ from .route_provider_config import (
 
 DOMAIN = "mobility_forecast"
 _POLICY_CHOICES = {
+    "": "Select explicitly",
     EventHandling.INCLUDE.value: "Include",
     EventHandling.EXCLUDE.value: "Exclude",
 }
 _ROUTE_PROVIDER_CHOICES = {
+    "": "Select explicitly",
     RouteProviderKind.OPENROUTESERVICE_HOSTED.value: (
         "OpenRouteService hosted (recommended)"
     ),
@@ -98,14 +100,17 @@ _ROUTE_PROVIDER_CHOICES = {
     RouteProviderKind.GOOGLE.value: "Google Routes + Geocoding",
 }
 _GEOCODER_CHOICES = {
+    "": "Not applicable for hosted providers",
     GeocoderKind.PELIAS.value: "Pelias",
     GeocoderKind.PHOTON.value: "Photon",
     GeocoderKind.NOMINATIM.value: "Nominatim",
 }
 _CONSENT_CHOICES = {
+    "": "Select explicitly",
     LocationDataConsent.ACCEPTED.value: "I understand and consent",
 }
 _ROUTE_PREFERENCE_CHOICES = {
+    "": "Select explicitly",
     RoutePreference.ALLOW.value: "Allow",
     RoutePreference.AVOID.value: "Avoid",
 }
@@ -217,6 +222,9 @@ def _forecast_schema_fields() -> dict[object, object]:
 
 CONFIG_SCHEMA = vol.Schema(
     {
+        vol.Required(CONF_CALENDAR_ENTITY_IDS): EntitySelector(
+            EntitySelectorConfig(domain="calendar", multiple=True)
+        ),
         **_planning_schema_fields(),
         **_route_schema_fields(),
         **_forecast_schema_fields(),
@@ -247,8 +255,22 @@ def _validated_planning_data(user_input: dict[str, Any]) -> dict[str, str]:
 def _validated_route_data(user_input: dict[str, Any]) -> dict[str, str | int]:
     """Return strict private route configuration or a fixed validation error."""
 
+    normalized = dict(user_input)
+    for key in (
+        CONF_ROUTING_BASE_URL,
+        CONF_GEOCODER_PROVIDER,
+        CONF_GEOCODER_BASE_URL,
+    ):
+        if normalized.get(key) == "":
+            normalized.pop(key)
+    if (
+        normalized.get(CONF_ROUTE_PROVIDER)
+        == RouteProviderKind.OPENROUTESERVICE_SELF_HOSTED.value
+        and normalized.get(CONF_ROUTE_PROVIDER_API_KEY) == ""
+    ):
+        normalized.pop(CONF_ROUTE_PROVIDER_API_KEY)
     try:
-        return ProfileRouteConfig.from_entry_data(user_input).as_entry_data()
+        return ProfileRouteConfig.from_entry_data(normalized).as_entry_data()
     except ValueError as err:
         raise vol.Invalid("invalid route provider configuration") from err
 
@@ -274,12 +296,24 @@ class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
         step_id: str,
         data_schema: Any,
         errors: dict[str, str] | None = None,
+        suggested_values: dict[str, Any] | None = None,
     ) -> ConfigFlowResult:
-        """Show a profile form with validated endpoint disclosure placeholders."""
+        """Show a profile form with endpoint disclosure and nonsecret suggestions."""
 
+        safe_suggestions = (
+            None
+            if suggested_values is None
+            else {
+                key: value
+                for key, value in suggested_values.items()
+                if key != CONF_ROUTE_PROVIDER_API_KEY
+            }
+        )
         return self.async_show_form(
             step_id=step_id,
-            data_schema=data_schema,
+            data_schema=self.add_suggested_values_to_schema(
+                data_schema, safe_suggestions
+            ),
             errors=errors,
             description_placeholders=_ENDPOINT_DESCRIPTION_PLACEHOLDERS,
         )
@@ -302,6 +336,7 @@ class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
                 step_id="user",
                 data_schema=PROFILE_SCHEMA,
                 errors={CONF_CALENDAR_ENTITY_IDS: "calendar_required"},
+                suggested_values=user_input,
             )
         try:
             planning_data = _validated_planning_data(user_input)
@@ -310,6 +345,7 @@ class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
                 step_id="user",
                 data_schema=PROFILE_SCHEMA,
                 errors={"base": "invalid_planning_policy"},
+                suggested_values=user_input,
             )
         try:
             route_data = _validated_route_data(user_input)
@@ -318,6 +354,7 @@ class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
                 step_id="user",
                 data_schema=PROFILE_SCHEMA,
                 errors={"base": "invalid_route_provider"},
+                suggested_values=user_input,
             )
         try:
             forecast_data = _validated_forecast_data(user_input)
@@ -326,6 +363,7 @@ class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
                 step_id="user",
                 data_schema=PROFILE_SCHEMA,
                 errors={"base": "invalid_forecast_policy"},
+                suggested_values=user_input,
             )
         return self.async_create_entry(
             title=user_input[CONF_NAME],
@@ -341,11 +379,25 @@ class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
-        """Configure planning and routing while preserving selected calendars."""
+        """Reconfigure sources and policy without suggesting the private credential."""
 
+        entry = self._get_reconfigure_entry()
         if user_input is None:
             return self._show_profile_form(
-                step_id="reconfigure", data_schema=CONFIG_SCHEMA
+                step_id="reconfigure",
+                data_schema=CONFIG_SCHEMA,
+                suggested_values=dict(entry.data),
+            )
+        try:
+            entity_ids = _validate_calendar_entity_ids(
+                user_input[CONF_CALENDAR_ENTITY_IDS]
+            )
+        except (KeyError, vol.Invalid):
+            return self._show_profile_form(
+                step_id="reconfigure",
+                data_schema=CONFIG_SCHEMA,
+                errors={CONF_CALENDAR_ENTITY_IDS: "calendar_required"},
+                suggested_values=user_input,
             )
         try:
             planning_data = _validated_planning_data(user_input)
@@ -354,6 +406,7 @@ class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
                 step_id="reconfigure",
                 data_schema=CONFIG_SCHEMA,
                 errors={"base": "invalid_planning_policy"},
+                suggested_values=user_input,
             )
         try:
             route_data = _validated_route_data(user_input)
@@ -362,6 +415,7 @@ class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
                 step_id="reconfigure",
                 data_schema=CONFIG_SCHEMA,
                 errors={"base": "invalid_route_provider"},
+                suggested_values=user_input,
             )
         try:
             forecast_data = _validated_forecast_data(user_input)
@@ -370,12 +424,12 @@ class MobilityForecastConfigFlow(ConfigFlow, domain=DOMAIN):
                 step_id="reconfigure",
                 data_schema=CONFIG_SCHEMA,
                 errors={"base": "invalid_forecast_policy"},
+                suggested_values=user_input,
             )
-        entry = self._get_reconfigure_entry()
         return self.async_update_reload_and_abort(
             entry,
             data={
-                CONF_CALENDAR_ENTITY_IDS: entry.data[CONF_CALENDAR_ENTITY_IDS],
+                CONF_CALENDAR_ENTITY_IDS: entity_ids,
                 **planning_data,
                 **route_data,
                 **forecast_data,

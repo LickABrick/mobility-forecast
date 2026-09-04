@@ -12,7 +12,7 @@
     "step": {
       "user": {
         "title": "Create a Mobility Forecast profile",
-        "description": "Each profile is independent. Setup makes no provider request. Forecasting uses the explicit model policy below and sends calendar location text to the selected geocoder and coordinates to the selected router only with explicit consent; it never falls back to another provider.",
+        "description": "Each profile is independent. Submitting a valid profile loads it and starts one bounded refresh. Forecasting uses the explicit model policy below and sends calendar location text to the selected geocoder and coordinates to the selected router only with explicit consent; it never falls back to another provider.",
         "data": {
           "name": "Profile name",
           "calendar_entity_ids": "Calendars",
@@ -52,7 +52,7 @@
           "all_day_event_policy": "Explicitly include or exclude all-day events.",
           "no_location_event_policy": "Explicitly include or exclude physical events without a location. Online events never require a physical location.",
           "route_provider": "Recommended: hosted OpenRouteService sends text to its Pelias endpoint {ors_geocoding_endpoint} and coordinates to {ors_routing_endpoint}. Geoapify uses {geoapify_geocoding_endpoint} and {geoapify_routing_endpoint}. Google uses {google_geocoding_endpoint} and {google_routing_endpoint}. No provider fallback occurs.",
-          "route_provider_api_key": "Required only for hosted OpenRouteService, Geoapify or Google. Hosted OpenRouteService uses this one user-supplied key for both its routing API and hosted Pelias geocoder. Stored as private Home Assistant configuration and excluded from diagnostics.",
+          "route_provider_api_key": "Required only for hosted OpenRouteService, Geoapify or Google. Hosted OpenRouteService sends this one user-supplied key as the api_key query parameter to hosted Pelias and in the Authorization header to hosted routing. Stored as private Home Assistant configuration and excluded from diagnostics.",
           "routing_base_url": "Required only for self-hosted mode. Coordinates are sent only to the configured routing base URL followed by /v2/directions/driving-car. ORS is not assumed to provide geocoding.",
           "geocoder_provider": "Required only for self-hosted mode. Select the separately operated Pelias, Photon or Nominatim service; self-hosted ORS does not bundle one.",
           "geocoder_base_url": "Required only for self-hosted mode. Calendar location text is sent only to the configured geocoder base URL followed by /v1/search for Pelias, /api for Photon or /search for Nominatim.",
@@ -73,9 +73,10 @@
         }
       },
       "reconfigure": {
-        "title": "Configure planning, routing and forecasting",
-        "description": "Choose anchors, event handling, one provider family, explicit location-data consent, bounded transport/cache policy and forecast-model policy. Calendar selection is preserved and reconfiguration makes no provider request.",
+        "title": "Configure sources, planning, routing and forecasting",
+        "description": "Review calendars, anchors, event handling, one provider family, explicit location-data consent, bounded transport/cache policy and forecast-model policy. Existing non-secret values are suggested; re-enter the hosted API key. Submitting reloads the profile and starts a bounded refresh.",
         "data": {
+          "calendar_entity_ids": "Calendars",
           "start_anchor_entity_id": "Start anchor",
           "end_anchor_entity_id": "End anchor",
           "physical_event_policy": "Physical events",
@@ -103,6 +104,7 @@
           "cold_start_p90_percent": "Cold-start conservative estimate (%)"
         },
         "data_description": {
+          "calendar_entity_ids": "Review one or more calendars to read. Their order is retained and can be changed here.",
           "start_anchor_entity_id": "Select the Home Assistant zone where a forecast day begins.",
           "end_anchor_entity_id": "Select the Home Assistant zone where a forecast day ends. This is independent from the start anchor.",
           "physical_event_policy": "Explicitly include or exclude events classified as physical.",
@@ -110,7 +112,7 @@
           "all_day_event_policy": "Explicitly include or exclude all-day events.",
           "no_location_event_policy": "Explicitly include or exclude physical events without a location. Online events never require a physical location.",
           "route_provider": "Recommended: hosted OpenRouteService sends text to its Pelias endpoint {ors_geocoding_endpoint} and coordinates to {ors_routing_endpoint}. Geoapify uses {geoapify_geocoding_endpoint} and {geoapify_routing_endpoint}. Google uses {google_geocoding_endpoint} and {google_routing_endpoint}. No provider fallback occurs.",
-          "route_provider_api_key": "Required only for hosted OpenRouteService, Geoapify or Google. Hosted OpenRouteService uses this one user-supplied key for both its routing API and hosted Pelias geocoder. Stored as private Home Assistant configuration and excluded from diagnostics.",
+          "route_provider_api_key": "Required only for hosted OpenRouteService, Geoapify or Google. Hosted OpenRouteService sends this one user-supplied key as the api_key query parameter to hosted Pelias and in the Authorization header to hosted routing. Stored as private Home Assistant configuration and excluded from diagnostics.",
           "routing_base_url": "Required only for self-hosted mode. Coordinates are sent only to the configured routing base URL followed by /v2/directions/driving-car. ORS is not assumed to provide geocoding.",
           "geocoder_provider": "Required only for self-hosted mode. Select the separately operated Pelias, Photon or Nominatim service; self-hosted ORS does not bundle one.",
           "geocoder_base_url": "Required only for self-hosted mode. Calendar location text is sent only to the configured geocoder base URL followed by /v1/search for Pelias, /api for Photon or /search for Nominatim.",

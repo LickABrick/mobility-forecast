@@ -270,6 +270,21 @@ proved only with isolated Home Assistant contract fixtures.
     the existing routed-forecast pipeline. Synthetic HTTP and lifecycle tests intercept
     every request and make no external call.
 
+- [x] **P26a — Public hosted OpenRouteService tester readiness**
+  - The HACS default-branch layout and Home Assistant 2026.8.1 minimum are explicit;
+    the hosted form starts every select on a fail-closed placeholder, accepts blank
+    self-hosted-only fields, and reconfiguration can change calendars while suggesting
+    non-secret values but never the stored API key.
+  - Hosted Pelias now receives the single explicit key through its documented
+    `api_key` query parameter, while hosted ORS routing keeps the `Authorization`
+    header. Home Assistant 2026.8.1 tests intercept both successful requests and a
+    private provider rejection; the latter stays unknown, makes no route request and
+    leaks no location, key or response text.
+  - `TESTING.md` now covers public-main HACS install/update/restart, exact hosted fields,
+    recipients, consent, explicit policy choices, cache privacy, expected states, logs,
+    reconfiguration, package checking and HACS/manual rollback without claiming an
+    unattended live provider request.
+
 Next checkpoint: **P27 — Explicit vehicle-energy policy prerequisite**. Define the
 provider-neutral read-only inputs and explicit consumption/usable-SOC policy required
 to turn distance percentiles into conservative SOC advice, without choosing vehicle

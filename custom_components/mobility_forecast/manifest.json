@@ -6,7 +6,7 @@
   "dependencies": ["calendar"],
   "documentation": "https://github.com/LickABrick/mobility-forecast",
   "integration_type": "service",
-  "iot_class": "local_polling",
+  "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/LickABrick/mobility-forecast/issues",
   "requirements": [],
   "version": "0.0.0"

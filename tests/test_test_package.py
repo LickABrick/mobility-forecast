@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import struct
 import subprocess
 import sys
@@ -119,10 +120,24 @@ class TestPackageTests(unittest.TestCase):
                 f"{checksum}  {first_archive.name}\n",
             )
 
+    def test_hacs_main_layout_and_compatibility_metadata_are_explicit(self) -> None:
+        hacs = json.loads((ROOT / "hacs.json").read_text(encoding="utf-8"))
+        component_directories = {
+            path.parent for path in (ROOT / "custom_components").glob("*/manifest.json")
+        }
+
+        self.assertEqual(component_directories, {ROOT / COMPONENT_PREFIX.rstrip("/")})
+        self.assertEqual(hacs["homeassistant"], "2026.8.1")
+        self.assertNotIn("content_in_root", hacs)
+        self.assertNotIn("zip_release", hacs)
+        self.assertNotIn("hide_default_branch", hacs)
+
     def test_testing_guide_covers_safe_install_and_rollback(self) -> None:
         guide = TESTING_GUIDE.read_text(encoding="utf-8")
         required_sections = (
             "## Safety and current limitations",
+            "## Install or update from public `main` through HACS",
+            "## Hosted OpenRouteService test profile",
             "## 1. Back up Home Assistant",
             "## 2. Verify the package",
             "## 3. Install the files",
@@ -132,6 +147,26 @@ class TestPackageTests(unittest.TestCase):
             "## 7. Uninstall or roll back",
         )
         self.assertTrue(all(section in guide for section in required_sections))
+        for required_text in (
+            "OpenRouteService hosted (recommended)",
+            "https://account.heigit.org/",
+            "https://api.heigit.org/pelias/v1/search",
+            "https://api.heigit.org/openrouteservice/v2/directions/driving-car",
+            "Hosted provider API key",
+            "Location-data consent",
+            "`api_key` query parameter",
+            "`Authorization` header",
+            "calendar location text",
+            "coordinates",
+            "Raw event text and location text are not persisted",
+            "private profile-scoped cache",
+            "opaque HMAC keys",
+            "configured retention periods",
+            "HACS > Mobility Forecast > 3 dots > Remove",
+            "State: unknown",
+            "State: unavailable",
+        ):
+            self.assertIn(required_text, guide)
         self.assertIn("pre-alpha", guide.casefold())
         self.assertIn("read-only", guide.casefold())
         self.assertIn("synthetic", guide.casefold())

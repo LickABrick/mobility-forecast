@@ -134,9 +134,14 @@ async def test_reconfigure_preserves_calendar_and_updates_explicit_policy(
     entry = MockConfigEntry(
         domain=DOMAIN,
         title="Synthetic existing profile",
-        data={CONF_CALENDAR_ENTITY_IDS: ["calendar.synthetic_existing"]},
+        data={
+            CONF_CALENDAR_ENTITY_IDS: ["calendar.synthetic_existing"],
+            **PLANNING_INPUT,
+            **ROUTE_INPUT,
+            **FORECAST_INPUT,
+        },
         version=1,
-        minor_version=5,
+        minor_version=6,
     )
     entry.add_to_hass(hass)
     form: dict[str, Any] = await hass.config_entries.flow.async_init(
@@ -146,15 +151,30 @@ async def test_reconfigure_preserves_calendar_and_updates_explicit_policy(
 
     assert form["type"] is FlowResultType.FORM
     assert form["step_id"] == "reconfigure"
+    suggested = {
+        str(marker): marker.description["suggested_value"]
+        for marker in form["data_schema"].schema
+        if marker.description and "suggested_value" in marker.description
+    }
+    assert suggested[CONF_CALENDAR_ENTITY_IDS] == ["calendar.synthetic_existing"]
+    assert suggested[CONF_ROUTE_PROVIDER] == "openrouteservice_hosted"
+    assert CONF_ROUTE_PROVIDER_API_KEY not in suggested
+
+    updated_calendars = ["calendar.synthetic_updated"]
     result: dict[str, Any] = await hass.config_entries.flow.async_configure(
         form["flow_id"],
-        user_input={**PLANNING_INPUT, **ROUTE_INPUT, **FORECAST_INPUT},
+        user_input={
+            CONF_CALENDAR_ENTITY_IDS: updated_calendars,
+            **PLANNING_INPUT,
+            **ROUTE_INPUT,
+            **FORECAST_INPUT,
+        },
     )
 
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reconfigure_successful"
     assert entry.data == {
-        CONF_CALENDAR_ENTITY_IDS: ["calendar.synthetic_existing"],
+        CONF_CALENDAR_ENTITY_IDS: updated_calendars,
         **PLANNING_INPUT,
         **ROUTE_INPUT,
         **FORECAST_INPUT,
