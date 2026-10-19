@@ -47,16 +47,23 @@ def merge_readings(
         for r in combined
         if r.source != "statistics" and r.timestamp.tzinfo is not None
     ]
-    raw_start, raw_end = (min(raw), max(raw)) if raw else (None, None)
+    raw = sorted(set(raw))
+    from bisect import bisect_left
+
+    def raw_covers(stamp):
+        position = bisect_left(raw, stamp)
+        if position < len(raw) and raw[position] == stamp:
+            return True
+        # Only a short raw bracket supersedes hourly statistics. A multi-hour
+        # gap is not evidence that raw data covers its interior.
+        return 0 < position < len(raw) and raw[position] - raw[
+            position - 1
+        ] <= timedelta(hours=2)
+
     for item in sorted(combined, key=lambda r: priority.get(r.source, 0)):
         # Raw telemetry has better time resolution than hourly statistics. Do not
         # interleave stale hourly states into a raw interval or count both sources.
-        if (
-            item.source == "statistics"
-            and raw_start is not None
-            and raw_end is not None
-            and raw_start <= item.timestamp <= raw_end
-        ):
+        if item.source == "statistics" and raw_covers(item.timestamp):
             continue
         indexed[item.timestamp] = item
     accepted: list[Reading] = []
@@ -217,7 +224,10 @@ async def import_history(
     if "recorder" not in hass.config.components:
         return []
     from homeassistant.components.recorder import get_instance
-    from homeassistant.components.recorder.history import get_significant_states
+    from homeassistant.components.recorder.history import (
+        get_significant_states,
+        state_changes_during_period,
+    )
     from homeassistant.components.recorder.statistics import (
         get_metadata,
         statistics_during_period,
@@ -274,7 +284,21 @@ async def import_history(
                     merge_readings, imported, []
                 )
                 cursor = end
-        cursor = start
+        # Supported history API: one ascending, row-limited query finds the
+        # first retained change for this entity without guessing purge settings.
+        earliest = await recorder.async_add_executor_job(
+            partial(
+                state_changes_during_period,
+                hass,
+                start,
+                now,
+                entity_id,
+                limit=1,
+                include_start_time_state=False,
+            )
+        )
+        retained = earliest.get(entity_id, [])
+        cursor = max(start, retained[0].last_updated) if retained else now
         while cursor < now:
             # Six-hour raw batches bound the materialized recorder response even
             # for a 10-second source (2160 states/batch rather than 259200).

@@ -49,6 +49,10 @@ async def test_recorder_to_sensor_weekend_driver(hass):
             "homeassistant.components.recorder.statistics.get_metadata", return_value={}
         ),
         patch(
+            "homeassistant.components.recorder.history.state_changes_during_period",
+            return_value={source: states[:1]},
+        ),
+        patch(
             "homeassistant.components.recorder.history.get_significant_states",
             side_effect=query,
         ),

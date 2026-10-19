@@ -36,6 +36,19 @@ async def test_recorder_and_physical_statistics(hass):
             },
         ),
         patch(
+            "homeassistant.components.recorder.history.state_changes_during_period",
+            return_value={
+                "sensor.odometer": [
+                    State(
+                        "sensor.odometer",
+                        "100",
+                        {"unit_of_measurement": "km"},
+                        last_updated=start,
+                    )
+                ]
+            },
+        ),
+        patch(
             "homeassistant.components.recorder.history.get_significant_states",
             return_value={"sensor.odometer": [state]},
         ),
