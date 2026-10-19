@@ -1,0 +1,26 @@
+{
+  "title": "Mobility Forecast",
+  "config": {
+    "step": {
+      "user": {"title": "Add your vehicle", "description": "Select your vehicle's odometer. Mobility Forecast uses your driving history to predict future distances.", "data": {"name": "Vehicle name", "odometer": "Odometer sensor"}},
+      "reconfigure": {"title": "Change odometer", "description": "Existing history is preserved. Readings from a discontinuous replacement are rejected; select a continuous vehicle odometer.", "data": {"odometer": "Odometer sensor"}}
+    },
+    "error": {"invalid_source": "Select a numeric cumulative vehicle odometer with km or mi units, not a range or trip sensor."},
+    "abort": {"already_configured": "This odometer is already configured.", "reconfigure_successful": "Odometer updated."}
+  },
+  "options": {
+    "step": {"init": {"title": "Vehicle and calendars", "description": "Calendars are optional. Enabling Waze sends only origin and destination locations to an external routing service. Install Waze Travel Time first. Choose its region explicitly. Known locations is an optional mapping from a name to coordinates or a full street address with city.", "data": {"name": "Vehicle name", "calendars": "Calendars", "routing": "Use Waze for calendar routes", "region": "Waze region", "known_locations": "Known locations (optional)"}}},
+    "error": {"region_required": "Choose a Waze region.", "invalid_locations": "Enter location names mapped to addresses or coordinates."}
+  },
+  "entity": {"sensor": {
+    "today": {"name": "Expected distance today"},
+    "tomorrow": {"name": "Expected distance tomorrow"},
+    "next_7_days": {"name": "Expected distance next 7 days"},
+    "next_30_days": {"name": "Expected distance next 30 days"},
+    "annual": {"name": "Expected annual distance"}
+  }},
+  "issues": {
+    "source": {"title": "Odometer not found", "description": "The selected odometer could not be found. Check the original vehicle integration or reconfigure Mobility Forecast. Existing history has been preserved."},
+    "storage": {"title": "Vehicle history could not be read", "description": "Persistent vehicle history is unreadable. Writes have been stopped to preserve the file. Restore a Home Assistant backup or remove and re-add this vehicle to start fresh."}
+  }
+}

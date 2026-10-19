@@ -59,6 +59,28 @@ class VehicleCoordinator(DataUpdateCoordinator):
         self.entry.async_on_unload(
             async_track_state_change_event(self.hass, [self.source], self._changed)
         )
+        from homeassistant.helpers import issue_registry as ir
+
+        if self.store.corrupt:
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                f"storage_{self.entry.entry_id}",
+                is_fixable=False,
+                severity=ir.IssueSeverity.ERROR,
+                translation_key="storage",
+            )
+        if self.hass.states.get(self.source) is None:
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                f"source_{self.entry.entry_id}",
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="source",
+            )
+        else:
+            ir.async_delete_issue(self.hass, DOMAIN, f"source_{self.entry.entry_id}")
         self._ingest(self.hass.states.get(self.source))
         await self.async_refresh()
         self.import_task = self.entry.async_create_background_task(
