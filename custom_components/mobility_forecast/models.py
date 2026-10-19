@@ -11,6 +11,7 @@ class Status(StrEnum):
     PROVISIONAL = "provisional"
     READY = "ready"
     SOURCE_UNAVAILABLE = "source_unavailable"
+    SOURCE_INCOMPATIBLE = "source_incompatible"
     ERROR = "error"
 
 

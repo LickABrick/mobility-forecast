@@ -119,6 +119,10 @@
     "storage": {
       "title": "Vehicle history could not be read",
       "description": "Persistent vehicle history is unreadable. Writes have been stopped to preserve the file. Restore a Home Assistant backup or remove and re-add this vehicle to start fresh."
+    },
+    "resetting_counter": {
+      "title": "Distance counter resets detected",
+      "description": "This sensor appears to reset its distance counter. Mobility Forecast requires a cumulative odometer that does not reset daily. Reconfigure the source; existing history is preserved."
     }
   }
 }

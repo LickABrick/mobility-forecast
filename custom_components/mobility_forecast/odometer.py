@@ -27,9 +27,27 @@ def validate_source(state: Any) -> float:
     name = (state.entity_id + " " + attrs.get("friendly_name", "")).lower()
     if any(
         word in name
-        for word in ("range", "trip", "remaining", "actieradius", "dagteller")
+        for word in (
+            "range",
+            "trip",
+            "remaining",
+            "actieradius",
+            "dagteller",
+            "walking",
+            "running",
+            "daily",
+            "weekly",
+            "today",
+            "vandaag",
+            "steps",
+            "activity",
+            "wandel",
+            "hardloop",
+        )
     ):
         raise InvalidReading("not_odometer")
+    if attrs.get("last_reset") is not None:
+        raise InvalidReading("resetting_counter")
     cumulative = attrs.get("state_class") in ("total", "total_increasing")
     named = any(word in name for word in ("odometer", "mileage", "kilometerstand"))
     if not (cumulative or named):

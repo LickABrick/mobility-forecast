@@ -119,6 +119,10 @@
     "storage": {
       "title": "Voertuiggeschiedenis niet leesbaar",
       "description": "Opslaan is gestopt om je gegevens te beschermen. Herstel een Home Assistant-back-up of verwijder dit voertuig en voeg het opnieuw toe om opnieuw te beginnen."
+    },
+    "resetting_counter": {
+      "title": "Afstandsteller wordt opnieuw ingesteld",
+      "description": "Deze sensor lijkt de afstandsteller regelmatig te resetten. Mobility Forecast heeft een doorlopende kilometerstand nodig die niet dagelijks opnieuw begint. Wijzig de bron; bestaande geschiedenis blijft bewaard."
     }
   }
 }

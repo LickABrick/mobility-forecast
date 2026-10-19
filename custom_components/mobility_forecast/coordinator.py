@@ -52,6 +52,9 @@ class VehicleCoordinator(DataUpdateCoordinator):
         self.initialized = False
         self.import_status = "pending"
         self.source_continuous = True
+        self.source_incompatible = False
+        self.reset_dates = set()
+        self.previous_report = None
         self.async_set_updated_data(
             Forecast(
                 dt_util.utcnow(), Status.INITIALIZING, dict.fromkeys(FORECAST_KEYS)
@@ -126,6 +129,11 @@ class VehicleCoordinator(DataUpdateCoordinator):
             )
         else:
             ir.async_delete_issue(self.hass, DOMAIN, f"source_{self.entry.entry_id}")
+        quality = self.store.payload.get("source_quality", {})
+        if quality.get("entity") == self.source:
+            self.reset_dates = set(quality.get("reset_dates", []))
+            if len(self.reset_dates) >= 2:
+                self._mark_incompatible()
         current = self.hass.states.get(self.source)
         self.source_continuous = True
         if (
@@ -184,6 +192,12 @@ class VehicleCoordinator(DataUpdateCoordinator):
             await self.async_request_refresh()
             return
         self.import_status = "complete"
+        from .source_quality import reset_count
+
+        if reset_count(incoming) >= 2:
+            self._mark_incompatible()
+            await self.async_request_refresh()
+            return
         async with self.lock:
             self.readings, rejected = merge_readings(self.readings, incoming)
             self.rejected += rejected
@@ -204,8 +218,25 @@ class VehicleCoordinator(DataUpdateCoordinator):
         except InvalidReading:
             self.source_available = False
             return
-        # Unchanged reports are useful fresh brackets, capped to one per hour.
+        # Detect raw report decreases before monotonic validation rejects them.
         stamp = state.last_reported
+        if (
+            self.previous_report
+            and stamp > self.previous_report.timestamp
+            and km < self.previous_report.km
+        ):
+            self.reset_dates.add(stamp.date().isoformat())
+            self.store.payload["source_quality"] = {
+                "entity": self.source,
+                "reset_dates": sorted(self.reset_dates)[-3:],
+            }
+            if len(self.reset_dates) >= 2:
+                self._mark_incompatible()
+        if self.previous_report is None or stamp > self.previous_report.timestamp:
+            self.previous_report = Reading(stamp, km, "live", self.source)
+        if self.source_incompatible:
+            return
+        # Unchanged reports are useful fresh brackets, capped to one per hour.
         if (
             self.readings
             and km == self.readings[-1].km
@@ -232,6 +263,19 @@ class VehicleCoordinator(DataUpdateCoordinator):
             self.rejected += rejected
         # Forecast debounce persists the coalesced data; no whole-store copy for
         # every high-frequency telemetry event.
+
+    def _mark_incompatible(self):
+        from homeassistant.helpers import issue_registry as ir
+
+        self.source_incompatible = True
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            f"reset_{self.entry.entry_id}",
+            is_fixable=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="resetting_counter",
+        )
 
     @callback
     def _changed(self, event):
@@ -269,6 +313,9 @@ class VehicleCoordinator(DataUpdateCoordinator):
             ):
                 forecast.values = dict.fromkeys(forecast.values)
                 forecast.status = Status.SOURCE_UNAVAILABLE
+            if self.source_incompatible:
+                forecast.status = Status.SOURCE_INCOMPATIBLE
+                forecast.values = dict.fromkeys(forecast.values)
             self.store.schedule(self.readings)
             return forecast
 
