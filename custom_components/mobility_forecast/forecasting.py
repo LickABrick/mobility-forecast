@@ -2,7 +2,7 @@
 
 from datetime import UTC, datetime, time, timedelta
 from math import sqrt
-from statistics import median, pstdev
+from statistics import pstdev
 
 from .const import FORECAST_KEYS
 from .models import DailyDistance, DailyForecast, Forecast, Status
@@ -15,10 +15,21 @@ WEEKDAY_PRIOR = 4
 
 def robust_mean(values: list[float]) -> float:
     """Winsorize isolated extremes using median absolute deviation."""
-    center = median(values)
-    spread = median([abs(v - center) for v in values])
-    ceiling = center + max(3 * spread, center * 0.5, 5)
-    return sum(min(v, ceiling) for v in values) / len(values)
+    positive = sorted(v for v in values if v > 0)
+    if not positive:
+        return 0.0
+    # Hurdle estimator: parked days affect use probability, not the distance
+    # distribution conditional on driving. Only an isolated, very large upper
+    # tail is capped; recurring long trips remain part of expected consumption.
+    # With <5 driving samples there is no defensible outlier evidence.
+    adjusted = positive[:]
+    if len(positive) >= 5:
+        reference = positive[max(0, int((len(positive) - 1) * 0.8))]
+        ceiling = max(reference * 3, reference + 50)
+        exceptional = [v for v in positive if v > ceiling]
+        if len(exceptional) <= max(1, int(len(positive) * 0.05)):
+            adjusted = [min(v, ceiling) for v in positive]
+    return (len(positive) / len(values)) * (sum(adjusted) / len(positive))
 
 
 def predict(
@@ -48,9 +59,12 @@ def predict(
         trend = min(1.5, max(0.5, recent / baseline))
     weekday = {}
     for index in range(7):
+        # A mature recent regime should replace obsolete parked/commuter
+        # frequency, not merely scale a year-old weekday mixture.
+        weekday_history = precise[-56:] if len(precise) >= 112 else precise
         samples = [
             float(d.km)
-            for d in precise
+            for d in weekday_history
             if d.day.weekday() == index and d.km is not None
         ]
         if len(precise) >= WEEKDAY_DAYS and len(samples) >= 3:
