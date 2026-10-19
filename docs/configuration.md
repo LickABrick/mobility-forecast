@@ -66,3 +66,7 @@ A genuinely separate journey fully contained in a longer visit is also ignored w
 ## Known Locations and route reuse
 
 `Office → Main Street 10, Arnhem` makes Office and that exact physical address share a route identity, including case/whitespace/comma-spacing variants. Adding `6811 AB` is not automatically considered equivalent: define explicit mappings if you know both forms identify the same place. Different street/unit numbers remain distinct. Changing Office to a different address creates a different route identity; unrelated valid old cache entries remain until expiration/eviction. Region changes use separate keys. No cache duration/size configuration is needed.
+
+## Locationless appointments
+
+No setting is required: internal meetings, reminders, calls, unknown venue names and virtual events without recognized physical destinations are excluded before nested filtering. Known Locations can resolve an otherwise unknown venue. Ignored events between customer visits do not split a chain into separate round trips. A locationless ticket is counted as locationless, not nested; a physical contained ticket is counted as nested only when that option is enabled. Skipping an event is not evidence of zero real travel.

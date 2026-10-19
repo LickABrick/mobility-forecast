@@ -46,3 +46,21 @@ async def test_request_failures_are_retryable(failure, reason):
     )
     plan = (await plan_journeys(events, normalize("51,4"), provider))[start.date()]
     assert plan.reason == reason and plan.retryable
+
+
+async def test_conflict_is_terminal_and_never_requests():
+    start = datetime(2026, 1, 1, 10, tzinfo=UTC)
+    events = [
+        Appointment(start, start + timedelta(hours=2), normalize("52,5"), False, "a"),
+        Appointment(
+            start + timedelta(hours=1),
+            start + timedelta(hours=3),
+            normalize("53,6"),
+            False,
+            "b",
+        ),
+    ]
+    provider = SimpleNamespace(get_route=AsyncMock())
+    plan = (await plan_journeys(events, normalize("51,4"), provider))[start.date()]
+    assert plan.reason == "conflicting_appointments" and not plan.retryable
+    provider.get_route.assert_not_called()

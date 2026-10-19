@@ -435,7 +435,14 @@ class VehicleCoordinator(DataUpdateCoordinator):
         @callback
         def publish():
             self.calendar_publish = None
-            if not self.stopping and generation == self.calendar_generation:
+            if (
+                not self.stopping
+                and generation == self.calendar_generation
+                and (
+                    self.calendar_publish_task is None
+                    or self.calendar_publish_task.done()
+                )
+            ):
                 self.calendar_publish_task = self.entry.async_create_background_task(
                     self.hass,
                     self.async_request_refresh(),
@@ -491,6 +498,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
                         nested_ignored=ignored,
                         relevant_count=len(events),
                         requests=0,
+                        retry_exhausted=0,
                         last_failure=None,
                     )
                     grouped = {}
@@ -642,7 +650,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
                     )
                 self._calendar_progress()
                 if self.calendar_pending_days:
-                    # Fixed backoff: bounded work cycles, no immediate retry storm.
+                    # Deferred work waits >=60s; transient days use 60/120s backoff.
                     clock = dt_util.utcnow()
                     self.calendar_next_work = max(
                         clock + timedelta(seconds=60),

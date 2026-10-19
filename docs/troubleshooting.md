@@ -57,3 +57,17 @@ Counters are **per last processing cycle**, not lifetime or cumulative agenda to
 - route_cache_entries: retained entries at the cycle end (a gauge).
 
 Same-location shortcuts count neither hits nor misses. Successful warm-cache cycles have zero Waze calls; cache misses during an outage never become fabricated zero routes. Debug summaries contain only counts. Diagnostics expose no endpoint strings, hashes, titles or descriptions. Cache hashes hide plaintext but are not encryption against guessed-address attacks; protect HA backups.
+
+## Location and retry interpretation (current behavior)
+
+`missing_location` is no longer emitted for intentionally excluded events. Check:
+- calendar_events_count: retrieved raw rows (including malformed/canceled/duplicates).
+- calendar_events_invalid_skipped: malformed rows; other valid events still process.
+- calendar_events_routable: normalized physical candidates before nesting.
+- calendar_events_without_location: normalized nonvirtual unresolved/locationless events skipped.
+- calendar_events_virtual_skipped: normalized virtual events skipped.
+- calendar_nested_ignored: physical children removed by the optional containment rule.
+
+These counts need not sum to raw rows because normalization also deduplicates/culls canceled/out-of-horizon events. `ready` means all required known physical itineraries completed, not that the calendar describes every real trip. `partial` means completed days plus pending/incomplete days. `incomplete` identifies terminal planning failures when no complete overlay exists. `routing_unavailable` covers transient Waze failures without a usable completed day; retries may still be pending. `routing_timeout` indicates cycle-deadline deferral without a completed day. `calendar_unavailable` means response/service-level failure, not one malformed event.
+
+Current failure categories: route_unavailable, route_timeout (retryable); impossible_itinerary, conflicting_appointments, unsupported_all_day, unsupported_overnight (terminal this generation); request_budget/refresh_timeout (deferred); calendar_fetch/calendar_normalization/route_planning (pipeline failures). `calendar_retry_exhausted` counts days reaching three transient failures. A normal fresh agenda refresh can retry again. `calendar_last_failure` records a recent reason in an incomplete generation and clears on full success; it is not an individual-event diagnosis. Historical mileage remains usable during routing errors. Never enable nested filtering merely to hide genuinely conflicting physical appointments.

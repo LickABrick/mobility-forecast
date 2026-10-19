@@ -302,7 +302,8 @@ async def _plan_journeys(events, home, provider: RouteProvider):
     plans = {}
     for day, appointments in grouped.items():
         appointments.sort(key=lambda e: (e.start.astimezone(UTC), e.identifier))
-        # Unknown/all-day/midnight appointments invalidate the assumed daily chain.
+        # Non-routable events were excluded; physical all-day/overnight
+        # itineraries still have unsupported travel semantics.
         invalid = any(
             e.location is None
             or e.all_day
@@ -337,7 +338,13 @@ async def _plan_journeys(events, home, provider: RouteProvider):
                 0,
                 False,
                 1,
-                "unsupported_overnight" if invalid else "conflicting_appointments",
+                (
+                    "unsupported_all_day"
+                    if any(e.all_day for e in appointments)
+                    else "unsupported_overnight"
+                )
+                if invalid
+                else "conflicting_appointments",
             )
             continue
         total = 0.0

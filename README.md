@@ -102,3 +102,9 @@ Successful Waze routes are cached per vehicle for seven days, up to 512 directed
 Known Locations aliases resolve before routing. Casing, whitespace, comma spacing and equivalent coordinate spellings share identities; different house numbers, postal codes and precise coordinates do not. No fuzzy matching or automatic geocoding is performed. Use an explicit alias when you know two representations identify the same place.
 
 Diagnostics include last-cycle cache hits, misses, expiration, deduplication, eviction and actual Waze calls/failures, without endpoints or cache keys. Four aggregate values also appear on existing forecast sensors; no extra sensors or cache settings are added. Seven-day-old route durations may be inaccurate after road changes and do not represent live traffic.
+
+### Calendar reliability
+
+Only appointments with recognized physical destinations contribute routes. Locationless, unrecognized-location and clearly virtual events are automatically skipped, without invalidating other customer visits. This does **not** prove those activities involve no travel: calendar mileage estimates only known routable appointments and never replaces the historical baseline with a guaranteed zero.
+
+Malformed individual events are skipped and counted; a missing calendar or invalid service-response container remains a retrieval error. Temporary Waze failures retry with bounded backoff. Physical overlaps and impossible travel schedules remain incomplete and use historical mileage. Inspect `calendar_events_without_location`, `calendar_events_virtual_skipped`, `calendar_events_invalid_skipped` and `calendar_last_failure` for aggregate explanations.
