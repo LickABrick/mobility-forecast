@@ -20,7 +20,7 @@ select = ["E", "F", "I", "UP"]
 ignore = ["E501"]
 
 [tool.mypy]
-python_version = "3.13"
+python_version = "3.14"
 follow_imports = "silent"
 ignore_missing_imports = true
 files = ["custom_components/mobility_forecast/models.py", "custom_components/mobility_forecast/forecasting.py", "custom_components/mobility_forecast/odometer.py", "custom_components/mobility_forecast/history.py", "custom_components/mobility_forecast/locations.py", "custom_components/mobility_forecast/calendar_manager.py", "custom_components/mobility_forecast/routing.py"]

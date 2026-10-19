@@ -167,7 +167,10 @@ async def plan_journeys(events, home, provider: RouteProvider):
             if route is None or (
                 last_end is not None
                 and route.duration_minutes
-                > (event.start - last_end).total_seconds() / 60
+                > (
+                    event.start.astimezone(UTC) - last_end.astimezone(UTC)
+                ).total_seconds()
+                / 60
             ):
                 complete = False
                 break
