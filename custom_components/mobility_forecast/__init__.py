@@ -1,32 +1,20 @@
 """Mobility Forecast entry lifecycle."""
 
-from dataclasses import dataclass
-
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers import device_registry as dr
 
-from .const import DOMAIN
+from .coordinator import VehicleCoordinator
+from .storage import VehicleStore
 
-
-@dataclass
-class Runtime:
-    source: str
-
-
-type MobilityEntry = ConfigEntry[Runtime]
+type MobilityEntry = ConfigEntry[VehicleCoordinator]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: MobilityEntry) -> bool:
-    entry.runtime_data = Runtime(entry.data["odometer"])
-    dr.async_get(hass).async_get_or_create(
-        config_entry_id=entry.entry_id,
-        identifiers={(DOMAIN, entry.entry_id)},
-        name=entry.title,
-        manufacturer="Mobility Forecast",
-        model="Distance forecast",
-    )
+    coordinator = entry.runtime_data = VehicleCoordinator(hass, entry)
+    await coordinator.initialize()
     entry.async_on_unload(entry.add_update_listener(async_reload))
+    await hass.config_entries.async_forward_entry_setups(entry, [Platform.SENSOR])
     return True
 
 
@@ -35,4 +23,11 @@ async def async_reload(hass: HomeAssistant, entry: MobilityEntry) -> None:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: MobilityEntry) -> bool:
-    return True
+    if await hass.config_entries.async_unload_platforms(entry, [Platform.SENSOR]):
+        await entry.runtime_data.shutdown()
+        return True
+    return False
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: MobilityEntry) -> None:
+    await VehicleStore(hass, entry.entry_id).async_remove()
