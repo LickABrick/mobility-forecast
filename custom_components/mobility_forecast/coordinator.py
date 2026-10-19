@@ -119,6 +119,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
         async with self.lock:
             zone = ZoneInfo(self.hass.config.time_zone)
             now = dt_util.utcnow().astimezone(zone)
+            await self._refresh_calendar(now)
             history = daily_distances(self.readings, zone)
             forecast = predict(history, now, self.plans)
             snapshots = self.store.payload["snapshots"]
@@ -136,6 +137,50 @@ class VehicleCoordinator(DataUpdateCoordinator):
                 forecast.status = Status.SOURCE_UNAVAILABLE
             self.store.schedule(self.readings)
             return forecast
+
+    async def _refresh_calendar(self, now):
+        from .calendar_manager import fetch_events
+        from .locations import home_and_known
+        from .routing import WazeProvider, plan_journeys
+
+        calendars = self.entry.options.get("calendars", [])
+        if not calendars:
+            self.plans = {}
+            self.calendar_status = "disabled"
+            return
+        home, known = home_and_known(
+            self.hass, self.entry.options.get("known_locations", {})
+        )
+        if not self.entry.options.get("routing", False):
+            self.plans = {}
+            self.calendar_status = "routing_disabled"
+            return
+        try:
+            events = await fetch_events(
+                self.hass,
+                calendars,
+                now.replace(hour=0, minute=0, second=0, microsecond=0),
+                now + timedelta(days=30),
+                known,
+            )
+            provider = WazeProvider(
+                self.hass,
+                self.entry.options.get("region", ""),
+                self.store.payload["routes"],
+            )
+            self.plans = await plan_journeys(events, home, provider)
+            self.calendar_status = (
+                "incomplete"
+                if any(not p.complete for p in self.plans.values())
+                else "ready"
+            )
+            if not self.hass.services.has_service(
+                "waze_travel_time", "get_travel_times"
+            ):
+                self.calendar_status = "routing_unavailable"
+        except Exception:
+            self.plans = {}
+            self.calendar_status = "calendar_unavailable"
 
     async def shutdown(self):
         if self.pending:
