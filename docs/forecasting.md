@@ -1,0 +1,16 @@
+# Forecast algorithm
+
+1. Validate ordered physical odometer states. Reject negative/non-finite values, decreases and intervals exceeding 240 km/h average (2 km telemetry tolerance). A legitimate 1,500 km journey over a day is accepted. Deduplicate by timestamp with live/raw states preferred over statistics.
+2. Split bracketed intervals at timezone-aware local midnights, allocating distance proportionally to elapsed UTC seconds. Midnight-to-midnight brackets or fully contained brackets with essentially full coverage are observed. Allocated cross-day intervals are estimated. Intervals over 14 days do not support daily inference. Missing brackets remain unknown.
+3. Require seven days with at least 90% bracket coverage. Estimated days can establish an overall provisional baseline, but cannot establish weekday precision. Last 365 days influence the model.
+4. Robust mean winsorizes above `median + max(3*MAD, median*0.5, 5 km)`. Zero/MAD-zero cases are explicit. This protects isolated extremes without a fixed trip-distance cutoff.
+5. At 28 precise days, weekday estimates with at least three samples shrink toward the global baseline with four pseudo-observations. At 56 useful days, recent 28-day robust average adjusts expectations by a factor bounded to [0.5, 1.5]. Sustained change affects both center and trend.
+6. Merge calendar plans by max, not sum. Incomplete route legs are lower bounds and widen uncertainty. No residual travel is invented. History must support a forecast even when calendars exist.
+7. Today is never below the minimum from within-day measured intervals. A missing midnight state means this is a minimum, not exact total driven.
+8. Rolling horizons use remaining fraction today, N-1 complete days and elapsed fraction of final day. Day fractions use actual UTC elapsed time through local DST boundaries. Annual uses 365 historical daily baselines, excluding calendar overlays.
+
+Indicative daily ranges use empirical population standard deviation, a 15% baseline minimum, sample-count inflation and estimated-coverage inflation. They are not calibrated confidence percentages. Ranges are currently internal only. Variability from exceptional trips can widen ranges even while robust point estimates stay stable.
+
+A bounded 90-date snapshot map stores the first supported daily forecast and compares it with later precise observed daily totals. Diagnostics give count, MAE and bias; zero evaluated samples does not imply measured accuracy. These metrics are developmental rather than a calibrated accuracy claim.
+
+Retention and approximations are deliberate. There is no statistical UI questionnaire, external AI, or reconstruction of individual GPS trips.

@@ -44,6 +44,11 @@ class MobilityFlow(config_entries.ConfigFlow, domain=DOMAIN):
             else:
                 entity = er.async_get(self.hass).async_get(user_input["odometer"])
                 identity = entity.id if entity else user_input["odometer"]
+                for other in self._async_current_entries():
+                    if other.data["odometer"] == user_input["odometer"] or (
+                        entity and other.data.get("registry_id") == entity.id
+                    ):
+                        return self.async_abort(reason="already_configured")
                 await self.async_set_unique_id(identity)
                 self._abort_if_unique_id_configured()
                 data = {**user_input, "registry_id": entity.id if entity else None}
@@ -138,7 +143,9 @@ class MobilityOptions(config_entries.OptionsFlow):
                 ): BooleanSelector(),
                 vol.Optional(
                     "region", default=self.config_entry.options.get("region", "eu")
-                ): SelectSelector(SelectSelectorConfig(options=["eu", "us", "il"])),
+                ): SelectSelector(
+                    SelectSelectorConfig(options=["eu", "us", "na", "il", "au"])
+                ),
                 vol.Optional(
                     "known_locations",
                     default=self.config_entry.options.get("known_locations", {}),

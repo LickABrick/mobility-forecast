@@ -7,7 +7,10 @@ from zoneinfo import ZoneInfo
 
 from homeassistant.core import callback
 from homeassistant.helpers import entity_registry as er
-from homeassistant.helpers.event import async_track_state_change_event
+from homeassistant.helpers.event import (
+    async_track_state_change_event,
+    async_track_time_change,
+)
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
@@ -59,6 +62,11 @@ class VehicleCoordinator(DataUpdateCoordinator):
         self.entry.async_on_unload(
             async_track_state_change_event(self.hass, [self.source], self._changed)
         )
+        self.entry.async_on_unload(
+            async_track_time_change(
+                self.hass, self._midnight, hour=0, minute=0, second=1
+            )
+        )
         from homeassistant.helpers import issue_registry as ir
 
         if self.store.corrupt:
@@ -81,13 +89,49 @@ class VehicleCoordinator(DataUpdateCoordinator):
             )
         else:
             ir.async_delete_issue(self.hass, DOMAIN, f"source_{self.entry.entry_id}")
-        self._ingest(self.hass.states.get(self.source))
+        current = self.hass.states.get(self.source)
+        self.source_continuous = True
+        if (
+            self.readings
+            and self.readings[-1].entity_id
+            and self.readings[-1].entity_id != self.source
+            and current is not None
+        ):
+            try:
+                current_km = kilometers(
+                    current.state, current.attributes.get("unit_of_measurement")
+                )
+                elapsed = max(
+                    0,
+                    (
+                        current.last_reported - self.readings[-1].timestamp
+                    ).total_seconds()
+                    / 3600,
+                )
+                self.source_continuous = (
+                    0 <= current_km - self.readings[-1].km <= max(2, elapsed * 240)
+                )
+            except InvalidReading:
+                self.source_continuous = False
+            if not self.source_continuous:
+                ir.async_create_issue(
+                    self.hass,
+                    DOMAIN,
+                    f"source_{self.entry.entry_id}",
+                    is_fixable=False,
+                    severity=ir.IssueSeverity.WARNING,
+                    translation_key="source",
+                )
+        if self.source_continuous:
+            self._ingest(current)
         await self.async_refresh()
         self.import_task = self.entry.async_create_background_task(
             self.hass, self._import(), "mobility history import"
         )
 
     async def _import(self):
+        if not self.source_continuous:
+            return
         incoming = await import_history(
             self.hass,
             self.source,
@@ -101,6 +145,8 @@ class VehicleCoordinator(DataUpdateCoordinator):
         await self.async_request_refresh()
 
     def _ingest(self, state):
+        if not getattr(self, "source_continuous", True):
+            return
         self.source_available = state is not None and state.state not in (
             "unknown",
             "unavailable",
@@ -131,6 +177,9 @@ class VehicleCoordinator(DataUpdateCoordinator):
         self._ingest(event.data.get("new_state"))
         if self.pending is None:
             self.pending = self.hass.loop.call_later(60, self._refresh_later)
+
+    async def _midnight(self, now):
+        await self.async_request_refresh()
 
     @callback
     def _refresh_later(self):

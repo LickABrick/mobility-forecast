@@ -51,7 +51,7 @@ class WazeProvider:
         if cached and now - cached["at"] < CACHE_TTL:
             return Route(cached["km"], cached["minutes"])
         if (
-            self.region not in ("eu", "us", "il")
+            self.region not in ("eu", "us", "na", "il", "au")
             or not self.hass.services.has_service(
                 "waze_travel_time", "get_travel_times"
             )
