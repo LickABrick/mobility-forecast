@@ -52,6 +52,12 @@ def predict(
     if len(useful) < MIN_USEFUL_DAYS:
         return result
     precise = [d for d in useful if d.quality == "observed"]
+    weekday_evidence = [
+        d for d in useful if d.quality == "observed" or d.weekday_weight > 0
+    ]
+    support = sum(
+        1 if d.quality == "observed" else d.weekday_weight for d in weekday_evidence
+    )
     baseline = robust_mean([float(d.km) for d in useful if d.km is not None])
     trend = 1.0
     if len(useful) >= TREND_DAYS and baseline > 0:
@@ -61,14 +67,22 @@ def predict(
     for index in range(7):
         # A mature recent regime should replace obsolete parked/commuter
         # frequency, not merely scale a year-old weekday mixture.
-        weekday_history = precise[-56:] if len(precise) >= 112 else precise
+        weekday_history = (
+            weekday_evidence[-56:] if len(weekday_evidence) >= 112 else weekday_evidence
+        )
         samples = [
-            float(d.km)
+            float((d.km if d.quality == "observed" else d.weekday_km) or 0)
             for d in weekday_history
-            if d.day.weekday() == index and d.km is not None
+            if d.day.weekday() == index
+            and (d.km if d.quality == "observed" else d.weekday_km) is not None
         ]
-        if len(precise) >= WEEKDAY_DAYS and len(samples) >= 3:
-            weight = len(samples) / (len(samples) + WEEKDAY_PRIOR)
+        weekday_support = sum(
+            1 if d.quality == "observed" else d.weekday_weight
+            for d in weekday_history
+            if d.day.weekday() == index
+        )
+        if support >= WEEKDAY_DAYS and weekday_support >= 3:
+            weight = weekday_support / (weekday_support + WEEKDAY_PRIOR)
             weekday[index] = (
                 weight * robust_mean(samples) + (1 - weight) * baseline
             ) * trend

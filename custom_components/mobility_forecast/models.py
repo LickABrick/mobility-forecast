@@ -30,6 +30,8 @@ class DailyDistance:
     quality: str
     coverage: float = 0.0
     minimum_km: float = 0.0
+    weekday_km: float | None = None
+    weekday_weight: float = 0.0
 
 
 @dataclass(frozen=True)

@@ -158,6 +158,28 @@ def daily_distances(readings: list[Reading], zone: ZoneInfo) -> list[DailyDistan
             day += timedelta(days=1)
     if not readings:
         return []
+    # Consistent end-of-day reports provide weaker date attribution: the delta
+    # usually belongs to the report day, not a uniform midnight split. Require
+    # repeated near-daily cadence, evening timestamps and physical raw states.
+    cadence = {}
+    candidates = []
+    for left, right in zip(readings, readings[1:]):
+        a, b = left.timestamp.astimezone(zone), right.timestamp.astimezone(zone)
+        hours = (
+            right.timestamp.astimezone(UTC) - left.timestamp.astimezone(UTC)
+        ).total_seconds() / 3600
+        if (
+            20 <= hours <= 28
+            and b.date() == a.date() + timedelta(days=1)
+            and 16 <= a.hour <= 23
+            and 16 <= b.hour <= 23
+            and abs(a.hour - b.hour) <= 1
+            and left.source != "statistics"
+            and right.source != "statistics"
+        ):
+            candidates.append((b.date(), right.km - left.km))
+    if len(candidates) >= 14:
+        cadence = dict(candidates)
     result = []
     day = readings[0].timestamp.astimezone(zone).date()
     last = readings[-1].timestamp.astimezone(zone).date()
@@ -171,7 +193,17 @@ def daily_distances(readings: list[Reading], zone: ZoneInfo) -> list[DailyDistan
                 if coverage >= 0.9
                 else "partial"
             )
-            result.append(DailyDistance(day, km, quality, min(coverage, 1), minimum))
+            result.append(
+                DailyDistance(
+                    day,
+                    km,
+                    quality,
+                    min(coverage, 1),
+                    minimum,
+                    cadence.get(day),
+                    0.5 if day in cadence else 0.0,
+                )
+            )
         else:
             result.append(DailyDistance(day, None, "unknown"))
         day += timedelta(days=1)
