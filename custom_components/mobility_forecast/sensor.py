@@ -18,6 +18,7 @@ async def async_setup_entry(hass, entry, async_add_entities):
 
 class ForecastSensor(CoordinatorEntity, SensorEntity):
     _attr_has_entity_name = True
+    _attr_entity_registry_enabled_default = True
     _attr_device_class = SensorDeviceClass.DISTANCE
     _attr_state_class = SensorStateClass.MEASUREMENT
     _attr_native_unit_of_measurement = UnitOfLength.KILOMETERS
@@ -36,6 +37,12 @@ class ForecastSensor(CoordinatorEntity, SensorEntity):
         )
 
     @property
+    def available(self):
+        # Unknown forecasts and source/model errors are meaningful states, not
+        # grounds for hiding the entity behind coordinator availability.
+        return True
+
+    @property
     def native_value(self):
         return (
             self.coordinator.data.values.get(self.key)
@@ -50,6 +57,9 @@ class ForecastSensor(CoordinatorEntity, SensorEntity):
             return {"forecast_status": "initializing"}
         return {
             "forecast_status": data.status.value,
+            "history_import_status": getattr(
+                self.coordinator, "import_status", "pending"
+            ),
             "generated_at": data.generated_at.isoformat(),
             "data_quality": data.quality,
             "history_days": data.history_days,

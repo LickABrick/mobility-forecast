@@ -14,10 +14,10 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
-from .const import DOMAIN
+from .const import DOMAIN, FORECAST_KEYS
 from .forecasting import evaluate, predict
 from .history import daily_distances, import_history, merge_readings
-from .models import Reading, Status
+from .models import Forecast, Reading, Status
 from .odometer import InvalidReading, kilometers
 from .storage import VehicleStore
 
@@ -48,6 +48,34 @@ class VehicleCoordinator(DataUpdateCoordinator):
         self.calendar_task = None
         self.calendar_generation = 0
         self.stopping = False
+        self.initialization_task = None
+        self.initialized = False
+        self.import_status = "pending"
+        self.source_continuous = True
+        self.async_set_updated_data(
+            Forecast(
+                dt_util.utcnow(), Status.INITIALIZING, dict.fromkeys(FORECAST_KEYS)
+            )
+        )
+
+    def start_initialization(self):
+        self.initialization_task = self.entry.async_create_background_task(
+            self.hass, self._initialize_safely(), "mobility initialization"
+        )
+
+    async def _initialize_safely(self):
+        try:
+            await self.initialize()
+        except Exception:
+            self.import_status = "failed"
+            # Do not log exception contents: upstream errors may contain private data.
+            _LOGGER.error(
+                "Vehicle initialization failed (%s); forecast entities remain registered",
+                self.entry.entry_id,
+            )
+            self.async_set_updated_data(
+                Forecast(dt_util.utcnow(), Status.ERROR, dict.fromkeys(FORECAST_KEYS))
+            )
 
     async def initialize(self):
         self.readings = await self.store.load_readings()
@@ -133,6 +161,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
                 )
         if self.source_continuous:
             self._ingest(current)
+        self.initialized = True
         await self.async_refresh()
         self.import_task = self.entry.async_create_background_task(
             self.hass, self._import(), "mobility history import"
@@ -141,12 +170,20 @@ class VehicleCoordinator(DataUpdateCoordinator):
     async def _import(self):
         if not self.source_continuous:
             return
-        incoming = await import_history(
-            self.hass,
-            self.source,
-            dt_util.utcnow(),
-            self.import_since,
-        )
+        self.import_status = "importing"
+        try:
+            incoming = await import_history(
+                self.hass, self.source, dt_util.utcnow(), self.import_since
+            )
+        except Exception:
+            self.import_status = "failed"
+            _LOGGER.warning(
+                "Historical import failed (%s); stored history preserved",
+                self.entry.entry_id,
+            )
+            await self.async_request_refresh()
+            return
+        self.import_status = "complete"
         async with self.lock:
             self.readings, rejected = merge_readings(self.readings, incoming)
             self.rejected += rejected
@@ -329,5 +366,14 @@ class VehicleCoordinator(DataUpdateCoordinator):
                 await self.import_task
             except asyncio.CancelledError:
                 pass
-        await self.store.flush()
+        if self.initialization_task and not self.initialization_task.done():
+            self.initialization_task.cancel()
+            try:
+                await self.initialization_task
+            except asyncio.CancelledError:
+                pass
+        # Never overwrite disk with an empty payload if loading was interrupted.
+        if self.initialized:
+            self.store.schedule(self.readings)
+            await self.store.flush()
         await self.async_shutdown()
