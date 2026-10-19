@@ -128,7 +128,11 @@ def preprocess_appointments(events, ignore_nested=False):
     Only retained routable, same-local-day timed appointments suppress children.
     Overnight travel semantics remain conservative. Virtual events never route.
     """
-    unique = {event.identifier: event for event in events if not event.virtual}
+    unique = {
+        event.identifier: event
+        for event in events
+        if not event.virtual and event.location is not None
+    }
     ordered = sorted(
         unique.values(),
         key=lambda e: (

@@ -445,6 +445,15 @@ class VehicleCoordinator(DataUpdateCoordinator):
                     self.calendar_metrics["events_count"] = getattr(
                         events, "retrieved_count", len(events)
                     )
+                    self.calendar_metrics.update(
+                        events_routable=sum(
+                            not e.virtual and e.location is not None for e in events
+                        ),
+                        events_without_location=sum(
+                            not e.virtual and e.location is None for e in events
+                        ),
+                        events_virtual_skipped=sum(e.virtual for e in events),
+                    )
                     events, ignored = preprocess_appointments(
                         events, options.get("ignore_nested_appointments", False)
                     )

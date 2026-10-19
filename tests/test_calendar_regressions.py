@@ -104,7 +104,7 @@ def test_virtual_and_unresolved_do_not_deduplicate():
         [{**row, "location": "online"}, {**row, "location": "unknown venue"}], UTC
     )
     assert len(events) == 2
-    assert len(preprocess_appointments(events)[0]) == 1
+    assert len(preprocess_appointments(events)[0]) == 0
 
 
 async def test_unavailable_provider_and_empty_calendar(hass):

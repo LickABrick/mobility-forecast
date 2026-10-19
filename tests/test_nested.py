@@ -34,7 +34,7 @@ async def test_nested_chain_and_order():
     ]
     for order in permutations(events):
         selected, ignored = preprocess_appointments(order, True)
-        assert selected == [events[0]] and ignored == 3
+        assert selected == [events[0]] and ignored == 2
     provider = SimpleNamespace(get_route=AsyncMock(return_value=Route(10, 0)))
     plans = await plan_journeys(selected, normalize("51,4"), provider)
     assert next(iter(plans.values())).distance_km == 20
@@ -72,4 +72,4 @@ def test_instants_and_virtual():
         "child",
     )
     virtual = Appointment(parent.start, parent.end, None, False, "virtual", True)
-    assert preprocess_appointments([child, virtual, parent], True) == ([parent], 1)
+    assert preprocess_appointments([child, virtual, parent], True) == ([parent], 0)

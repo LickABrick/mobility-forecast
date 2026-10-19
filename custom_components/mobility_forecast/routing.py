@@ -274,6 +274,9 @@ async def plan_journeys(events, home, provider: RouteProvider):
 
 
 async def _plan_journeys(events, home, provider: RouteProvider):
+    events = [
+        event for event in events if not event.virtual and event.location is not None
+    ]
     grouped: dict[date, list[Appointment]] = {}
     for event in events:
         day = event.start.date()
