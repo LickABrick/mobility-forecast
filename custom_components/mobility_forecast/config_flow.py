@@ -24,7 +24,12 @@ def vehicle_schema() -> vol.Schema:
         {
             vol.Optional("name"): TextSelector(),
             vol.Required("odometer"): EntitySelector(
-                EntitySelectorConfig(domain="sensor")
+                EntitySelectorConfig(
+                    filter=[
+                        {"domain": "sensor", "device_class": "distance"},
+                        {"domain": "sensor", "unit_of_measurement": ["km", "mi"]},
+                    ]
+                )
             ),
         }
     )
@@ -91,7 +96,17 @@ class MobilityFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 {
                     vol.Required(
                         "odometer", default=entry.data["odometer"]
-                    ): EntitySelector(EntitySelectorConfig(domain="sensor"))
+                    ): EntitySelector(
+                        EntitySelectorConfig(
+                            filter=[
+                                {"domain": "sensor", "device_class": "distance"},
+                                {
+                                    "domain": "sensor",
+                                    "unit_of_measurement": ["km", "mi"],
+                                },
+                            ]
+                        )
+                    )
                 }
             ),
             errors=errors,
