@@ -26,6 +26,7 @@ def predict(
 ) -> Forecast:
     if now.tzinfo is None:
         raise ValueError("Forecast clock must be timezone aware")
+    history = sorted(history, key=lambda d: d.day)
     useful = [
         d
         for d in history
@@ -98,7 +99,14 @@ def predict(
 
     def rolling(count: int) -> float:
         return (
-            (1 - fraction) * result.days[0].total_km
+            max(
+                0,
+                result.days[0].total_km
+                - max(
+                    fraction * result.days[0].baseline_km,
+                    next((d.minimum_km for d in history if d.day == now.date()), 0),
+                ),
+            )
             + sum(d.total_km for d in result.days[1:count])
             + fraction * result.days[count].total_km
         )

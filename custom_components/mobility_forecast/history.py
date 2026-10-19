@@ -19,7 +19,22 @@ def merge_readings(
     """Prefer raw/live samples; never let a late sample introduce a negative interval."""
     priority = {"statistics": 0, "recorder": 1, "live": 2}
     indexed = {}
-    for item in sorted(existing + incoming, key=lambda r: priority.get(r.source, 0)):
+    combined = existing + incoming
+    raw = [
+        r.timestamp
+        for r in combined
+        if r.source != "statistics" and r.timestamp.tzinfo is not None
+    ]
+    raw_start, raw_end = (min(raw), max(raw)) if raw else (None, None)
+    for item in sorted(combined, key=lambda r: priority.get(r.source, 0)):
+        # Raw telemetry has better time resolution than hourly statistics. Do not
+        # interleave stale hourly states into a raw interval or count both sources.
+        if (
+            item.source == "statistics"
+            and raw_start is not None
+            and raw_start <= item.timestamp <= raw_end
+        ):
+            continue
         indexed[item.timestamp] = item
     accepted: list[Reading] = []
     rejected = 0
@@ -34,7 +49,9 @@ def merge_readings(
             continue
         if accepted:
             previous = accepted[-1]
-            hours = (item.timestamp - previous.timestamp).total_seconds() / 3600
+            hours = (
+                item.timestamp.astimezone(UTC) - previous.timestamp.astimezone(UTC)
+            ).total_seconds() / 3600
             delta = item.km - previous.km
             if delta < 0 or delta > max(2, hours * MAX_SPEED_KMH):
                 rejected += 1
@@ -54,7 +71,9 @@ def daily_distances(readings: list[Reading], zone: ZoneInfo) -> list[DailyDistan
     """
     buckets: dict = {}
     for left, right in zip(readings, readings[1:]):
-        seconds = (right.timestamp - left.timestamp).total_seconds()
+        seconds = (
+            right.timestamp.astimezone(UTC) - left.timestamp.astimezone(UTC)
+        ).total_seconds()
         if seconds <= 0 or seconds > 14 * 86400:
             continue
         start, end = left.timestamp.astimezone(zone), right.timestamp.astimezone(zone)
@@ -62,8 +81,8 @@ def daily_distances(readings: list[Reading], zone: ZoneInfo) -> list[DailyDistan
         while day <= end.date():
             midnight = datetime.combine(day, time(), zone)
             following = datetime.combine(day + timedelta(days=1), time(), zone)
-            a = max(left.timestamp, midnight.astimezone(UTC))
-            b = min(right.timestamp, following.astimezone(UTC))
+            a = max(left.timestamp.astimezone(UTC), midnight.astimezone(UTC))
+            b = min(right.timestamp.astimezone(UTC), following.astimezone(UTC))
             duration = (b - a).total_seconds()
             if duration > 0:
                 distance = (right.km - left.km) * duration / seconds
@@ -76,7 +95,12 @@ def daily_distances(readings: list[Reading], zone: ZoneInfo) -> list[DailyDistan
                     ).total_seconds()
                 )
                 # Only exact boundary readings or wholly contained intervals support precise totals.
-                exact = start >= midnight and end <= following
+                exact = (
+                    start >= midnight
+                    and end <= following
+                    and left.source != "statistics"
+                    and right.source != "statistics"
+                )
                 bucket[2] = bucket[2] and exact
                 if exact:
                     bucket[3] += right.km - left.km

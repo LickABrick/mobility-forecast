@@ -47,6 +47,11 @@ class VehicleCoordinator(DataUpdateCoordinator):
 
     async def initialize(self):
         self.readings = await self.store.load_readings()
+        # Capture the import watermark BEFORE ingesting current state. Otherwise a
+        # first installation imports only yesterday instead of available history.
+        self.import_since = (
+            self.readings[-1].timestamp - timedelta(days=1) if self.readings else None
+        )
         registry_id = self.entry.data.get("registry_id")
         if registry_id:
             entity = next(
@@ -136,7 +141,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
             self.hass,
             self.source,
             dt_util.utcnow(),
-            self.readings[-1].timestamp - timedelta(days=1) if self.readings else None,
+            self.import_since,
         )
         async with self.lock:
             self.readings, rejected = merge_readings(self.readings, incoming)
@@ -190,6 +195,8 @@ class VehicleCoordinator(DataUpdateCoordinator):
         async with self.lock:
             zone = ZoneInfo(self.hass.config.time_zone)
             now = dt_util.utcnow().astimezone(zone)
+            # A periodic read only uses last_reported, never advances a stale state.
+            self._ingest(self.hass.states.get(self.source))
             await self._refresh_calendar(now)
             history = daily_distances(self.readings, zone)
             forecast = predict(history, now, self.plans)
