@@ -102,14 +102,30 @@ class WazeProvider:
                 future.cancel()
             self.inflight.pop(identity, None)
 
+    def cache_key(self, origin, destination):
+        """Keep the v1 provider/region/units/vehicle format for compatibility."""
+        return hashlib.sha256(
+            f"waze|{self.region}|metric|car|{origin}|{destination}".encode()
+        ).hexdigest()
+
     async def _get_route(self, origin, destination):
         if origin.identifier == destination.identifier:
             return Route(0, 0)
-        key = hashlib.sha256(
-            f"waze|{self.region}|metric|car|{origin.identifier}|{destination.identifier}".encode()
-        ).hexdigest()
+        key = self.cache_key(origin.identifier, destination.identifier)
         now = datetime.now(UTC).timestamp()
         cached = self.cache.get(key)
+        if cached is None:
+            # Only try known equivalent original spellings, never rounded old
+            # coordinates or fuzzy addresses. Preserve other v1 entries as-is.
+            for a in (origin.identifier, origin.legacy_identifier):
+                for b in (destination.identifier, destination.legacy_identifier):
+                    if a is not None and b is not None:
+                        legacy = self.cache.get(self.cache_key(a, b))
+                        if legacy is not None:
+                            cached = legacy
+                            break
+                if cached is not None:
+                    break
         if cached and 0 <= now - cached["at"] < CACHE_TTL:
             return Route(cached["km"], cached["minutes"])
         if self.requests >= MAX_REQUESTS:
