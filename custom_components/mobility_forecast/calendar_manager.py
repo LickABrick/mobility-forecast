@@ -47,8 +47,14 @@ def normalize_events(rows, zone, known=None):
             ):
                 continue
             location = normalize(row.get("location"), known)
+            virtual = bool(
+                re.search(
+                    r"https?://|zoom\.|teams\.|meet\.google|online|webinar",
+                    str(row.get("location", "")).casefold(),
+                )
+            )
             fingerprint = hashlib.sha256(
-                f"{start.isoformat()}|{end.isoformat()}|{location.identifier if location else ''}".encode()
+                f"{start.astimezone(UTC).isoformat()}|{end.astimezone(UTC).isoformat()}|{location.identifier if location else ''}|{virtual}".encode()
             ).hexdigest()
             unique[fingerprint] = Appointment(
                 start,
@@ -56,12 +62,7 @@ def normalize_events(rows, zone, known=None):
                 location,
                 all_day,
                 fingerprint,
-                bool(
-                    re.search(
-                        r"https?://|zoom\.|teams\.|meet\.google|online|webinar",
-                        str(row.get("location", "")).casefold(),
-                    )
-                ),
+                virtual,
             )
         except (ValueError, TypeError, KeyError, AttributeError):
             continue

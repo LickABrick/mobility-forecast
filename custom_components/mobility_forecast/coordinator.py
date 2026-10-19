@@ -379,6 +379,8 @@ class VehicleCoordinator(DataUpdateCoordinator):
             bool(self.calendar_pending_days)
             and self.calendar_next_work is not None
             and now >= self.calendar_next_work
+            and self.calendar_refreshed_at is not None
+            and (now - self.calendar_refreshed_at).total_seconds() < 1800
         )
         if (
             not continuing
@@ -485,6 +487,8 @@ class VehicleCoordinator(DataUpdateCoordinator):
                         plan = results[day]
                         # Atomic day commit; never publish a partial chain.
                         self.plans[day] = plan
+                        if plan.reason:
+                            self.calendar_metrics["last_failure"] = plan.reason
                         self.calendar_pending_days.discard(day)
                         self._calendar_progress()
                         self.calendar_status = (

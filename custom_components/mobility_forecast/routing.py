@@ -96,6 +96,7 @@ class WazeProvider:
         if cached and 0 <= now - cached["at"] < CACHE_TTL:
             return Route(cached["km"], cached["minutes"])
         if self.requests >= MAX_REQUESTS:
+            self.last_failure = "request_budget"
             raise RequestBudgetExceeded
         if self.region not in (
             "eu",
@@ -104,11 +105,7 @@ class WazeProvider:
             "il",
             "au",
         ) or not self.hass.services.has_service("waze_travel_time", "get_travel_times"):
-            self.last_failure = (
-                "provider_unavailable"
-                if self.requests < MAX_REQUESTS
-                else "request_budget"
-            )
+            self.last_failure = "provider_unavailable"
             return None
         self.requests += 1
         try:
@@ -210,7 +207,7 @@ async def _plan_journeys(events, home, provider: RouteProvider):
             e.location is None or e.all_day or e.end.date() != day for e in appointments
         )
         overlap = any(
-            a.end > b.start and a.location != b.location
+            a.end.astimezone(UTC) > b.start.astimezone(UTC) and a.location != b.location
             for index, a in enumerate(appointments)
             for b in appointments[index + 1 :]
         )

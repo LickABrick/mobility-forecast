@@ -10,6 +10,7 @@ def test_sensor_unknown_and_metadata():
         entry=SimpleNamespace(entry_id="vehicle", title="Car"),
         data=Forecast(datetime.now(UTC), Status.LEARNING, {"today": None}),
         calendar_status="disabled",
+        calendar_metrics={},
     )
     entity = ForecastSensor(coordinator, "today")
     assert entity.native_value is None

@@ -1,4 +1,4 @@
-"""Diagnostics intentionally omit configuration, timestamps, locations and raw history."""
+"""Diagnostics omit configuration, event content, locations and raw history."""
 
 from .const import VERSION
 
@@ -16,6 +16,7 @@ async def async_get_config_entry_diagnostics(hass, entry):
         "storage_readable": not runtime.store.corrupt,
         "calendar_count": len(entry.options.get("calendars", [])),
         "calendar_status": runtime.calendar_status,
+        "calendar_progress": dict(runtime.calendar_metrics),
         "cached_routes": len(runtime.store.payload["routes"]),
         "evaluation": runtime.store.payload["evaluation"],
     }

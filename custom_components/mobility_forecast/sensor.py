@@ -65,4 +65,8 @@ class ForecastSensor(CoordinatorEntity, SensorEntity):
             "history_days": data.history_days,
             "calendar_included": any(d.planned_km is not None for d in data.days[:31]),
             "calendar_status": self.coordinator.calendar_status,
+            **{
+                f"calendar_{key}": value
+                for key, value in self.coordinator.calendar_metrics.items()
+            },
         }
