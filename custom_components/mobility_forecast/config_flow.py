@@ -68,6 +68,16 @@ class MobilityOptions(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
-                {vol.Required("name", default=self.config_entry.title): TextSelector()}
+                {
+                    vol.Required(
+                        "name", default=self.config_entry.title
+                    ): TextSelector(),
+                    vol.Optional(
+                        "calendars",
+                        default=self.config_entry.options.get("calendars", []),
+                    ): EntitySelector(
+                        EntitySelectorConfig(domain="calendar", multiple=True)
+                    ),
+                }
             ),
         )
