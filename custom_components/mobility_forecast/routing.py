@@ -37,6 +37,10 @@ class RouteProvider(Protocol):
     ) -> Route | None: ...
 
 
+class RequestBudgetExceeded(Exception):
+    """Defer the whole day to a later work cycle."""
+
+
 class WazeProvider:
     def __init__(self, hass, region, cache=None):
         self.hass = hass
@@ -64,7 +68,7 @@ class WazeProvider:
     async def get_route(self, origin, destination):
         identity = (origin.identifier, destination.identifier)
         if identity in self.inflight:
-            return await self.inflight[identity]
+            return await asyncio.shield(self.inflight[identity])
         future = asyncio.get_running_loop().create_future()
         self.inflight[identity] = future
         try:
@@ -72,6 +76,10 @@ class WazeProvider:
             if not future.done():
                 future.set_result(result)
             return result
+        except RequestBudgetExceeded:
+            if not future.done():
+                future.set_result(None)
+            raise
         finally:
             if not future.done():
                 future.cancel()
@@ -85,15 +93,17 @@ class WazeProvider:
         ).hexdigest()
         now = datetime.now(UTC).timestamp()
         cached = self.cache.get(key)
-        if cached and now - cached["at"] < CACHE_TTL:
+        if cached and 0 <= now - cached["at"] < CACHE_TTL:
             return Route(cached["km"], cached["minutes"])
-        if (
-            self.region not in ("eu", "us", "na", "il", "au")
-            or not self.hass.services.has_service(
-                "waze_travel_time", "get_travel_times"
-            )
-            or self.requests >= MAX_REQUESTS
-        ):
+        if self.requests >= MAX_REQUESTS:
+            raise RequestBudgetExceeded
+        if self.region not in (
+            "eu",
+            "us",
+            "na",
+            "il",
+            "au",
+        ) or not self.hass.services.has_service("waze_travel_time", "get_travel_times"):
             self.last_failure = (
                 "provider_unavailable"
                 if self.requests < MAX_REQUESTS

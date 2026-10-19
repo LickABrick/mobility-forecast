@@ -50,6 +50,10 @@ class VehicleCoordinator(DataUpdateCoordinator):
         self.source_available = False
         self.plans = {}
         self.calendar_metrics = {}
+        self.calendar_days = None
+        self.calendar_pending_days = set()
+        self.calendar_retry = None
+        self.calendar_next_work = None
         self.calendar_status = "disabled"
         self.calendar_task = None
         self.calendar_generation = 0
@@ -351,6 +355,13 @@ class VehicleCoordinator(DataUpdateCoordinator):
             self.calendar_signature = signature
             self.calendar_generation += 1
             self.calendar_refreshed_at = None
+            self.calendar_days = None
+            self.calendar_pending_days = set()
+            self.calendar_next_work = None
+            self.calendar_metrics = {}
+            if self.calendar_retry:
+                self.calendar_retry.cancel()
+                self.calendar_retry = None
             self.plans = {}
             if self.calendar_task and not self.calendar_task.done():
                 self.calendar_task.cancel()
@@ -364,18 +375,40 @@ class VehicleCoordinator(DataUpdateCoordinator):
             return
         if self.calendar_task and not self.calendar_task.done():
             return
+        continuing = (
+            bool(self.calendar_pending_days)
+            and self.calendar_next_work is not None
+            and now >= self.calendar_next_work
+        )
         if (
-            self.calendar_refreshed_at is not None
+            not continuing
+            and self.calendar_refreshed_at is not None
             and (now - self.calendar_refreshed_at).total_seconds() < 1800
         ):
             return
-        self.calendar_refreshed_at = now
+        if not continuing:
+            self.calendar_days = None
+            self.calendar_refreshed_at = now
         self.calendar_status = "refreshing"
         generation = self.calendar_generation
         self.calendar_task = self.entry.async_create_background_task(
             self.hass,
             self._refresh_calendar(now, generation),
             "mobility calendar refresh",
+        )
+
+    def _calendar_current(self, generation, options):
+        return (
+            not self.stopping
+            and generation == self.calendar_generation
+            and options == dict(self.entry.options)
+        )
+
+    def _calendar_progress(self):
+        self.calendar_metrics.update(
+            days_complete=sum(p.complete for p in self.plans.values()),
+            days_incomplete=sum(not p.complete for p in self.plans.values()),
+            days_pending=len(self.calendar_pending_days),
         )
 
     async def _refresh_calendar(self, now, generation):
@@ -385,57 +418,106 @@ class VehicleCoordinator(DataUpdateCoordinator):
             preprocess_appointments,
         )
         from .locations import home_and_known
-        from .routing import WazeProvider, plan_journeys
+        from .routing import RequestBudgetExceeded, WazeProvider, _plan_journeys
 
         options = dict(self.entry.options)
         home, known = home_and_known(self.hass, options.get("known_locations", {}))
         stage = "calendar_fetch"
+        provider = None
         try:
-            # Whole refresh budget includes calendars AND every route leg.
             async with asyncio.timeout(CALENDAR_REFRESH_BUDGET):
-                events = await fetch_events(
-                    self.hass,
-                    options["calendars"],
-                    now.replace(hour=0, minute=0, second=0, microsecond=0),
-                    now + timedelta(days=30),
-                    known,
-                )
-                self.calendar_metrics["events_count"] = len(events)
-                events, ignored = preprocess_appointments(
-                    events, options.get("ignore_nested_appointments", False)
-                )
-                self.calendar_metrics.update(
-                    nested_ignored=ignored, relevant_count=len(events)
-                )
+                if self.calendar_days is None:
+                    # Retrieval failure makes the previous agenda untrusted. A
+                    # prior completed day is not indefinitely valid after edits.
+                    events = await fetch_events(
+                        self.hass,
+                        options["calendars"],
+                        now.replace(hour=0, minute=0, second=0, microsecond=0),
+                        now + timedelta(days=30),
+                        known,
+                    )
+                    if not self._calendar_current(generation, options):
+                        return
+                    self.calendar_metrics["events_count"] = len(events)
+                    events, ignored = preprocess_appointments(
+                        events, options.get("ignore_nested_appointments", False)
+                    )
+                    self.calendar_metrics.update(
+                        nested_ignored=ignored,
+                        relevant_count=len(events),
+                        requests=0,
+                        last_failure=None,
+                    )
+                    grouped = {}
+                    for event in events:
+                        day = event.start.date()
+                        while day <= event.end.date():
+                            if now.date() <= day <= (
+                                now + timedelta(days=30)
+                            ).date() and (
+                                day < event.end.date()
+                                or event.end.hour
+                                or event.end.minute
+                                or event.end.second
+                            ):
+                                grouped.setdefault(day, []).append(event)
+                            day += timedelta(days=1)
+                    self.calendar_days = grouped
+                    self.calendar_pending_days = set(grouped)
+                    self.plans = {}
                 stage = "route_planning"
                 provider = WazeProvider(
                     self.hass, options.get("region", ""), self.store.payload["routes"]
                 )
-                plans = await plan_journeys(events, home, provider)
-            if (
-                self.stopping
-                or generation != self.calendar_generation
-                or options != dict(self.entry.options)
-            ):
+                queue = sorted(self.calendar_pending_days)
+
+                async def worker():
+                    while queue:
+                        day = queue.pop(0)
+                        try:
+                            results = await _plan_journeys(
+                                self.calendar_days[day], home, provider
+                            )
+                        except RequestBudgetExceeded:
+                            return
+                        if not self._calendar_current(generation, options):
+                            return
+                        plan = results[day]
+                        # Atomic day commit; never publish a partial chain.
+                        self.plans[day] = plan
+                        self.calendar_pending_days.discard(day)
+                        self._calendar_progress()
+                        self.calendar_status = (
+                            "partial" if self.calendar_pending_days else "refreshing"
+                        )
+                        await self.async_request_refresh()
+
+                async with asyncio.TaskGroup() as tasks:
+                    for _ in range(min(3, len(queue))):
+                        tasks.create_task(worker())
+            if not self._calendar_current(generation, options):
                 return
-            self.plans = plans
-            self.calendar_metrics.update(
-                days_complete=sum(p.complete for p in plans.values()),
-                days_incomplete=sum(not p.complete for p in plans.values()),
-                days_pending=0,
-                requests=provider.requests,
-                last_failure=provider.last_failure,
-            )
-            if all(p.complete for p in plans.values()):
-                self.calendar_metrics["last_success"] = now.isoformat()
+            self._calendar_progress()
+            incomplete = any(not p.complete for p in self.plans.values())
+            complete = any(p.complete for p in self.plans.values())
             self.calendar_status = (
-                "incomplete" if any(not p.complete for p in plans.values()) else "ready"
+                "partial"
+                if complete and (incomplete or self.calendar_pending_days)
+                else "incomplete"
+                if incomplete
+                else "refreshing"
+                if self.calendar_pending_days
+                else "ready"
             )
+            if provider.last_failure:
+                self.calendar_metrics["last_failure"] = provider.last_failure
+                if not complete and provider.last_failure != "request_budget":
+                    self.calendar_status = "routing_unavailable"
+            if self.calendar_status == "ready":
+                self.calendar_metrics["last_success"] = dt_util.utcnow().isoformat()
         except Exception as err:
-            if generation != self.calendar_generation or self.stopping:
+            if not self._calendar_current(generation, options):
                 return
-            # Remove stale agenda overlays, not the usable historical model.
-            self.plans = {}
             category = (
                 "refresh_timeout"
                 if isinstance(err, TimeoutError)
@@ -444,8 +526,14 @@ class VehicleCoordinator(DataUpdateCoordinator):
                 else stage
             )
             self.calendar_metrics["last_failure"] = category
+            if stage == "calendar_fetch":
+                self.plans = {}
+                self.calendar_days = None
+                self.calendar_pending_days.clear()
             self.calendar_status = (
-                "routing_timeout"
+                "partial"
+                if any(p.complete for p in self.plans.values())
+                else "routing_timeout"
                 if isinstance(err, TimeoutError)
                 else "calendar_unavailable"
                 if stage == "calendar_fetch"
@@ -454,11 +542,29 @@ class VehicleCoordinator(DataUpdateCoordinator):
             _LOGGER.warning(
                 "Calendar stage=%s exception=%s", category, type(err).__name__
             )
+        finally:
+            if self._calendar_current(generation, options):
+                if provider:
+                    self.calendar_metrics["requests"] = (
+                        self.calendar_metrics.get("requests", 0) + provider.requests
+                    )
+                self._calendar_progress()
+                if self.calendar_pending_days:
+                    # Fixed backoff: bounded work cycles, no immediate retry storm.
+                    self.calendar_next_work = dt_util.utcnow() + timedelta(seconds=60)
+                    if self.calendar_retry:
+                        self.calendar_retry.cancel()
+                    self.calendar_retry = self.hass.loop.call_later(
+                        60, self._refresh_later
+                    )
         if not self.stopping:
             await self.async_request_refresh()
 
     async def shutdown(self):
         self.stopping = True
+        if self.calendar_retry:
+            self.calendar_retry.cancel()
+            self.calendar_retry = None
         if self.initialization_task and not self.initialization_task.done():
             self.initialization_task.cancel()
             try:

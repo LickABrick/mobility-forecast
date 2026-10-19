@@ -100,7 +100,9 @@ def predict(
         day = now.date() + timedelta(days=offset)
         normal = max(0, weekday[day.weekday()])
         planned = plans.get(day) if offset <= 30 else None
-        route = planned.distance_km if planned is not None else None
+        route = (
+            planned.distance_km if planned is not None and planned.complete else None
+        )
         complete = planned.complete if planned is not None else True
         total = max(normal, route or 0)
         if offset == 0:
