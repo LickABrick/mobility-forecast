@@ -1,11 +1,12 @@
 """Validated intervals, conservative daily allocation and bounded recorder import."""
 
 import logging
+from collections.abc import Iterable
 from datetime import UTC, datetime, time, timedelta
 from functools import partial
 from zoneinfo import ZoneInfo
 
-from .const import HISTORY_DAYS, MAX_READINGS
+from .const import HISTORY_DAYS
 from .models import DailyDistance, Reading
 from .odometer import InvalidReading, kilometers
 
@@ -79,8 +80,36 @@ def merge_readings(
         accepted.append(item)
     if accepted:
         cutoff = accepted[-1].timestamp - timedelta(days=HISTORY_DAYS)
-        accepted = [r for r in accepted if r.timestamp >= cutoff][-MAX_READINGS:]
+        accepted = compact_readings([r for r in accepted if r.timestamp >= cutoff])
     return accepted, rejected
+
+
+def compact_readings(readings: Iterable[Reading]) -> list[Reading]:
+    """Keep boundary evidence and cumulative totals, not every telemetry report.
+
+    First/last samples per UTC hour preserve local midnight evidence (including
+    fractional-offset zones within the hour). Identical values are still fresh
+    observations. No synthetic samples or exact daily values are invented.
+    At most 48 samples/day (~52,600 for three years), independent of report rate.
+    """
+    result: list[Reading] = []
+    first = last = None
+    bucket = None
+    for reading in readings:
+        hour = int(reading.timestamp.timestamp()) // 3600
+        if hour != bucket:
+            if first is not None:
+                result.append(first)
+                if last is not None and last != first:
+                    result.append(last)
+            first = reading
+            bucket = hour
+        last = reading
+    if first is not None:
+        result.append(first)
+        if last is not None and last != first:
+            result.append(last)
+    return result
 
 
 def daily_distances(readings: list[Reading], zone: ZoneInfo) -> list[DailyDistance]:
@@ -207,10 +236,13 @@ async def import_history(
                                 )
                         except (InvalidReading, ValueError, TypeError):
                             continue
+                imported, _ = merge_readings(imported, [])
                 cursor = end
         cursor = start
         while cursor < now:
-            end = min(now, cursor + timedelta(days=30))
+            # Six-hour raw batches bound the materialized recorder response even
+            # for a 10-second source (2160 states/batch rather than 259200).
+            end = min(now, cursor + timedelta(hours=6))
             states = await recorder.async_add_executor_job(
                 partial(
                     get_significant_states,
@@ -222,11 +254,12 @@ async def import_history(
                     significant_changes_only=False,
                 )
             )
+            batch = []
             for state in states.get(entity_id, []):
                 if isinstance(state, dict):
                     continue
                 try:
-                    imported.append(
+                    batch.append(
                         Reading(
                             state.last_updated,
                             kilometers(
@@ -238,6 +271,7 @@ async def import_history(
                     )
                 except InvalidReading:
                     continue
+            imported, _ = merge_readings(imported, batch)
             cursor = end
     except Exception:  # recorder unavailability must not prevent local forecasting
         _LOGGER.warning(

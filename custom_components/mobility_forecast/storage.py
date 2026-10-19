@@ -4,7 +4,7 @@ from datetime import datetime
 
 from homeassistant.helpers.storage import Store
 
-from .const import DOMAIN, MAX_READINGS
+from .const import DOMAIN
 from .history import merge_readings
 from .models import Reading
 
@@ -32,7 +32,7 @@ class VehicleStore(Store):
                 self.payload.update(data)
             values = [
                 Reading(datetime.fromisoformat(row[0]), float(row[1]), row[2], row[3])
-                for row in self.payload["readings"][-MAX_READINGS:]
+                for row in self.payload["readings"]
             ]
             accepted, rejected = merge_readings([], values)
             if rejected:
