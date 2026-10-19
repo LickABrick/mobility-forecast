@@ -94,3 +94,11 @@ Calendar routes are calculated progressively: today first, then upcoming days, w
 **Configure → Calendars → Ignore nested appointments** is off by default. Enable it if shorter tickets inside a longer physical visit should not create separate journeys, even at different addresses. This also ignores a genuinely separate trip inside that visit; it is an interpretation preference, not proof that appointments belong together.
 
 Inspect `calendar_status`, `calendar_events_count`, `calendar_nested_ignored`, `calendar_days_complete`, `calendar_days_pending`, `calendar_days_incomplete`, `calendar_requests`, `calendar_last_success` and `calendar_last_failure` on existing forecast entities. No event titles or addresses are exposed.
+
+### Route cache
+
+Successful Waze routes are cached per vehicle for seven days, up to 512 directed routes. Identical pending requests share one calculation; completed routes are reused across days, continuation cycles and restarts. Origin/destination order and Waze region remain distinct.
+
+Known Locations aliases resolve before routing. Casing, whitespace, comma spacing and equivalent coordinate spellings share identities; different house numbers, postal codes and precise coordinates do not. No fuzzy matching or automatic geocoding is performed. Use an explicit alias when you know two representations identify the same place.
+
+Diagnostics include last-cycle cache hits, misses, expiration, deduplication, eviction and actual Waze calls/failures, without endpoints or cache keys. Four aggregate values also appear on existing forecast sensors; no extra sensors or cache settings are added. Seven-day-old route durations may be inaccurate after road changes and do not represent live traffic.

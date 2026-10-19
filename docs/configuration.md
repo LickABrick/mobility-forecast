@@ -62,3 +62,7 @@ Existing conservative overlap behavior (incomplete day, historical fallback)
 The retained parent must have a valid physical location and strictly longer duration, fully containing the child by timestamp. Same-time appointments and partial overlaps remain conflicts. Missing-location children can be ignored by valid parents. All-day, locationless and overnight containers cannot suppress trips. Clearly virtual events are excluded separately; ambiguous physical locations remain unresolved. Same-location merging still avoids unnecessary journeys.
 
 A genuinely separate journey fully contained in a longer visit is also ignored when enabled. Use the setting only when this interpretation matches your calendars. Turning it off restores strict overlap behavior. Any calendar/route/location/nesting options change starts a fresh generation; odometer history and valid hashed route-cache entries are retained.
+
+## Known Locations and route reuse
+
+`Office → Main Street 10, Arnhem` makes Office and that exact physical address share a route identity, including case/whitespace/comma-spacing variants. Adding `6811 AB` is not automatically considered equivalent: define explicit mappings if you know both forms identify the same place. Different street/unit numbers remain distinct. Changing Office to a different address creates a different route identity; unrelated valid old cache entries remain until expiration/eviction. Region changes use separate keys. No cache duration/size configuration is needed.

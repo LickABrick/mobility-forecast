@@ -177,6 +177,9 @@ class WazeProvider:
         if cached and 0 <= now - cached["at"] < CACHE_TTL:
             self.metrics["route_cache_hits"] += 1
             return Route(cached["km"], cached["minutes"])
+        if cached and now - cached["at"] >= CACHE_TTL:
+            # Entries may expire during a long-lived provider cycle too.
+            self.prune_cache()
         self.metrics["route_cache_misses"] += 1
         if self.requests >= MAX_REQUESTS:
             self.last_failure = "request_budget"

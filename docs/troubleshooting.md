@@ -41,3 +41,19 @@ The production missing-entity report was not reproduced in the in-process HA tes
 `calendar_last_failure` uses safe categories such as calendar_fetch, calendar_normalization, route_planning, provider_unavailable, route_request, request_budget, refresh_timeout, missing_location and conflicting_appointments. Logs contain only stage, exception class and aggregate counts, never exception messages or calendar content. `calendar_last_success` is the last fully successful refresh, not a claim that pending results are fresh. Complete-day counts refer to route plans; incomplete/pending days use historical mileage. Request counts are cumulative across work cycles for the current agenda generation, including failed requests.
 
 150 appointments alone do not prove a cause for routing_unavailable. Check stage/progress first. Waze unavailability, invalid responses, conflicting calendars and the old global deadline can all explain failures. No runtime cause in the reported installation has been established. Allow several continuation cycles for a large unique-location calendar. Near-term plans should appear before the whole month completes. If a trip is missing, check unresolved locations and overlaps before enabling nested filtering.
+
+## Cache efficiency diagnostics
+
+Counters are **per last processing cycle**, not lifetime or cumulative agenda totals. `calendar_requests` remains the separate cumulative agenda-generation counter. Diagnostics `route_cache_statistics` contains:
+
+- route_lookups: consumer calls, including same-location shortcuts.
+- route_cache_hits: valid cached lookups performed by the shared calculation (not each waiter).
+- route_cache_misses: shared calculations without a valid cache entry, including provider-unavailable/budget-deferred attempts; not synonymous with Waze calls.
+- route_cache_expired: expired entries removed by pruning, including initial cycle cleanup, not just requested entries.
+- route_requests_deduplicated: additional consumers joining an outstanding calculation.
+- waze_requests: actual service invocations, including failed/cancelled calls.
+- waze_failures: completed service attempts with exceptions or invalid/no routes; cycle cancellation is not counted as a provider failure.
+- route_cache_evictions: capacity removals only, not expired/invalid cleanup.
+- route_cache_entries: retained entries at the cycle end (a gauge).
+
+Same-location shortcuts count neither hits nor misses. Successful warm-cache cycles have zero Waze calls; cache misses during an outage never become fabricated zero routes. Debug summaries contain only counts. Diagnostics expose no endpoint strings, hashes, titles or descriptions. Cache hashes hide plaintext but are not encryption against guessed-address attacks; protect HA backups.
