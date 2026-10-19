@@ -5,7 +5,7 @@ requires-python = ">=3.14.2"
 description = "Explainable per-vehicle Home Assistant distance forecasts"
 
 [project.optional-dependencies]
-test = ["homeassistant==2026.10.2", "pytest-homeassistant-custom-component==0.13.373", "ruff==0.17.1", "mypy==2.4.0"]
+test = ["homeassistant==2026.10.2", "pytest-homeassistant-custom-component==0.13.373", "ruff==0.17.1", "mypy==2.4.0", "pywaze==1.2.4"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -23,4 +23,4 @@ ignore = ["E501"]
 python_version = "3.13"
 follow_imports = "silent"
 ignore_missing_imports = true
-files = ["custom_components/mobility_forecast/models.py", "custom_components/mobility_forecast/forecasting.py", "custom_components/mobility_forecast/odometer.py"]
+files = ["custom_components/mobility_forecast/models.py", "custom_components/mobility_forecast/forecasting.py", "custom_components/mobility_forecast/odometer.py", "custom_components/mobility_forecast/history.py", "custom_components/mobility_forecast/locations.py", "custom_components/mobility_forecast/calendar_manager.py", "custom_components/mobility_forecast/routing.py"]

@@ -30,4 +30,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: MobilityEntry) -> bool:
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: MobilityEntry) -> None:
+    from homeassistant.helpers import issue_registry as ir
+
     await VehicleStore(hass, entry.entry_id).async_remove()
+    for kind in ("source", "storage"):
+        ir.async_delete_issue(hass, "mobility_forecast", f"{kind}_{entry.entry_id}")

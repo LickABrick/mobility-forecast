@@ -1,17 +1,57 @@
-# Local validation and remaining release gates
+# Release hardening validation
 
-Executed locally on Python 3.13.5 / Home Assistant Core 2026.2.3:
+## Tested environment
 
-- pytest: 43 tests passing, including native config/duplicate flow, actual in-process HA integration setup/five sensors/unload (mocked recorder), Store round trip/removal, recorder/statistics adapter mocks, deterministic forecasts/DST, route cache/error mocks, conservative merging and calendar normalization.
-- Ruff lint and formatting checks.
-- Mypy on pure models/odometer/forecasting modules only, not the entire HA adapter layer.
-- Offline manifest/HACS metadata/translation leaf-key parity validation.
-- Editable package installation smoke test.
+Primary: **Home Assistant Core 2026.10.2 / Python 3.14.2**, isolated uv-managed `.venv314`, authoritative PyPI source. pytest-homeassistant-custom-component 0.13.373. The original 43-test baseline also passed under this environment before changes; original implementation previously ran under HA 2026.2.3/Python 3.13.5. Minimum supported HA is now 2026.10.2.
 
-Not executed: live Waze requests, production HA server/browser UI, current 2026.10 runtime, upstream Hassfest and HACS hosted validators. CI jobs are provided but have not been run on GitHub. Offline checks are not equivalent to those validators.
+The previous package-index diagnosis was incorrect: Python 3.13 filtered out HA releases requiring >=3.14.2. No custom package index was configured. System Python was not replaced.
 
-The master specification's exhaustive edge-case test matrix is not fully covered by these 43 tests. In particular multi-vehicle reload interaction, all source-transition permutations, unsupported-schema migrations, calendar options/reconfigure UI paths and recorder statistics variants need broader integration tests before treating this as a fully certified release.
+## Checks
 
-Remaining scope differences: compact combined options screen rather than separate vehicle/calendar menus; only simple alias object editor; internal uncertainty/evaluation rather than optional diagnostic entities; no automatic source counter rebasing; periodic calendar fetch rather than event push subscriptions; registry renames resolve on reload; source-unit discontinuity is guarded by converted values but unit metadata is not separately persisted. Intra-day actual versus remaining distance is not exposed as separate entities. Calendar missing/ambiguous locations share an incomplete itinerary status. No calibrated confidence or accuracy claims are made.
+- Full pytest suite: **63 passing**.
+- Ruff lint and formatting: passing.
+- Mypy: passing, expanded to seven model/forecast/odometer/history/location/calendar/routing modules. HA coordinator/flow adapters are exercised by runtime tests but not fully statically typed.
+- Offline metadata and English/Dutch translation-key parity: passing.
+- Actual upstream Hassfest Docker validator: **1 integration, 0 invalid**. Image digest `sha256:2dce3c5423a600e7965e5a3d5a95e0707e8452fb001ab2b5d0602099bbecba92`. Its initial missing-recorder-dependency finding was fixed with optional after_dependencies.
+- HACS validator attempted using `ghcr.io/hacs/action:main`: **blocked**, exact error `No GitHub token found, use env GITHUB_TOKEN to set this.` No token was requested/generated and no publication was attempted. Offline layout/metadata checks pass, but full HACS acceptance is unverified.
 
-All ten requested phase commits exist, but commit presence does not mean every master-prompt acceptance item has been certified. See README for actual behavior and limitations. No remote push/publication has been performed.
+In-process HA tests exercise native config/duplicate/error flows, known-location forms, calendar options, source reconfiguration, setup without calendars, five native sensors, multiple independent vehicles, reload/persistence/removal, v1 payload compatibility and corrupt-state preservation. Recorder/statistics import has adapter tests. Waze tests use HA 2026.10's actual service registration/schema/handler and coordinator response conversion, mocking only external pywaze calculations. All supported regions and failure/recovery are exercised. This is **not** a live Waze or production browser/server test.
+
+## Resolved release-blocking defects
+
+- Initial history import incorrectly used current state as the watermark and imported only one day.
+- Mixed-zone DST arithmetic changed allocated interval distances.
+- Statistics-derived days could be treated as precise weekday evidence.
+- Overlapping statistics and raw telemetry could introduce artificial steps.
+- Late high readings could evict already accepted later history.
+- Rolling forecasts could include already-driven kilometers again.
+- Nested overlapping appointments could produce impossible trips; overnight dates were incompletely marked.
+- Persisted malformed route cache or corrupt storage could break updates or risk overwrite.
+- High-frequency forecast updates unnecessarily repeated calendar queries and unchanged storage writes.
+- Technical JSON known-location editor replaced with native add/edit/remove forms.
+
+Storage remains **schema version 1**, retaining original four-column readings and known-location mapping. Added optional state is defaulted; no destructive migration or silent reset occurs. Invalid persisted samples stop writes and surface a repair.
+
+## Gap classification
+
+### Remaining release-blocking defects / data-integrity risks
+
+No critical defect is currently demonstrated by the local suite. This does not certify the original exhaustive matrix or production behavior. HACS token-dependent validation remains an uncompleted distribution gate, not a demonstrated runtime defect.
+
+### Acceptable beta limitations
+
+- No live Waze/network or graphical browser smoke test. No full production server restart test: unload/reload plus Store reconstruction simulate the relevant lifecycle/persistence boundaries.
+- Thirty-minute calendar refresh; no calendar push subscriptions. Local midnight refresh is scheduled separately.
+- Source registry renames resolve on reload. Discontinuous replacements/resets are rejected rather than rebased; user must restore a continuous source or deliberately start a fresh vehicle.
+- All-day/overnight/impossible itineraries conservatively fall back to history. Missing location events can make a daily itinerary incomplete. No vehicle assignment is inferred.
+- Daily interval allocation and rolling partial-day allocation are approximate. Internal ranges are indicative, not calibrated probabilities.
+- No pre-v1 storage migration exists because no pre-v1 schema is supported; existing v1 payloads remain compatible.
+- Address recognition requires street number/locality separator or explicit coordinates/HA zones. Generic venue names need native known-location forms.
+
+### Optional future enhancements
+
+Default-disabled diagnostic entities, separate actual/remaining-distance entities, calibrated uncertainty and learned calendar overlap. These are not required to use the five core sensors.
+
+## Beta assessment
+
+Suitable for **supervised real-world beta testing** on HA 2026.10.2 with a Home Assistant backup and side-by-side checking against actual mileage. Not a claim of exhaustive production certification or HACS catalog approval. No push or release publication has occurred.

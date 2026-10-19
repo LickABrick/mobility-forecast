@@ -19,7 +19,26 @@ def merge_readings(
     """Prefer raw/live samples; never let a late sample introduce a negative interval."""
     priority = {"statistics": 0, "recorder": 1, "live": 2}
     indexed = {}
-    combined = existing + incoming
+    # Previously accepted samples are anchors: late glitches must not evict
+    # trustworthy subsequent readings merely by sorting before them.
+    from bisect import bisect_right
+
+    trusted = sorted(existing, key=lambda r: r.timestamp)
+    stamps = [r.timestamp for r in trusted]
+    safe_incoming = []
+    pre_rejected = 0
+    for item in incoming:
+        position = (
+            bisect_right(stamps, item.timestamp)
+            if item.timestamp.tzinfo
+            else len(trusted)
+        )
+        after = trusted[position] if position < len(trusted) else None
+        if after is not None and item.km > after.km:
+            pre_rejected += 1
+        else:
+            safe_incoming.append(item)
+    combined = existing + safe_incoming
     raw = [
         r.timestamp
         for r in combined
@@ -32,12 +51,13 @@ def merge_readings(
         if (
             item.source == "statistics"
             and raw_start is not None
+            and raw_end is not None
             and raw_start <= item.timestamp <= raw_end
         ):
             continue
         indexed[item.timestamp] = item
     accepted: list[Reading] = []
-    rejected = 0
+    rejected = pre_rejected
     for item in sorted(indexed.values(), key=lambda r: r.timestamp):
         if item.timestamp.tzinfo is None:
             rejected += 1
@@ -203,6 +223,8 @@ async def import_history(
                 )
             )
             for state in states.get(entity_id, []):
+                if isinstance(state, dict):
+                    continue
                 try:
                     imported.append(
                         Reading(

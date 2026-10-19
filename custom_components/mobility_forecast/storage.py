@@ -14,17 +14,30 @@ class VehicleStore(Store):
         super().__init__(hass, 1, f"{DOMAIN}.{entry_id}")
         self.payload = {"readings": [], "routes": {}, "evaluation": {}, "snapshots": {}}
         self.corrupt = False
+        self.last_scheduled = None
 
     async def load_readings(self):
         try:
             data = await self.async_load()
-            if data:
+            if data is not None:
+                if (
+                    not isinstance(data, dict)
+                    or not isinstance(data.get("readings", []), list)
+                    or any(
+                        not isinstance(data.get(key, {}), dict)
+                        for key in ("routes", "evaluation", "snapshots")
+                    )
+                ):
+                    raise ValueError("Invalid vehicle storage structure")
                 self.payload.update(data)
             values = [
                 Reading(datetime.fromisoformat(row[0]), float(row[1]), row[2], row[3])
                 for row in self.payload["readings"][-MAX_READINGS:]
             ]
-            return merge_readings([], values)[0]
+            accepted, rejected = merge_readings([], values)
+            if rejected:
+                raise ValueError("Invalid persisted samples; preserve original file")
+            return accepted
         except (ValueError, TypeError, KeyError, IndexError):
             self.corrupt = True
             return []
@@ -35,6 +48,11 @@ class VehicleStore(Store):
         self.payload["readings"] = [
             [r.timestamp.isoformat(), r.km, r.source, r.entity_id] for r in readings
         ]
+        import copy
+
+        if self.payload == self.last_scheduled:
+            return
+        self.last_scheduled = copy.deepcopy(self.payload)
         self.async_delay_save(lambda: self.payload, 30)
 
     async def flush(self):

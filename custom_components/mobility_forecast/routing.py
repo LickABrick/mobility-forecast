@@ -4,9 +4,10 @@ import asyncio
 import hashlib
 import math
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Protocol
 
+from .calendar_manager import Appointment
 from .locations import Location
 
 CACHE_TTL = 7 * 86400
@@ -121,7 +122,7 @@ class WazeProvider:
 
 
 async def plan_journeys(events, home, provider: RouteProvider):
-    grouped = {}
+    grouped: dict[date, list[Appointment]] = {}
     for event in events:
         day = event.start.date()
         # Mark every affected date, not only departure day, for overnight events.
@@ -144,7 +145,7 @@ async def plan_journeys(events, home, provider: RouteProvider):
             for b in appointments[index + 1 :]
         )
         # Merge consecutive same-location appointments, including nested events.
-        merged = []
+        merged: list[Appointment] = []
         from dataclasses import replace
 
         for event in appointments:
@@ -161,6 +162,7 @@ async def plan_journeys(events, home, provider: RouteProvider):
         last_end = None
         complete = True
         for event in appointments:
+            assert event.location is not None  # invalid itineraries returned above
             route = await provider.get_route(previous, event.location)
             if route is None or (
                 last_end is not None

@@ -2,7 +2,7 @@
 
 Local, explainable distance forecasts for individual vehicles in Home Assistant.
 
-**Version 1.0.0 — minimum and locally tested Home Assistant Core: 2026.10.2; Python 3.14.2+.** The requested 2026.10 build was not available in this environment; compatibility with it is not yet verified. See [API verification](docs/api-verification.md).
+**Version 1.0.0 — minimum and primary tested Home Assistant Core: 2026.10.2; Python 3.14.2+.** See [API verification](docs/api-verification.md).
 
 ## Install
 
@@ -32,10 +32,10 @@ Unknown days are not zero. Fresh unchanged observations can support genuine stat
 ## Optional calendars and Waze
 
 1. Add **Waze Travel Time** using Home Assistant's built-in integration. Confirm the `waze_travel_time.get_travel_times` action exists.
-2. Open Mobility Forecast's **Configure** options for the vehicle.
+2. Open Mobility Forecast's **Configure → Calendars** options for the vehicle.
 3. Select one or more calendars. Enable **Use Waze for calendar routes** only if you consent to sending origin/destination locations to Waze.
 4. Select the correct Waze region (`eu`, `us`, `na`, `il`, `au`). No region is inferred silently for requests.
-5. Optionally map ambiguous names to coordinates or a complete address in **Known locations**, e.g. `{"Office": "52.12345,5.12345"}`. HA zones and home are recognized automatically.
+5. Optionally open **Configure → Known locations → Add location**, enter a calendar location name and its coordinates or complete address. No JSON editing is required. HA zones and home are recognized automatically.
 6. Check `calendar_status` and `calendar_included` sensor attributes after refresh (normally within 30 minutes).
 
 Valid appointments form one chronological `home → appointment → appointment → home` journey. Forecasts use **max(historical baseline, known planned route kilometers)**, never blindly add them. Missing/overlapping/all-day/overnight itineraries are conservative and may fall back entirely to history. No inference establishes which car was actually used. Annual predictions do not multiply one-off agenda journeys.
@@ -70,11 +70,11 @@ Tests mock external routing and recorder responses; the HA fixture smoke test ex
 
 - No EV/charging features, GPS reconstruction or vehicle assignment.
 - Retention: three years / 50,000 readings; imports can be expensive on the first run.
-- Repeated unchanged reports without state-change events are not subscribed to directly. Recorder/fresh state changes provide the available brackets; truly stale sensors remain uncertain.
+- Periodic reads use the sensor’s actual last-reported timestamp; truly stale sensors remain uncertain.
 - Calendar refresh is periodic (30 minutes), not push-based. Midnight recalculation is scheduled separately.
 - Arbitrary venue names require a zone or explicit known-location mapping. All-day and cross-midnight events are excluded from concrete route totals.
 - Source resets are rejected rather than silently rebased. Live entity renames require reload to resolve registry identity.
 - Region must be selected explicitly. Route request budget is 60 per refresh; cache holds at most 512 entries for seven days.
 - Partial-day allocation assumes uniform travel throughout the day; no hour-of-day precision is claimed.
 - Schema v1 is versioned; unsupported future/corrupt storage is preserved rather than overwritten. No historical pre-v1 schema is supported.
-- Local tests are not HACS acceptance or a successful upstream Hassfest run. See [validation report](docs/validation.md).
+- Local tests are not HACS catalog acceptance or live Waze verification. Hassfest passes; HACS validation needs a GitHub token. See [validation report](docs/validation.md).
