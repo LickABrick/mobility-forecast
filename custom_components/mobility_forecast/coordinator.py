@@ -552,6 +552,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
             # Also save successful legs when the generation is cancelled or a
             # later day fails; HA storage coalesces these cycle-level writes.
             if provider:
+                await provider.async_close()
                 self.store.schedule_routes()
             if self._calendar_current(generation, options):
                 if provider:

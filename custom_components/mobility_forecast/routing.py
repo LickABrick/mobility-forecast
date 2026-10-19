@@ -48,6 +48,8 @@ class WazeProvider:
         self.cache = cache if cache is not None else {}
         self.requests = 0
         self.inflight = {}
+        self.consumers = {}
+        self.slots = asyncio.Semaphore(3)
         self.failures = 0
         self.last_failure = None
         self.prune_cache()
@@ -83,24 +85,44 @@ class WazeProvider:
             del self.cache[min(self.cache, key=lambda k: self.cache[k]["at"])]
 
     async def get_route(self, origin, destination):
-        identity = (origin.identifier, destination.identifier)
-        if identity in self.inflight:
-            return await asyncio.shield(self.inflight[identity])
-        future = asyncio.get_running_loop().create_future()
-        self.inflight[identity] = future
+        identity = self.cache_key(origin.identifier, destination.identifier)
+        if identity not in self.inflight:
+            # Planner has three workers. Refuse unbounded standalone fan-out too;
+            # no service task is created until a slot is available.
+            await self.slots.acquire()
+            if identity not in self.inflight:
+                self.inflight[identity] = asyncio.create_task(
+                    self._get_route(origin, destination)
+                )
+                self.consumers[identity] = 0
+            else:
+                self.slots.release()
+        task = self.inflight[identity]
+        self.consumers[identity] += 1
         try:
-            result = await self._get_route(origin, destination)
-            if not future.done():
-                future.set_result(result)
-            return result
-        except RequestBudgetExceeded:
-            if not future.done():
-                future.set_result(None)
-            raise
+            return await asyncio.shield(task)
         finally:
-            if not future.done():
-                future.cancel()
-            self.inflight.pop(identity, None)
+            self.consumers[identity] -= 1
+            if not self.consumers[identity]:
+                # Last consumer owns cleanup. A cancelled consumer cannot kill
+                # work another day still needs; no orphan survives cycle exit.
+                self.inflight.pop(identity, None)
+                self.consumers.pop(identity, None)
+                if not task.done():
+                    task.cancel()
+                try:
+                    await task
+                except (asyncio.CancelledError, Exception):
+                    pass
+                finally:
+                    self.slots.release()
+
+    async def async_close(self):
+        tasks = list(self.inflight.values())
+        for task in tasks:
+            task.cancel()
+        if tasks:
+            await asyncio.gather(*tasks, return_exceptions=True)
 
     def cache_key(self, origin, destination):
         """Keep the v1 provider/region/units/vehicle format for compatibility."""
