@@ -40,3 +40,25 @@ Choose `sensor.demo_vehicle_odometer` in Mobility Forecast. Add distance to the 
 The vehicle device page should contain five forecast sensors immediately. Initial `unknown` values are normal. If the integration card says **Failed to set up**, open its logs; successful configuration alone does not prove platform setup succeeded. User-disabled registry entities must be explicitly enabled on the device page. Reload after enabling where HA requests it.
 
 Repeated decreases on two distinct UTC dates create a reset-counter Repair and `source_incompatible`; valid stored history is retained, but predictions are withheld. One decrease is rejected as a possible telemetry glitch, not definitive reset evidence. `total_increasing` metadata alone is not proof of suitability. Reconfigure to a continuous cumulative source to recover; old incompatible intervals are never stitched into a new mileage total.
+
+## Ignore nested appointments (optional)
+
+Configure → Calendars includes **Ignore nested appointments** / **Geneste afspraken negeren**, default off for both existing and new vehicles. No migration or new setup step is needed. It applies across all selected calendars after normalization/deduplication.
+
+Worked example:
+
+```text
+08:00–12:00 Maintenance at Customer A
+09:00–09:45 Ticket at Customer B
+10:00–10:30 Ticket at Customer C
+
+Nested filtering ON:
+Home → Customer A → Home
+
+Nested filtering OFF:
+Existing conservative overlap behavior (incomplete day, historical fallback)
+```
+
+The retained parent must have a valid physical location and strictly longer duration, fully containing the child by timestamp. Same-time appointments and partial overlaps remain conflicts. Missing-location children can be ignored by valid parents. All-day, locationless and overnight containers cannot suppress trips. Clearly virtual events are excluded separately; ambiguous physical locations remain unresolved. Same-location merging still avoids unnecessary journeys.
+
+A genuinely separate journey fully contained in a longer visit is also ignored when enabled. Use the setting only when this interpretation matches your calendars. Turning it off restores strict overlap behavior. Any calendar/route/location/nesting options change starts a fresh generation; odometer history and valid hashed route-cache entries are retained.

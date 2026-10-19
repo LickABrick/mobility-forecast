@@ -440,7 +440,9 @@ class VehicleCoordinator(DataUpdateCoordinator):
                     )
                     if not self._calendar_current(generation, options):
                         return
-                    self.calendar_metrics["events_count"] = len(events)
+                    self.calendar_metrics["events_count"] = getattr(
+                        events, "retrieved_count", len(events)
+                    )
                     events, ignored = preprocess_appointments(
                         events, options.get("ignore_nested_appointments", False)
                     )

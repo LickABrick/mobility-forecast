@@ -31,3 +31,18 @@ Compaction is conservative in fractional-offset timezones: removed interior samp
 ## Recorder query planning follow-up
 
 Fixture measurements for a three-year initial window: one oldest-retained-change query plus 40 raw queries for ten retained days (41 total), 120 for thirty days (121 total), or one boundary query and zero raw queries for no history. Previously all profiles queried 4380 raw six-hour windows. Statistics queries are additional (up to thirteen 90-day windows for three years), unchanged. This is demonstrated API-call reduction, not a measured database elapsed-time speedup. Tests replace database execution at its boundary; real database query plans and import duration require beta observation. A sensor with three full years of raw retention can still need 4380 windows to bound materialized responses; no unsupported earliest-state database query is used.
+
+## Progressive routing measurements
+
+Deterministic in-process HA service tests, Python 3.14.2, synthetic 30-day calendars, mocked 1 ms latency per Waze service call (not live Waze):
+
+| Appointments | Locations | Calls across cycles | First-cycle calls | Peak concurrent calls | Measured active test elapsed |
+|---|---|---:|---:|---:|---:|
+| 150 | distinct | 180 | 60 | 3 | 0.153 s |
+| 300 | distinct | 330 | 60 | 3 | 0.277 s |
+| 150 | same repeated | 2 | 2 | 1 | 0.011 s |
+| 300 | same repeated | 2 | 2 | 1 | 0.012 s |
+
+Elapsed excludes the production one-minute pauses: tests explicitly advance continuation eligibility. Distinct-location chains require N+30 unique directed legs; caching prevents repeated partial-chain calls between cycles. Previous code could attempt at most 60 calls and could not complete those distinct-location months in one refresh. This is improved completion behavior, not a reduction in inherently necessary distinct routes. For repeated locations the old cache could also achieve two calls; no speedup claimed there.
+
+Nested maintenance example: strict mode makes zero calls because conflicts invalidate the day; filtering makes two calls for the valid parent round trip and no child calls. It is not valid to claim a six-to-two measured reduction from the old conservative planner. A deadline test completes the first three days then blocks subsequent requests: three plans survive, 27 remain pending, and active work is cancelled by the 100 ms test deadline. Production cycle deadline remains 45 seconds. Run `.venv314/bin/pytest tests/test_progressive_calendar.py -q -s` to reproduce; wall times vary.

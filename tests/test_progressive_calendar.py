@@ -132,3 +132,57 @@ async def test_deadline_keeps_completed_and_resumes(hass):
         assert len(runtime.calendar_pending_days) == 27
         assert all(p.complete for p in runtime.plans.values())
     await runtime.shutdown()
+
+
+@pytest.mark.parametrize("count", [150, 300])
+async def test_large_nested_calendars(hass, count):
+    from dataclasses import replace
+
+    events = appointments(count)
+    # One physical parent per day, with the remaining entries nested tickets.
+    parents = {}
+    for event in events:
+        day = event.start.date()
+        parents.setdefault(day, replace(event, end=event.start.replace(hour=20)))
+    events = [
+        parents[event.start.date()]
+        if event.identifier == parents[event.start.date()].identifier
+        else event
+        for event in events
+    ]
+    entry = MockConfigEntry(
+        domain="mobility_forecast",
+        data={"odometer": "sensor.car"},
+        options={
+            "calendars": ["calendar.car"],
+            "routing": True,
+            "region": "eu",
+            "ignore_nested_appointments": True,
+        },
+    )
+    entry.add_to_hass(hass)
+    runtime = VehicleCoordinator(hass, entry)
+    calls = 0
+
+    async def routes(call):
+        nonlocal calls
+        calls += 1
+        return {"routes": [{"distance": 10, "duration": 0}]}
+
+    hass.services.async_register(
+        "waze_travel_time",
+        "get_travel_times",
+        routes,
+        supports_response=SupportsResponse.ONLY,
+    )
+    with patch(
+        "custom_components.mobility_forecast.calendar_manager.fetch_events",
+        return_value=events,
+    ):
+        runtime._schedule_calendar(datetime.now(UTC))
+        await runtime.calendar_task
+        assert runtime.calendar_metrics["nested_ignored"] == count - 30
+        assert len(runtime.plans) == 30
+        assert runtime.calendar_status == "ready"
+        assert calls == 60
+    await runtime.shutdown()

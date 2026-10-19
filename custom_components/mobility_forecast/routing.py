@@ -201,10 +201,14 @@ async def _plan_journeys(events, home, provider: RouteProvider):
             day += timedelta(days=1)
     plans = {}
     for day, appointments in grouped.items():
-        appointments.sort(key=lambda e: e.start)
+        appointments.sort(key=lambda e: (e.start.astimezone(UTC), e.identifier))
         # Unknown/all-day/midnight appointments invalidate the assumed daily chain.
         invalid = any(
-            e.location is None or e.all_day or e.end.date() != day for e in appointments
+            e.location is None
+            or e.all_day
+            or e.start.date() != day
+            or e.end.date() != day
+            for e in appointments
         )
         overlap = any(
             a.end.astimezone(UTC) > b.start.astimezone(UTC) and a.location != b.location
@@ -217,7 +221,14 @@ async def _plan_journeys(events, home, provider: RouteProvider):
 
         for event in appointments:
             if merged and merged[-1].location == event.location:
-                merged[-1] = replace(merged[-1], end=max(merged[-1].end, event.end))
+                merged[-1] = replace(
+                    merged[-1],
+                    end=max(
+                        merged[-1].end,
+                        event.end,
+                        key=lambda stamp: stamp.astimezone(UTC),
+                    ),
+                )
             else:
                 merged.append(event)
         appointments = merged

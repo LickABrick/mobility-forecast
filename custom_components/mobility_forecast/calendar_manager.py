@@ -8,6 +8,14 @@ from datetime import UTC, datetime, time
 from .locations import Location, normalize
 
 
+class EventBatch(list):
+    """Normalized events with only aggregate retrieval metadata."""
+
+    def __init__(self, events, retrieved_count):
+        super().__init__(events)
+        self.retrieved_count = retrieved_count
+
+
 class CalendarResponseError(ValueError):
     """Calendar returned an invalid or incomplete response."""
 
@@ -97,11 +105,21 @@ async def fetch_events(hass, entities, start, end, known=None):
     rows = [
         event for entity in entities for event in response[entity].get("events", [])
     ]
-    return [
-        event
-        for event in normalize_events(rows, start.tzinfo, known)
-        if event.end > start and event.start < end
-    ]
+    for row in rows:
+        try:
+            parse_time(row["start"], start.tzinfo)
+            parse_time(row["end"], start.tzinfo)
+        except (ValueError, TypeError, KeyError, AttributeError):
+            raise CalendarResponseError from None
+    return EventBatch(
+        [
+            event
+            for event in normalize_events(rows, start.tzinfo, known)
+            if event.end.astimezone(UTC) > start.astimezone(UTC)
+            and event.start.astimezone(UTC) < end.astimezone(UTC)
+        ],
+        len(rows),
+    )
 
 
 def preprocess_appointments(events, ignore_nested=False):

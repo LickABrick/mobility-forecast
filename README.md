@@ -82,7 +82,15 @@ Tests mock external routing and recorder responses; the HA fixture smoke test ex
 - Calendar refresh is periodic (30 minutes), not push-based. Midnight recalculation is scheduled separately.
 - Arbitrary venue names require a zone or explicit known-location mapping. All-day and cross-midnight events are excluded from concrete route totals.
 - Source resets are rejected rather than silently rebased. Live entity renames require reload to resolve registry identity.
-- Region must be selected explicitly. Route request budget is 60 per refresh, with at most three independent daily chains running concurrently and a 45-second whole-refresh deadline. Historical predictions never wait for routing. Cache holds at most 512 entries for seven days.
+- Region must be selected explicitly. Route request budget is 60 per work cycle, with at most three independent daily chains running concurrently and a 45-second work-cycle deadline. Historical predictions never wait for routing. Cache holds at most 512 entries for seven days.
 - Partial-day allocation assumes uniform travel throughout the day; no hour-of-day precision is claimed.
 - Schema v1 is versioned; unsupported future/corrupt storage is preserved rather than overwritten. No historical pre-v1 schema is supported.
 - Local tests are not HACS catalog acceptance or live Waze verification. Hassfest passes; HACS validation needs a GitHub token. See [validation report](docs/validation.md).
+
+### Large calendars and nested tickets
+
+Calendar routes are calculated progressively: today first, then upcoming days, with up to three daily chains running at once. Completed days remain usable if later work times out. Pending work resumes after a one-minute pause; failed/incomplete days use historical forecasts and are reconsidered at the next regular refresh. Calendar overlays never add planned kilometers on top of the historical baseline: the conservative maximum is used.
+
+**Configure → Calendars → Ignore nested appointments** is off by default. Enable it if shorter tickets inside a longer physical visit should not create separate journeys, even at different addresses. This also ignores a genuinely separate trip inside that visit; it is an interpretation preference, not proof that appointments belong together.
+
+Inspect `calendar_status`, `calendar_events_count`, `calendar_nested_ignored`, `calendar_days_complete`, `calendar_days_pending`, `calendar_days_incomplete`, `calendar_requests`, `calendar_last_success` and `calendar_last_failure` on existing forecast entities. No event titles or addresses are exposed.
