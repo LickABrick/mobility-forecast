@@ -1,5 +1,8 @@
 # Troubleshooting
 
+- **Mostly parked vehicles:** confirmed zero days count toward driving probability; recurring weekend or weekly travel is not discarded as an outlier. Missing telemetry is not a confirmed zero. Compare several weeks, not one unexpected journey.
+- **Slow routing:** historical forecasts publish independently. Agenda processing has a 45-second overall deadline and retries no faster than the scheduled refresh. routing_unavailable means historical fallback, not zero-distance journeys.
+- **Odometer selector:** displays distance-class sensors or sensors in km/mi. Incomplete device-class metadata is supported through the unit fallback. Final validation still rejects trip/range counters.
 - **Learning / unknown predictions:** wait for seven adequately bracketed days or verify recorder has retained this odometer. No updates is not evidence of a parked car.
 - **Source unavailable:** history remains stored. Check original integration, unit and numeric value. After seven days without valid measurements predictions become unknown instead of indefinitely fresh-looking values.
 - **Source rejected:** range/trip sensors are unsuitable. Use lifetime cumulative mileage, preferably a distance sensor with total state class.

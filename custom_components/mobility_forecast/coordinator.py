@@ -22,6 +22,7 @@ from .odometer import InvalidReading, kilometers
 from .storage import VehicleStore
 
 _LOGGER = logging.getLogger(__name__)
+CALENDAR_REFRESH_BUDGET = 45  # seconds, includes retrieval and all route legs
 
 
 class VehicleCoordinator(DataUpdateCoordinator):
@@ -174,11 +175,26 @@ class VehicleCoordinator(DataUpdateCoordinator):
             and (stamp - self.readings[-1].timestamp).total_seconds() < 3600
         ):
             return
-        self.readings, rejected = merge_readings(
-            self.readings, [Reading(stamp, km, "live", self.source)]
-        )
-        self.rejected += rejected
-        self.store.schedule(self.readings)
+        reading = Reading(stamp, km, "live", self.source)
+        if self.readings and stamp > self.readings[-1].timestamp:
+            last = self.readings[-1]
+            elapsed = (stamp - last.timestamp).total_seconds() / 3600
+            delta = km - last.km
+            if delta < 0 or delta > max(2, elapsed * 240):
+                self.rejected += 1
+                return
+            hour = int(stamp.timestamp()) // 3600
+            if len(self.readings) >= 2 and all(
+                int(r.timestamp.timestamp()) // 3600 == hour for r in self.readings[-2:]
+            ):
+                self.readings[-1] = reading
+            else:
+                self.readings.append(reading)
+        else:
+            self.readings, rejected = merge_readings(self.readings, [reading])
+            self.rejected += rejected
+        # Forecast debounce persists the coalesced data; no whole-store copy for
+        # every high-frequency telemetry event.
 
     @callback
     def _changed(self, event):
@@ -262,7 +278,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
         home, known = home_and_known(self.hass, options.get("known_locations", {}))
         try:
             # Whole refresh budget includes calendars AND every route leg.
-            async with asyncio.timeout(45):
+            async with asyncio.timeout(CALENDAR_REFRESH_BUDGET):
                 events = await fetch_events(
                     self.hass,
                     options["calendars"],

@@ -69,12 +69,12 @@ Tests mock external routing and recorder responses; the HA fixture smoke test ex
 ## Limitations
 
 - No EV/charging features, GPS reconstruction or vehicle assignment.
-- Retention: three years / 50,000 readings; imports can be expensive on the first run.
+- Retention: three years of compacted physical observations (first/last per hour), independent of telemetry frequency. Initial import can still take time; raw recorder queries use six-hour batches.
 - Periodic reads use the sensor’s actual last-reported timestamp; truly stale sensors remain uncertain.
 - Calendar refresh is periodic (30 minutes), not push-based. Midnight recalculation is scheduled separately.
 - Arbitrary venue names require a zone or explicit known-location mapping. All-day and cross-midnight events are excluded from concrete route totals.
 - Source resets are rejected rather than silently rebased. Live entity renames require reload to resolve registry identity.
-- Region must be selected explicitly. Route request budget is 60 per refresh; cache holds at most 512 entries for seven days.
+- Region must be selected explicitly. Route request budget is 60 per refresh, with at most three independent daily chains running concurrently and a 45-second whole-refresh deadline. Historical predictions never wait for routing. Cache holds at most 512 entries for seven days.
 - Partial-day allocation assumes uniform travel throughout the day; no hour-of-day precision is claimed.
 - Schema v1 is versioned; unsupported future/corrupt storage is preserved rather than overwritten. No historical pre-v1 schema is supported.
 - Local tests are not HACS catalog acceptance or live Waze verification. Hassfest passes; HACS validation needs a GitHub token. See [validation report](docs/validation.md).

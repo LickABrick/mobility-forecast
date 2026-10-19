@@ -141,6 +141,10 @@ class WazeProvider:
 async def plan_journeys(events, home, provider: RouteProvider):
     """Three fixed workers process independent days; each chain stays ordered."""
     days = sorted({event.start.date() for event in events})
+    # Overnight events are handled as one conservative group so their affected
+    # dates cannot race with independently processed next-day appointments.
+    if any(event.end.date() != event.start.date() for event in events):
+        return await _plan_journeys(events, home, provider)
     queue: asyncio.Queue[date] = asyncio.Queue()
     for day in days:
         queue.put_nowait(day)

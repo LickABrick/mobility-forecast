@@ -24,7 +24,9 @@ def merge_readings(
     # trustworthy subsequent readings merely by sorting before them.
     from bisect import bisect_right
 
-    trusted = sorted(existing, key=lambda r: r.timestamp)
+    trusted = sorted(
+        (r for r in existing if r.source != "statistics"), key=lambda r: r.timestamp
+    )
     stamps = [r.timestamp for r in trusted]
     safe_incoming = []
     pre_rejected = 0
@@ -236,7 +238,9 @@ async def import_history(
                                 )
                         except (InvalidReading, ValueError, TypeError):
                             continue
-                imported, _ = merge_readings(imported, [])
+                imported, _ = await hass.async_add_executor_job(
+                    merge_readings, imported, []
+                )
                 cursor = end
         cursor = start
         while cursor < now:
@@ -271,7 +275,9 @@ async def import_history(
                     )
                 except InvalidReading:
                     continue
-            imported, _ = merge_readings(imported, batch)
+            imported, _ = await hass.async_add_executor_job(
+                merge_readings, imported, batch
+            )
             cursor = end
     except Exception:  # recorder unavailability must not prevent local forecasting
         _LOGGER.warning(

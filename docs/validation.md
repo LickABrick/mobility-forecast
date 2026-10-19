@@ -8,7 +8,7 @@ The previous package-index diagnosis was incorrect: Python 3.13 filtered out HA 
 
 ## Checks
 
-- Full pytest suite: **63 passing**.
+- Full pytest suite after reliability remediation: **87 passing**.
 - Ruff lint and formatting: passing.
 - Mypy: passing, expanded to seven model/forecast/odometer/history/location/calendar/routing modules. HA coordinator/flow adapters are exercised by runtime tests but not fully statically typed.
 - Offline metadata and English/Dutch translation-key parity: passing.
@@ -51,6 +51,18 @@ No critical defect is currently demonstrated by the local suite. This does not c
 ### Optional future enhancements
 
 Default-disabled diagnostic entities, separate actual/remaining-distance entities, calibrated uncertainty and learned calendar overlap. These are not required to use the five core sensors.
+
+## Reliability remediation follow-up
+
+Added deterministic intermittent/weekend/weekly/low-mileage tests, synthetic rolling-origin old/new backtests (MAE, signed bias and aggregate 7/30-day errors), frequency-independent retention and three-year coverage tests, a real recorder-adapter-to-HA-sensor pipeline with reload/persistence, background-routing coalescing/cancellation/config-generation tests and a whole-refresh deadline regression. Full results and measured compaction memory/time are in [performance.md](performance.md).
+
+Historical retention no longer slices to the latest 50,000 samples. Schema v1 remains unchanged: original files are validated in full then compacted to first/last observations per UTC hour. This is an idempotent representation migration, preserving measured cumulative endpoints; corrupt files remain write-protected. Compaction can conservatively reduce precise daily evidence for fractional-offset timezone midnights, never increase it.
+
+External calendar/routing work is outside the history lock, with three fixed day workers, in-flight leg deduplication, 60-request cap and 45-second whole-refresh timeout. Failed overlays are removed and status distinguishes routing_unavailable; historical forecasting remains usable. Default selector uses supported OR filters: distance device class or km/mi units, preserving nonstandard metadata sources.
+
+CI remains Python 3.14 with pinned HA 2026.10.2, tests, Ruff, expanded Mypy, translation validation, Hassfest and HACS jobs, read-only contents permission. No checks were disabled. Local Hassfest re-run passed; local HACS was attempted again and still requires a GitHub token. Configured GitHub Actions must supply its ordinary token; no credentials were printed or committed. No public repository metadata was changed.
+
+Remaining verification limits: no real vehicle telemetry, browser interaction, live Waze network or production restart. Synthetic repeated-week performance is not a real-world accuracy guarantee. The entire original exhaustive test matrix is not claimed covered: several concurrency/failure combinations are tested through shared primitives rather than every Cartesian combination. Native selector UI cannot rank likely odometers within the filtered set. Recorder import remains time-window bounded, not SQL-row streamed; extreme subsecond reporting may require further batching work.
 
 ## Beta assessment
 

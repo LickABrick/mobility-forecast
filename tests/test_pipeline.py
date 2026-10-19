@@ -54,6 +54,7 @@ async def test_recorder_to_sensor_weekend_driver(hass):
         ),
     ):
         assert await async_setup_component(hass, DOMAIN, {})
+        await entry.runtime_data.import_task
         await hass.async_block_till_done()
         runtime = entry.runtime_data
         assert runtime.data.values["next_7_days"] == pytest.approx(300, rel=0.12)
@@ -63,6 +64,7 @@ async def test_recorder_to_sensor_weekend_driver(hass):
         assert len(runtime.readings) >= 112
         original = runtime.readings[:]
         assert await hass.config_entries.async_reload(entry.entry_id)
+        await entry.runtime_data.import_task
         await hass.async_block_till_done()
         assert entry.runtime_data.readings[0] == original[0]
         await hass.config_entries.async_unload(entry.entry_id)
