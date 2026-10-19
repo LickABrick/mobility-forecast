@@ -10,3 +10,33 @@ Initial setup is unchanged: **Add your vehicle** → optional **Vehicle name**, 
 **Reconfigure** changes the mandatory source. History stays stored, source continuity is checked before accepting replacement data. Unknown or incompatible sources are not silently merged. Removing calendars or changing settings never deletes history. Vehicle removal deletes only Mobility Forecast-owned state.
 
 Dutch translations provide matching menus, fields, privacy notices and errors. Normal users never configure statistical thresholds, cache timers or model weights.
+
+## Testing without a connected car
+
+Create a Number helper (Settings → Devices & services → Helpers), called **Demo odometer**, with minimum 0, maximum 1000000, step 1 and unit km. Set it to 10000. Then create a Template sensor helper whose state template is:
+
+```jinja
+{{ states('input_number.demo_odometer') }}
+```
+
+Set unit **km**, device class **Distance**, state class **Total increasing**. Alternatively use YAML:
+
+```yaml
+template:
+  - sensor:
+      - name: Demo vehicle odometer
+        unique_id: demo_vehicle_odometer
+        unit_of_measurement: km
+        device_class: distance
+        state_class: total_increasing
+        availability: "{{ is_number(states('input_number.demo_odometer')) }}"
+        state: "{{ states('input_number.demo_odometer') }}"
+```
+
+Choose `sensor.demo_vehicle_odometer` in Mobility Forecast. Add distance to the helper after simulated journeys (10000 → 10030 → 10075), leave unchanged when parked, never reset it at midnight. Leave Recorder enabled. No immediate numeric forecast is expected: at least seven usable completed days are needed, and regular fresh observations improve coverage. This is a source-behavior test, not instant historical backfill. Remove the demo vehicle and helper after testing; do not reuse its history for a real car.
+
+## Visibility and source recovery
+
+The vehicle device page should contain five forecast sensors immediately. Initial `unknown` values are normal. If the integration card says **Failed to set up**, open its logs; successful configuration alone does not prove platform setup succeeded. User-disabled registry entities must be explicitly enabled on the device page. Reload after enabling where HA requests it.
+
+Repeated decreases on two distinct UTC dates create a reset-counter Repair and `source_incompatible`; valid stored history is retained, but predictions are withheld. One decrease is rejected as a possible telemetry glitch, not definitive reset evidence. `total_increasing` metadata alone is not proof of suitability. Reconfigure to a continuous cumulative source to recover; old incompatible intervals are never stitched into a new mileage total.

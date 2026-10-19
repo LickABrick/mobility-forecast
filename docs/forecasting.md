@@ -14,3 +14,7 @@ Indicative daily ranges use empirical population standard deviation, a 15% basel
 A bounded 90-date snapshot map stores the first supported daily forecast and compares it with later precise observed daily totals. Diagnostics give count, MAE and bias; zero evaluated samples does not imply measured accuracy. These metrics are developmental rather than a calibrated accuracy claim.
 
 Retention and approximations are deliberate. There is no statistical UI questionnaire, external AI, or reconstruction of individual GPS trips.
+
+## Daily evening reporting
+
+Exact midnight brackets remain the strongest weekday evidence. At least fourteen near-daily raw intervals (20–28 elapsed hours, consecutive local dates, both reports between 16:00 and 23:59 with hours differing by at most one) provide weaker evidence: the delta is attributed to the ending report date with weight 0.5. This is a heuristic for after-trip telemetry, not proof of when travel occurred. Daily totals retain their `estimated` classification and interval allocation; only weekday inference uses that attribution. Weight controls shrinkage and minimum support. Multi-day gaps and statistics never receive this evidence. Unknown days remain unknown. Tests cover UTC, Amsterdam/New York DST and midnight/evening reporting.

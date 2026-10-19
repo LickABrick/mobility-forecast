@@ -19,3 +19,9 @@ Calendar work is an entry-owned background task, outside the historical-state lo
 Forecast computation is inexpensive and bounded by retained readings/365 forecast days. Calendar queries cover at most 30 upcoming days. Waze uses metric units, selects the fastest valid alternative, and never substitutes failed requests with zero distance. Hash-keyed cache identity includes provider/region/preferences/origin/destination.
 
 No recorder database is written. Supported sources are states and semantically suitable state statistics; `sum` is not a mileage value. Reconfiguration preserves entity identity and rejects clearly discontinuous history.
+
+## Entity startup contract
+
+Sensor forwarding precedes asynchronous initialization. The coordinator starts with an initializing forecast containing five null values; sensors explicitly remain available while the forecast is unknown or in error. Unique IDs remain `<entry_id>_<forecast_key>`, device identity remains `<domain>,<entry_id>`. Explicit user-disabled registry entries are respected, never forcibly re-enabled. Initialization and import tasks belong to the config entry; shutdown cancels initialization before other work and never flushes an unloaded empty store over disk. Import failure leaves registered entities and existing history intact.
+
+Recorder planning uses the supported `history.state_changes_during_period` function with ascending `limit=1` and no start-state lookup to find the first retained change for this entity. Detailed six-hour reads start there; statistics remain in 90-day batches. There is no direct database-table query or assumed retention setting. Short raw brackets (up to two hours) supersede statistics, not the global raw min/max extent. Monotonic/speed validation still applies to merged physical states.

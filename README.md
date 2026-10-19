@@ -1,5 +1,13 @@
 # Mobility Forecast
 
+## Finding your forecasts
+
+After adding a vehicle, open **Settings → Devices & services → Mobility Forecast → your vehicle**. Five enabled distance sensors are created even while learning: expected distance today, tomorrow, next 7 days, next 30 days and annual distance (names follow your HA language). Developer Tools → States lists their `sensor.*` entity IDs; registry IDs may reflect your vehicle name and previous renames.
+
+Initial values can be `unknown`. Inspect `forecast_status`, `history_days`, `history_import_status` and `calendar_status` in state attributes. `learning` means insufficient usable history, not missing entities. `source_unavailable` means the source is missing/nonnumeric; `source_incompatible` means repeated resets were detected. Check Repairs and [troubleshooting](docs/troubleshooting.md) for recovery. Entities you previously disabled remain disabled.
+
+Use a lifetime cumulative vehicle odometer, never daily walking/running distance, range or a resettable trip counter. You can [test without a connected car](docs/configuration.md#testing-without-a-connected-car) using a standard HA helper/template sensor.
+
 Local, explainable distance forecasts for individual vehicles in Home Assistant.
 
 **Version 1.0.0 — minimum and primary tested Home Assistant Core: 2026.10.2; Python 3.14.2+.** See [API verification](docs/api-verification.md).

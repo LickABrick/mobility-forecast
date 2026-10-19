@@ -19,7 +19,7 @@
       }
     },
     "error": {
-      "invalid_source": "Selecteer een numerieke totale kilometerstand in km of mi, geen actieradius of dagteller."
+      "invalid_source": "Selecteer een numerieke, doorlopende kilometerstand in km of mi die nooit dagelijks opnieuw begint; geen bereik-, rit- of wandelafstand."
     },
     "abort": {
       "already_configured": "Deze kilometerstandsensor is al ingesteld.",

@@ -12,3 +12,15 @@
 - **Storage repair:** unreadable state is preserved, not overwritten. Restore a backup or remove/re-add the vehicle to start fresh. There is no safe automatic interpretation of arbitrary corrupt files.
 
 For bug reports provide integration version, HA version, sanitized downloaded diagnostics and reproduction steps. Do not attach private calendar content, addresses, coordinates, storage files or authentication details publicly.
+
+## Five sensors missing from States
+
+1. Open Settings → Devices & services → Mobility Forecast. Check whether the entry is loaded, disabled, retrying or **Failed to set up**.
+2. Open the vehicle device → Entities. Enable any user-disabled sensors. Search the actual entity IDs in Developer Tools → States (names/IDs may have been renamed).
+3. Registered enabled entities should have a state even with no history: `unknown`, not absent. Inspect `forecast_status`, `history_days`, `history_import_status`, `calendar_status`.
+4. Check Settings → System → Logs for `custom_components.mobility_forecast`, platform `sensor`, config entry setup and entity-registration errors. Enable integration debug logging temporarily if needed, then disable it.
+5. If still missing, provide HA Core version, integration version/installed commit, entry load status, entity registry disabled status and startup traceback. Redact locations, vehicle identifiers and calendar details. Do not delete the entry/history to troubleshoot.
+
+The production missing-entity report was not reproduced in the in-process HA tests. Startup was hardened against initialization blocking registration, but no specific cause in that installation has been confirmed.
+
+`history_import_status`: pending/importing/complete/failed/incompatible_source. `forecast_status`: initializing/learning/provisional/ready/source_unavailable/source_incompatible/error. Resetting counters raise Repairs; select a lifetime vehicle odometer via Reconfigure. Calendar `routing_unavailable` is historical fallback, not failure of the five sensors.

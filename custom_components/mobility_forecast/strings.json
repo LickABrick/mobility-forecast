@@ -19,7 +19,7 @@
       }
     },
     "error": {
-      "invalid_source": "Select a numeric cumulative vehicle odometer with km or mi units, not a range or trip sensor."
+      "invalid_source": "Select a numeric lifetime cumulative odometer in km or mi that never resets daily; not range, trip or walking distance."
     },
     "abort": {
       "already_configured": "This odometer is already configured.",
