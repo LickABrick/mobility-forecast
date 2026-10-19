@@ -38,7 +38,7 @@ def main():
             )
             == reference
         )
-    assert json.loads((ROOT / "hacs.json").read_text())["homeassistant"] == "2026.2.3"
+    assert json.loads((ROOT / "hacs.json").read_text())["homeassistant"] == "2026.10.2"
     print("Manifest, HACS metadata and translation key parity passed (offline checks).")
 
 

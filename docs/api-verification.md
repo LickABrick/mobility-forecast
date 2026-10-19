@@ -1,22 +1,23 @@
 # API verification
 
-The available package index returned Home Assistant **2026.2.3** as newest; the requested 2026.10.3 GitHub source returned HTTP 404. Minimum and primary locally tested target is therefore 2026.2.3, Python 3.13.2+. Compatibility with 2026.10 is not claimed without testing.
+Primary target/minimum: Home Assistant Core **2026.10.2**, Python **3.14.2**. Installed from `https://pypi.org/simple` using a uv-managed isolated `.venv314`. Original tests also passed against 2026.2.3/Python 3.13.5 before hardening; that older version is no longer the declared supported target.
 
-Verified against installed `homeassistant` source (2026.2.3):
+The previous `pip index versions` ran under Python 3.13 and filtered releases requiring Python >=3.14.2. No custom pip index was configured. The absence from that listing was a Python compatibility filter, not evidence that 2026.10 was unavailable.
 
-- `components/recorder/history/__init__.py`: `get_significant_states(hass, start_time, end_time=None, entity_ids=None, filters=None, include_start_time_state=True, significant_changes_only=True, minimal_response=False, no_attributes=False, compressed_state_format=False)`. Execute via recorder `get_instance(hass).async_add_executor_job`.
-- `components/recorder/statistics.py`: `statistics_during_period(hass,start_time,end_time,statistic_ids,period,units,types)`. Import `state`, never treat `sum` as physical odometer. Metadata includes unit and supported statistics.
-- `components/calendar/__init__.py`: response-only `calendar.get_events`, start_date_time/end_date_time, target entity IDs, response keyed by entity ID with events. Entity state is not a future event list.
-- `components/waze_travel_time/__init__.py`: response-only `get_travel_times`, origin/destination/region/realtime/vehicle_type/units; returns `{'routes': [vars(route), ...]}`. `hass.services.async_call(..., blocking=True, return_response=True)` retrieves response.
-- Config entries support typed `runtime_data`, platform forwarding, unload callbacks, reconfigure and options flows.
-- Storage `Store` provides atomic writes and `async_delay_save`, `async_save`, `async_remove`.
+Verified against installed 2026.10.2 source:
+- recorder history `get_significant_states` returns entity-keyed states, accessed using recorder's executor, never direct database writes.
+- recorder statistics `get_metadata(hass, *, statistic_ids=...)`, `statistics_during_period(hass,start,end,ids,period,units,types)`; only physical `state`, not `sum`, is ingested.
+- calendar.get_events response action uses start_date_time/end_date_time and entity targets; response is keyed by entity ID with an events list.
+- Waze get_travel_times accepts origin/destination/region/realtime/vehicle_type/units and returns routes with distance and duration. Regions: us, na, eu, il, au; requested metric distance in km, duration minutes.
+- `hass.services.async_call(..., blocking=True, return_response=True)` retrieves action responses.
+- ConfigEntry runtime_data, background task creation, unload callbacks, options/reconfigure flow and Store delayed/atomic persistence remain available.
 
 References:
 - https://developers.home-assistant.io/
-- https://github.com/home-assistant/core/tree/2026.2.3/homeassistant
+- https://github.com/home-assistant/core/tree/2026.10.2/homeassistant
 - https://developers.home-assistant.io/docs/core/entity/calendar
 - https://www.home-assistant.io/actions/waze_travel_time.get_travel_times/
 - https://www.home-assistant.io/integrations/waze_travel_time/
 - https://www.hacs.dev/docs/publish/integration/
 
-HACS layout: one custom_components domain, versioned manifest, codeowners, documentation, issue tracker, root hacs.json and README. External publication/acceptance is not implied by local validation.
+In-process tests are not production server or live Waze verification. HACS structure and local metadata validation do not imply catalog acceptance.

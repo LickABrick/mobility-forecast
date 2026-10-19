@@ -2,7 +2,7 @@
 
 Local, explainable distance forecasts for individual vehicles in Home Assistant.
 
-**Version 1.0.0 — minimum and locally tested Home Assistant Core: 2026.2.3; Python 3.13.2+.** The requested 2026.10 build was not available in this environment; compatibility with it is not yet verified. See [API verification](docs/api-verification.md).
+**Version 1.0.0 — minimum and locally tested Home Assistant Core: 2026.10.2; Python 3.14.2+.** The requested 2026.10 build was not available in this environment; compatibility with it is not yet verified. See [API verification](docs/api-verification.md).
 
 ## Install
 
@@ -55,7 +55,7 @@ See [configuration](docs/configuration.md), [troubleshooting](docs/troubleshooti
 ## Development
 
 ```bash
-python3.13 -m venv .venv
+python3.14 -m venv .venv
 .venv/bin/pip install -e '.[test]'
 .venv/bin/pytest -q
 .venv/bin/ruff check .
