@@ -40,6 +40,7 @@ class WazeProvider:
         self.region = region
         self.cache = cache if cache is not None else {}
         self.requests = 0
+        self.inflight = {}
         # Persisted cache entries are untrusted input after upgrades/restores.
         for key, value in list(self.cache.items()):
             try:
@@ -56,6 +57,22 @@ class WazeProvider:
             del self.cache[min(self.cache, key=lambda k: self.cache[k]["at"])]
 
     async def get_route(self, origin, destination):
+        identity = (origin.identifier, destination.identifier)
+        if identity in self.inflight:
+            return await self.inflight[identity]
+        future = asyncio.get_running_loop().create_future()
+        self.inflight[identity] = future
+        try:
+            result = await self._get_route(origin, destination)
+            if not future.done():
+                future.set_result(result)
+            return result
+        finally:
+            if not future.done():
+                future.cancel()
+            self.inflight.pop(identity, None)
+
+    async def _get_route(self, origin, destination):
         if origin.identifier == destination.identifier:
             return Route(0, 0)
         key = hashlib.sha256(
@@ -122,6 +139,26 @@ class WazeProvider:
 
 
 async def plan_journeys(events, home, provider: RouteProvider):
+    """Three fixed workers process independent days; each chain stays ordered."""
+    days = sorted({event.start.date() for event in events})
+    queue: asyncio.Queue[date] = asyncio.Queue()
+    for day in days:
+        queue.put_nowait(day)
+    results = {}
+
+    async def worker():
+        while not queue.empty():
+            day = queue.get_nowait()
+            subset = [event for event in events if event.start.date() == day]
+            results.update(await _plan_journeys(subset, home, provider))
+
+    async with asyncio.TaskGroup() as tasks:
+        for _ in range(min(3, len(days))):
+            tasks.create_task(worker())
+    return results
+
+
+async def _plan_journeys(events, home, provider: RouteProvider):
     grouped: dict[date, list[Appointment]] = {}
     for event in events:
         day = event.start.date()

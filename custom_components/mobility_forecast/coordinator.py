@@ -44,6 +44,9 @@ class VehicleCoordinator(DataUpdateCoordinator):
         self.source_available = False
         self.plans = {}
         self.calendar_status = "disabled"
+        self.calendar_task = None
+        self.calendar_generation = 0
+        self.stopping = False
 
     async def initialize(self):
         self.readings = await self.store.load_readings()
@@ -197,7 +200,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
             now = dt_util.utcnow().astimezone(zone)
             # A periodic read only uses last_reported, never advances a stale state.
             self._ingest(self.hass.states.get(self.source))
-            await self._refresh_calendar(now)
+            self._schedule_calendar(now)
             history = daily_distances(self.readings, zone)
             forecast = predict(history, now, self.plans)
             snapshots = self.store.payload["snapshots"]
@@ -216,58 +219,92 @@ class VehicleCoordinator(DataUpdateCoordinator):
             self.store.schedule(self.readings)
             return forecast
 
-    async def _refresh_calendar(self, now):
-        from .calendar_manager import fetch_events
-        from .locations import home_and_known
-        from .routing import WazeProvider, plan_journeys
-
-        calendars = self.entry.options.get("calendars", [])
-        if not calendars:
+    def _schedule_calendar(self, now):
+        """Coalesce requests. No external work occurs under the history lock."""
+        signature = repr(dict(self.entry.options))
+        if getattr(self, "calendar_signature", None) != signature:
+            self.calendar_signature = signature
+            self.calendar_generation += 1
+            self.calendar_refreshed_at = None
             self.plans = {}
-            self.calendar_status = "disabled"
+            if self.calendar_task and not self.calendar_task.done():
+                self.calendar_task.cancel()
+        if self.stopping:
             return
-        home, known = home_and_known(
-            self.hass, self.entry.options.get("known_locations", {})
-        )
-        if not self.entry.options.get("routing", False):
+        if not self.entry.options.get("calendars") or not self.entry.options.get(
+            "routing"
+        ):
+            self.calendar_status = "disabled"
             self.plans = {}
-            self.calendar_status = "routing_disabled"
+            return
+        if self.calendar_task and not self.calendar_task.done():
             return
         if (
-            getattr(self, "calendar_refreshed_at", None) is not None
+            self.calendar_refreshed_at is not None
             and (now - self.calendar_refreshed_at).total_seconds() < 1800
         ):
             return
         self.calendar_refreshed_at = now
+        self.calendar_status = "refreshing"
+        generation = self.calendar_generation
+        self.calendar_task = self.entry.async_create_background_task(
+            self.hass,
+            self._refresh_calendar(now, generation),
+            "mobility calendar refresh",
+        )
+
+    async def _refresh_calendar(self, now, generation):
+        from .calendar_manager import fetch_events
+        from .locations import home_and_known
+        from .routing import WazeProvider, plan_journeys
+
+        options = dict(self.entry.options)
+        home, known = home_and_known(self.hass, options.get("known_locations", {}))
         try:
+            # Whole refresh budget includes calendars AND every route leg.
             async with asyncio.timeout(45):
                 events = await fetch_events(
                     self.hass,
-                    calendars,
+                    options["calendars"],
                     now.replace(hour=0, minute=0, second=0, microsecond=0),
                     now + timedelta(days=30),
                     known,
                 )
-            provider = WazeProvider(
-                self.hass,
-                self.entry.options.get("region", ""),
-                self.store.payload["routes"],
-            )
-            self.plans = await plan_journeys(events, home, provider)
-            self.calendar_status = (
-                "incomplete"
-                if any(not p.complete for p in self.plans.values())
-                else "ready"
-            )
-            if not self.hass.services.has_service(
-                "waze_travel_time", "get_travel_times"
+                provider = WazeProvider(
+                    self.hass, options.get("region", ""), self.store.payload["routes"]
+                )
+                plans = await plan_journeys(events, home, provider)
+            if (
+                self.stopping
+                or generation != self.calendar_generation
+                or options != dict(self.entry.options)
             ):
-                self.calendar_status = "routing_unavailable"
+                return
+            self.plans = plans
+            self.calendar_status = (
+                "incomplete" if any(not p.complete for p in plans.values()) else "ready"
+            )
         except Exception:
+            if generation != self.calendar_generation or self.stopping:
+                return
+            # Remove stale agenda overlays, not the usable historical model.
             self.plans = {}
-            self.calendar_status = "calendar_unavailable"
+            self.calendar_status = "routing_unavailable"
+            _LOGGER.debug(
+                "Calendar refresh failed; historical forecasts remain available"
+            )
+        if not self.stopping:
+            await self.async_request_refresh()
 
     async def shutdown(self):
+        self.stopping = True
+        self.calendar_generation += 1
+        if self.calendar_task and not self.calendar_task.done():
+            self.calendar_task.cancel()
+            try:
+                await self.calendar_task
+            except asyncio.CancelledError:
+                pass
         if self.pending:
             self.pending.cancel()
         if self.import_task and not self.import_task.done():
