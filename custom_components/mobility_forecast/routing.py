@@ -39,6 +39,20 @@ class WazeProvider:
         self.region = region
         self.cache = cache if cache is not None else {}
         self.requests = 0
+        # Persisted cache entries are untrusted input after upgrades/restores.
+        for key, value in list(self.cache.items()):
+            try:
+                valid = (
+                    all(math.isfinite(float(value[k])) for k in ("at", "km", "minutes"))
+                    and value["km"] > 0
+                    and value["minutes"] >= 0
+                )
+            except (KeyError, TypeError, ValueError):
+                valid = False
+            if not valid:
+                del self.cache[key]
+        while len(self.cache) > MAX_CACHE:
+            del self.cache[min(self.cache, key=lambda k: self.cache[k]["at"])]
 
     async def get_route(self, origin, destination):
         if origin.identifier == destination.identifier:
@@ -71,13 +85,18 @@ class WazeProvider:
                         "realtime": False,
                         "vehicle_type": "car",
                         "units": "metric",
+                        "incl_filter": [],
+                        "excl_filter": [],
                     },
                     blocking=True,
                     return_response=True,
                 )
             routes = []
             for row in (response or {}).get("routes", []):
-                distance, duration = float(row["distance"]), float(row["duration"])
+                try:
+                    distance, duration = float(row["distance"]), float(row["duration"])
+                except (KeyError, TypeError, ValueError):
+                    continue
                 if (
                     math.isfinite(distance)
                     and math.isfinite(duration)
@@ -104,7 +123,14 @@ class WazeProvider:
 async def plan_journeys(events, home, provider: RouteProvider):
     grouped = {}
     for event in events:
-        grouped.setdefault(event.start.date(), []).append(event)
+        day = event.start.date()
+        # Mark every affected date, not only departure day, for overnight events.
+        from datetime import timedelta
+
+        while day <= event.end.date():
+            if day < event.end.date() or event.end.time().isoformat() != "00:00:00":
+                grouped.setdefault(day, []).append(event)
+            day += timedelta(days=1)
     plans = {}
     for day, appointments in grouped.items():
         appointments.sort(key=lambda e: e.start)
@@ -114,8 +140,19 @@ async def plan_journeys(events, home, provider: RouteProvider):
         )
         overlap = any(
             a.end > b.start and a.location != b.location
-            for a, b in zip(appointments, appointments[1:])
+            for index, a in enumerate(appointments)
+            for b in appointments[index + 1 :]
         )
+        # Merge consecutive same-location appointments, including nested events.
+        merged = []
+        from dataclasses import replace
+
+        for event in appointments:
+            if merged and merged[-1].location == event.location:
+                merged[-1] = replace(merged[-1], end=max(merged[-1].end, event.end))
+            else:
+                merged.append(event)
+        appointments = merged
         if invalid or overlap:
             plans[day] = Plan(0, False, 1)
             continue

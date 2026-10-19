@@ -233,14 +233,21 @@ class VehicleCoordinator(DataUpdateCoordinator):
             self.plans = {}
             self.calendar_status = "routing_disabled"
             return
+        if (
+            getattr(self, "calendar_refreshed_at", None) is not None
+            and (now - self.calendar_refreshed_at).total_seconds() < 1800
+        ):
+            return
+        self.calendar_refreshed_at = now
         try:
-            events = await fetch_events(
-                self.hass,
-                calendars,
-                now.replace(hour=0, minute=0, second=0, microsecond=0),
-                now + timedelta(days=30),
-                known,
-            )
+            async with asyncio.timeout(45):
+                events = await fetch_events(
+                    self.hass,
+                    calendars,
+                    now.replace(hour=0, minute=0, second=0, microsecond=0),
+                    now + timedelta(days=30),
+                    known,
+                )
             provider = WazeProvider(
                 self.hass,
                 self.entry.options.get("region", ""),

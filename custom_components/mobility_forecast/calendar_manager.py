@@ -63,9 +63,15 @@ async def fetch_events(hass, entities, start, end, known=None):
         blocking=True,
         return_response=True,
     )
+    if not isinstance(response, dict) or any(
+        entity not in response for entity in entities
+    ):
+        raise ValueError("Incomplete calendar response")
     rows = [
-        event
-        for entity in entities
-        for event in (response or {}).get(entity, {}).get("events", [])
+        event for entity in entities for event in response[entity].get("events", [])
     ]
-    return normalize_events(rows, start.tzinfo, known)
+    return [
+        event
+        for event in normalize_events(rows, start.tzinfo, known)
+        if event.end > start and event.start < end
+    ]
