@@ -36,7 +36,7 @@ async def test_global_deadline_and_coalescing(hass):
         assert runtime.calendar_task is task
         async with asyncio.timeout(1):
             await task
-        assert runtime.calendar_status == "routing_unavailable"
+        assert runtime.calendar_status == "routing_timeout"
         runtime._schedule_calendar(now)
         assert fetch.call_count == 1
         await runtime.shutdown()

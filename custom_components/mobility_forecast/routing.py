@@ -2,6 +2,7 @@
 
 import asyncio
 import hashlib
+import logging
 import math
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
@@ -13,6 +14,7 @@ from .locations import Location
 CACHE_TTL = 7 * 86400
 MAX_CACHE = 512
 MAX_REQUESTS = 60
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -26,6 +28,7 @@ class Plan:
     distance_km: float
     complete: bool
     missing: int = 0
+    reason: str | None = None
 
 
 class RouteProvider(Protocol):
@@ -41,6 +44,8 @@ class WazeProvider:
         self.cache = cache if cache is not None else {}
         self.requests = 0
         self.inflight = {}
+        self.failures = 0
+        self.last_failure = None
         # Persisted cache entries are untrusted input after upgrades/restores.
         for key, value in list(self.cache.items()):
             try:
@@ -89,6 +94,11 @@ class WazeProvider:
             )
             or self.requests >= MAX_REQUESTS
         ):
+            self.last_failure = (
+                "provider_unavailable"
+                if self.requests < MAX_REQUESTS
+                else "request_budget"
+            )
             return None
         self.requests += 1
         try:
@@ -123,6 +133,8 @@ class WazeProvider:
                 ):
                     routes.append(Route(distance, duration))
             if not routes:
+                self.failures += 1
+                self.last_failure = "route_request"
                 return None
             route = min(routes, key=lambda r: r.duration_minutes)
             self.cache[key] = {
@@ -133,7 +145,14 @@ class WazeProvider:
             while len(self.cache) > MAX_CACHE:
                 del self.cache[min(self.cache, key=lambda k: self.cache[k]["at"])]
             return route
-        except Exception:
+        except Exception as err:
+            self.failures += 1
+            self.last_failure = "route_request"
+            _LOGGER.debug(
+                "Calendar stage=route_request exception=%s failures=%d",
+                type(err).__name__,
+                self.failures,
+            )
             # Service exceptions may include addresses; do not log them.
             return None
 
@@ -196,7 +215,12 @@ async def _plan_journeys(events, home, provider: RouteProvider):
                 merged.append(event)
         appointments = merged
         if invalid or overlap:
-            plans[day] = Plan(0, False, 1)
+            plans[day] = Plan(
+                0,
+                False,
+                1,
+                "missing_location" if invalid else "conflicting_appointments",
+            )
             continue
         total = 0.0
         previous = home
@@ -224,5 +248,10 @@ async def _plan_journeys(events, home, provider: RouteProvider):
                 total += route.distance_km
             else:
                 complete = False
-        plans[day] = Plan(total, complete, int(not complete))
+        plans[day] = Plan(
+            total if complete else 0,
+            complete,
+            int(not complete),
+            None if complete else "route_request",
+        )
     return plans

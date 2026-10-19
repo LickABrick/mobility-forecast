@@ -7,6 +7,10 @@ from datetime import datetime, time
 from .locations import Location, normalize
 
 
+class CalendarResponseError(ValueError):
+    """Calendar returned an invalid or incomplete response."""
+
+
 @dataclass(frozen=True)
 class Appointment:
     start: datetime
@@ -66,7 +70,14 @@ async def fetch_events(hass, entities, start, end, known=None):
     if not isinstance(response, dict) or any(
         entity not in response for entity in entities
     ):
-        raise ValueError("Incomplete calendar response")
+        raise CalendarResponseError
+    if any(
+        not isinstance(response[entity], dict)
+        or not isinstance(response[entity].get("events"), list)
+        or any(not isinstance(event, dict) for event in response[entity]["events"])
+        for entity in entities
+    ):
+        raise CalendarResponseError
     rows = [
         event for entity in entities for event in response[entity].get("events", [])
     ]
