@@ -446,6 +446,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
                         events, "retrieved_count", len(events)
                     )
                     self.calendar_metrics.update(
+                        events_invalid_skipped=getattr(events, "invalid_count", 0),
                         events_routable=sum(
                             not e.virtual and e.location is not None for e in events
                         ),

@@ -11,9 +11,10 @@ from .locations import Location, normalize
 class EventBatch(list):
     """Normalized events with only aggregate retrieval metadata."""
 
-    def __init__(self, events, retrieved_count):
+    def __init__(self, events, retrieved_count, invalid_count=0):
         super().__init__(events)
         self.retrieved_count = retrieved_count
+        self.invalid_count = invalid_count
 
 
 class CalendarResponseError(ValueError):
@@ -45,15 +46,15 @@ def parse_time(value, zone):
 
 def normalize_events(rows, zone, known=None):
     unique = {}
+    invalid_count = 0
     for row in rows:
         try:
             start, all_day = parse_time(row["start"], zone)
             end, _ = parse_time(row["end"], zone)
-            if (
-                end.astimezone(UTC) <= start.astimezone(UTC)
-                or row.get("status") == "cancelled"
-            ):
+            if row.get("status") == "cancelled":
                 continue
+            if end.astimezone(UTC) <= start.astimezone(UTC):
+                raise ValueError
             location = normalize(row.get("location"), known)
             virtual = bool(
                 re.search(
@@ -72,9 +73,13 @@ def normalize_events(rows, zone, known=None):
                 fingerprint,
                 virtual,
             )
-        except (ValueError, TypeError, KeyError, AttributeError):
-            continue
-    return sorted(unique.values(), key=lambda e: e.start)
+        except (ValueError, TypeError, KeyError, AttributeError, OverflowError):
+            invalid_count += 1
+    return EventBatch(
+        sorted(unique.values(), key=lambda e: e.start.astimezone(UTC)),
+        len(rows),
+        invalid_count,
+    )
 
 
 async def fetch_events(hass, entities, start, end, known=None):
@@ -98,27 +103,22 @@ async def fetch_events(hass, entities, start, end, known=None):
     if any(
         not isinstance(response[entity], dict)
         or not isinstance(response[entity].get("events"), list)
-        or any(not isinstance(event, dict) for event in response[entity]["events"])
         for entity in entities
     ):
         raise CalendarResponseError
     rows = [
         event for entity in entities for event in response[entity].get("events", [])
     ]
-    for row in rows:
-        try:
-            parse_time(row["start"], start.tzinfo)
-            parse_time(row["end"], start.tzinfo)
-        except (ValueError, TypeError, KeyError, AttributeError):
-            raise CalendarResponseError from None
+    normalized = normalize_events(rows, start.tzinfo, known)
     return EventBatch(
         [
             event
-            for event in normalize_events(rows, start.tzinfo, known)
+            for event in normalized
             if event.end.astimezone(UTC) > start.astimezone(UTC)
             and event.start.astimezone(UTC) < end.astimezone(UTC)
         ],
         len(rows),
+        normalized.invalid_count,
     )
 
 
