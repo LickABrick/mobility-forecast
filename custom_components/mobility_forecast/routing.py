@@ -235,7 +235,7 @@ class WazeProvider:
                     routes.append(Route(distance, duration))
             if not routes:
                 self.failures += 1
-                self.last_failure = "route_request"
+                self.last_failure = "route_unavailable"
                 return None
             route = min(routes, key=lambda r: r.duration_minutes)
             self.cache[key] = {
@@ -247,7 +247,11 @@ class WazeProvider:
             return route
         except Exception as err:
             self.failures += 1
-            self.last_failure = "route_request"
+            self.last_failure = (
+                "route_timeout"
+                if isinstance(err, TimeoutError)
+                else "route_unavailable"
+            )
             _LOGGER.debug(
                 "Calendar stage=route_request exception=%s failures=%d",
                 type(err).__name__,
@@ -333,17 +337,26 @@ async def _plan_journeys(events, home, provider: RouteProvider):
                 0,
                 False,
                 1,
-                "missing_location" if invalid else "conflicting_appointments",
+                "unsupported_overnight" if invalid else "conflicting_appointments",
             )
             continue
         total = 0.0
         previous = home
         last_end = None
         complete = True
+        reason = None
         for event in appointments:
             assert event.location is not None  # invalid itineraries returned above
             route = await provider.get_route(previous, event.location)
-            if route is None or (
+            if route is None:
+                complete = False
+                reason = (
+                    "route_timeout"
+                    if getattr(provider, "last_failure", None) == "route_timeout"
+                    else "route_unavailable"
+                )
+                break
+            if (
                 last_end is not None
                 and route.duration_minutes
                 > (
@@ -352,6 +365,7 @@ async def _plan_journeys(events, home, provider: RouteProvider):
                 / 60
             ):
                 complete = False
+                reason = "impossible_itinerary"
                 break
             total += route.distance_km
             previous = event.location
@@ -362,10 +376,15 @@ async def _plan_journeys(events, home, provider: RouteProvider):
                 total += route.distance_km
             else:
                 complete = False
+                reason = (
+                    "route_timeout"
+                    if getattr(provider, "last_failure", None) == "route_timeout"
+                    else "route_unavailable"
+                )
         plans[day] = Plan(
             total if complete else 0,
             complete,
             int(not complete),
-            None if complete else "route_request",
+            reason,
         )
     return plans
