@@ -54,8 +54,9 @@ async def test_recorder_and_physical_statistics(hass):
         ),
     ):
         readings = await import_history(hass, "sensor.odometer", now, start)
-        assert [r.km for r in readings] == [100, 200]
-        assert readings[0].source == "statistics"
+        assert [r.km for r in readings] == [100, 100, 200]
+        assert readings[0].source == "recorder"
+        assert readings[1].source == "statistics"
 
 
 async def test_no_recorder(hass):

@@ -41,7 +41,9 @@ async def test_queries_skip_unretained_years(hass, days, expected):
             return_value={},
         ) as raw,
     ):
-        await import_history(hass, source, now)
+        result = await import_history(hass, source, now)
+        if days:
+            assert result[0].timestamp == oldest.last_updated
         assert boundary.call_count == 1
         assert raw.call_count == expected
 

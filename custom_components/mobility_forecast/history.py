@@ -305,6 +305,25 @@ async def import_history(
         )
         retained = earliest.get(entity_id, [])
         cursor = max(start, retained[0].last_updated) if retained else now
+        # History windows exclude their lower bound. Preserve the boundary
+        # observation itself rather than losing the first retained anchor.
+        if retained:
+            first = retained[0]
+            try:
+                anchor = Reading(
+                    first.last_updated,
+                    kilometers(
+                        first.state, first.attributes.get("unit_of_measurement")
+                    ),
+                    "recorder",
+                    entity_id,
+                )
+                imported, _ = await hass.async_add_executor_job(
+                    merge_readings, imported, [anchor]
+                )
+                previous_raw = anchor
+            except InvalidReading:
+                pass
         while cursor < now:
             # Six-hour raw batches bound the materialized recorder response even
             # for a 10-second source (2160 states/batch rather than 259200).
