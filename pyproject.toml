@@ -1,0 +1,26 @@
+[project]
+name = "mobility-forecast"
+version = "1.0.0"
+requires-python = ">=3.13.2"
+description = "Explainable per-vehicle Home Assistant distance forecasts"
+
+[project.optional-dependencies]
+test = ["homeassistant==2026.2.3", "pytest-homeassistant-custom-component==0.13.316", "ruff==0.17.1", "mypy==2.4.0"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+target-version = "py313"
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.13"
+follow_imports = "silent"
+ignore_missing_imports = true
+files = ["custom_components/mobility_forecast/models.py", "custom_components/mobility_forecast/forecasting.py", "custom_components/mobility_forecast/odometer.py"]
