@@ -56,6 +56,8 @@ class VehicleCoordinator(DataUpdateCoordinator):
         self.calendar_pending_days = set()
         self.calendar_attempts = {}
         self.calendar_retry_at = {}
+        self.calendar_publish = None
+        self.calendar_publish_task = None
         self.calendar_retry = None
         self.calendar_next_work = None
         self.calendar_status = "disabled"
@@ -364,6 +366,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
             self.calendar_attempts = {}
             self.calendar_retry_at = {}
             self.calendar_next_work = None
+            self._cancel_calendar_publish()
             self.route_metrics = {}
             self.calendar_metrics = {}
             if self.calendar_retry:
@@ -419,6 +422,27 @@ class VehicleCoordinator(DataUpdateCoordinator):
             days_incomplete=sum(not p.complete for p in self.plans.values()),
             days_pending=len(self.calendar_pending_days),
         )
+
+    def _cancel_calendar_publish(self):
+        if self.calendar_publish:
+            self.calendar_publish.cancel()
+            self.calendar_publish = None
+
+    def _queue_calendar_publish(self, generation):
+        if self.calendar_publish is not None:
+            return
+
+        @callback
+        def publish():
+            self.calendar_publish = None
+            if not self.stopping and generation == self.calendar_generation:
+                self.calendar_publish_task = self.entry.async_create_background_task(
+                    self.hass,
+                    self.async_request_refresh(),
+                    "mobility calendar publication",
+                )
+
+        self.calendar_publish = self.hass.loop.call_later(2, publish)
 
     async def _refresh_calendar(self, now, generation):
         from .calendar_manager import (
@@ -492,6 +516,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
                 provider = WazeProvider(
                     self.hass, options.get("region", ""), self.store.payload["routes"]
                 )
+                first_published = False
                 queue = sorted(
                     day
                     for day in self.calendar_pending_days
@@ -499,6 +524,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
                 )
 
                 async def worker():
+                    nonlocal first_published
                     while queue:
                         day = queue.pop(0)
                         try:
@@ -535,7 +561,11 @@ class VehicleCoordinator(DataUpdateCoordinator):
                         self.calendar_status = (
                             "partial" if self.calendar_pending_days else "refreshing"
                         )
-                        await self.async_request_refresh()
+                        if plan.complete and not first_published:
+                            first_published = True
+                            await self.async_request_refresh()
+                        else:
+                            self._queue_calendar_publish(generation)
 
                 async with asyncio.TaskGroup() as tasks:
                     for _ in range(min(3, len(queue))):
@@ -627,11 +657,19 @@ class VehicleCoordinator(DataUpdateCoordinator):
                     self.calendar_retry = self.hass.loop.call_later(
                         delay, self._refresh_later
                     )
-        if not self.stopping:
+        if self._calendar_current(generation, options):
+            self._cancel_calendar_publish()
             await self.async_request_refresh()
 
     async def shutdown(self):
         self.stopping = True
+        self._cancel_calendar_publish()
+        if self.calendar_publish_task and not self.calendar_publish_task.done():
+            self.calendar_publish_task.cancel()
+            try:
+                await self.calendar_publish_task
+            except asyncio.CancelledError:
+                pass
         if self.calendar_retry:
             self.calendar_retry.cancel()
             self.calendar_retry = None
