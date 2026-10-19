@@ -379,7 +379,11 @@ class VehicleCoordinator(DataUpdateCoordinator):
         )
 
     async def _refresh_calendar(self, now, generation):
-        from .calendar_manager import CalendarResponseError, fetch_events
+        from .calendar_manager import (
+            CalendarResponseError,
+            fetch_events,
+            preprocess_appointments,
+        )
         from .locations import home_and_known
         from .routing import WazeProvider, plan_journeys
 
@@ -397,6 +401,12 @@ class VehicleCoordinator(DataUpdateCoordinator):
                     known,
                 )
                 self.calendar_metrics["events_count"] = len(events)
+                events, ignored = preprocess_appointments(
+                    events, options.get("ignore_nested_appointments", False)
+                )
+                self.calendar_metrics.update(
+                    nested_ignored=ignored, relevant_count=len(events)
+                )
                 stage = "route_planning"
                 provider = WazeProvider(
                     self.hass, options.get("region", ""), self.store.payload["routes"]

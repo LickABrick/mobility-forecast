@@ -55,7 +55,11 @@
         "description": "Calendars are optional. Waze sends origin and destination locations to an external service, never event titles. Install Waze Travel Time first.",
         "data": {
           "calendars": "Calendars",
-          "routing": "Use Waze for routes"
+          "routing": "Use Waze for routes",
+          "ignore_nested_appointments": "Ignore nested appointments"
+        },
+        "data_description": {
+          "ignore_nested_appointments": "Ignore shorter appointments completely contained within a longer appointment when planning routes, even when they have different locations."
         }
       },
       "routing": {

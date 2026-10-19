@@ -55,7 +55,11 @@
         "description": "Agenda’s zijn optioneel. Waze stuurt vertrek- en bestemmingslocaties naar een externe dienst, nooit afspraaktitels. Installeer eerst Waze Travel Time.",
         "data": {
           "calendars": "Agenda’s",
-          "routing": "Waze gebruiken voor routes"
+          "routing": "Waze gebruiken voor routes",
+          "ignore_nested_appointments": "Geneste afspraken negeren"
+        },
+        "data_description": {
+          "ignore_nested_appointments": "Negeer kortere afspraken die volledig binnen een langere afspraak vallen bij het berekenen van routes, ook wanneer ze een ander adres hebben."
         }
       },
       "routing": {

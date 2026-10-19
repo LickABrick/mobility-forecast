@@ -172,6 +172,10 @@ class MobilityOptions(config_entries.OptionsFlow):
                     vol.Optional(
                         "routing", default=options.get("routing", False)
                     ): BooleanSelector(),
+                    vol.Optional(
+                        "ignore_nested_appointments",
+                        default=options.get("ignore_nested_appointments", False),
+                    ): BooleanSelector(),
                 }
             ),
         )

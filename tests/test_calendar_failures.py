@@ -46,7 +46,9 @@ async def test_safe_failure_categories(hass, caplog, error, category, status):
 async def test_response_shape_validation(hass):
     now = datetime.now(UTC)
     with patch.object(
-        type(hass.services), "async_call", return_value={"calendar.car": {"events": "bad"}}
+        type(hass.services),
+        "async_call",
+        return_value={"calendar.car": {"events": "bad"}},
     ):
         with pytest.raises(CalendarResponseError):
             await fetch_events(hass, ["calendar.car"], now, now)
