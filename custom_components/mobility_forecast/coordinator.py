@@ -16,7 +16,12 @@ from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, FORECAST_KEYS
 from .forecasting import evaluate, predict
-from .history import daily_distances, import_history, merge_readings
+from .history import (
+    ResettingCounterError,
+    daily_distances,
+    import_history,
+    merge_readings,
+)
 from .models import Forecast, Reading, Status
 from .odometer import InvalidReading, kilometers
 from .storage import VehicleStore
@@ -69,6 +74,11 @@ class VehicleCoordinator(DataUpdateCoordinator):
     async def _initialize_safely(self):
         try:
             await self.initialize()
+        except ResettingCounterError:
+            self._mark_incompatible()
+            self.import_status = "incompatible_source"
+            await self.async_request_refresh()
+            return
         except Exception:
             self.import_status = "failed"
             # Do not log exception contents: upstream errors may contain private data.
@@ -132,8 +142,12 @@ class VehicleCoordinator(DataUpdateCoordinator):
         quality = self.store.payload.get("source_quality", {})
         if quality.get("entity") == self.source:
             self.reset_dates = set(quality.get("reset_dates", []))
-            if len(self.reset_dates) >= 2:
+            if len(self.reset_dates) >= 2 or quality.get("incompatible"):
                 self._mark_incompatible()
+        else:
+            from homeassistant.helpers import issue_registry as ir
+
+            ir.async_delete_issue(self.hass, DOMAIN, f"reset_{self.entry.entry_id}")
         current = self.hass.states.get(self.source)
         self.source_continuous = True
         if (
@@ -183,6 +197,11 @@ class VehicleCoordinator(DataUpdateCoordinator):
             incoming = await import_history(
                 self.hass, self.source, dt_util.utcnow(), self.import_since
             )
+        except ResettingCounterError:
+            self._mark_incompatible()
+            self.import_status = "incompatible_source"
+            await self.async_request_refresh()
+            return
         except Exception:
             self.import_status = "failed"
             _LOGGER.warning(
@@ -268,6 +287,11 @@ class VehicleCoordinator(DataUpdateCoordinator):
         from homeassistant.helpers import issue_registry as ir
 
         self.source_incompatible = True
+        self.store.payload["source_quality"] = {
+            "entity": self.source,
+            "reset_dates": sorted(self.reset_dates),
+            "incompatible": True,
+        }
         ir.async_create_issue(
             self.hass,
             DOMAIN,
@@ -398,6 +422,12 @@ class VehicleCoordinator(DataUpdateCoordinator):
 
     async def shutdown(self):
         self.stopping = True
+        if self.initialization_task and not self.initialization_task.done():
+            self.initialization_task.cancel()
+            try:
+                await self.initialization_task
+            except asyncio.CancelledError:
+                pass
         self.calendar_generation += 1
         if self.calendar_task and not self.calendar_task.done():
             self.calendar_task.cancel()

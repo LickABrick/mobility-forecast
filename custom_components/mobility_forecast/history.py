@@ -14,6 +14,10 @@ _LOGGER = logging.getLogger(__name__)
 MAX_SPEED_KMH = 240
 
 
+class ResettingCounterError(ValueError):
+    """Raw history contains repeated counter resets."""
+
+
 def merge_readings(
     existing: list[Reading], incoming: list[Reading]
 ) -> tuple[list[Reading], int]:
@@ -236,6 +240,8 @@ async def import_history(
     recorder = get_instance(hass)
     start = since or now - timedelta(days=HISTORY_DAYS)
     imported = []
+    reset_dates = set()
+    previous_raw = None
     try:
         metadata = await recorder.async_add_executor_job(
             partial(get_metadata, hass, statistic_ids={entity_id})
@@ -331,10 +337,22 @@ async def import_history(
                     )
                 except InvalidReading:
                     continue
+            for reading in sorted(batch, key=lambda r: r.timestamp):
+                if (
+                    previous_raw
+                    and reading.timestamp > previous_raw.timestamp
+                    and reading.km < previous_raw.km
+                ):
+                    reset_dates.add(reading.timestamp.date())
+                previous_raw = reading
+            if len(reset_dates) >= 2:
+                raise ResettingCounterError
             imported, _ = await hass.async_add_executor_job(
                 merge_readings, imported, batch
             )
             cursor = end
+    except ResettingCounterError:
+        raise
     except Exception:  # recorder unavailability must not prevent local forecasting
         _LOGGER.warning(
             "Historical import could not complete; retained existing vehicle data"
