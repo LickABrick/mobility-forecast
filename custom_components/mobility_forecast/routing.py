@@ -30,6 +30,14 @@ class Plan:
     missing: int = 0
     reason: str | None = None
 
+    @property
+    def retryable(self):
+        return not self.complete and self.reason in (
+            "route_request",
+            "route_unavailable",
+            "route_timeout",
+        )
+
 
 class RouteProvider(Protocol):
     async def get_route(

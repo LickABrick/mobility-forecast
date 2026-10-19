@@ -27,6 +27,7 @@ from .odometer import InvalidReading, kilometers
 from .storage import VehicleStore
 
 _LOGGER = logging.getLogger(__name__)
+MAX_DAY_ATTEMPTS = 3
 CALENDAR_REFRESH_BUDGET = 45  # seconds, includes retrieval and all route legs
 
 
@@ -53,6 +54,8 @@ class VehicleCoordinator(DataUpdateCoordinator):
         self.calendar_metrics = {}
         self.calendar_days = None
         self.calendar_pending_days = set()
+        self.calendar_attempts = {}
+        self.calendar_retry_at = {}
         self.calendar_retry = None
         self.calendar_next_work = None
         self.calendar_status = "disabled"
@@ -358,6 +361,8 @@ class VehicleCoordinator(DataUpdateCoordinator):
             self.calendar_refreshed_at = None
             self.calendar_days = None
             self.calendar_pending_days = set()
+            self.calendar_attempts = {}
+            self.calendar_retry_at = {}
             self.calendar_next_work = None
             self.route_metrics = {}
             self.calendar_metrics = {}
@@ -480,12 +485,18 @@ class VehicleCoordinator(DataUpdateCoordinator):
                             day += timedelta(days=1)
                     self.calendar_days = grouped
                     self.calendar_pending_days = set(grouped)
+                    self.calendar_attempts = {}
+                    self.calendar_retry_at = {}
                     self.plans = {}
                 stage = "route_planning"
                 provider = WazeProvider(
                     self.hass, options.get("region", ""), self.store.payload["routes"]
                 )
-                queue = sorted(self.calendar_pending_days)
+                queue = sorted(
+                    day
+                    for day in self.calendar_pending_days
+                    if self.calendar_retry_at.get(day, now) <= now
+                )
 
                 async def worker():
                     while queue:
@@ -503,7 +514,23 @@ class VehicleCoordinator(DataUpdateCoordinator):
                         self.plans[day] = plan
                         if plan.reason:
                             self.calendar_metrics["last_failure"] = plan.reason
-                        self.calendar_pending_days.discard(day)
+                        if plan.retryable:
+                            attempts = self.calendar_attempts.get(day, 0) + 1
+                            self.calendar_attempts[day] = attempts
+                            if attempts < MAX_DAY_ATTEMPTS:
+                                self.calendar_retry_at[day] = (
+                                    dt_util.utcnow()
+                                    + timedelta(seconds=60 * 2 ** (attempts - 1))
+                                )
+                            else:
+                                self.calendar_pending_days.discard(day)
+                                self.calendar_metrics["retry_exhausted"] = sum(
+                                    value >= MAX_DAY_ATTEMPTS
+                                    for value in self.calendar_attempts.values()
+                                )
+                        else:
+                            self.calendar_pending_days.discard(day)
+                            self.calendar_retry_at.pop(day, None)
                         self._calendar_progress()
                         self.calendar_status = (
                             "partial" if self.calendar_pending_days else "refreshing"
@@ -533,6 +560,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
                     self.calendar_status = "routing_unavailable"
             if self.calendar_status == "ready":
                 self.calendar_metrics["last_success"] = dt_util.utcnow().isoformat()
+                self.calendar_metrics["last_failure"] = None
         except Exception as err:
             if not self._calendar_current(generation, options):
                 return
@@ -585,11 +613,19 @@ class VehicleCoordinator(DataUpdateCoordinator):
                 self._calendar_progress()
                 if self.calendar_pending_days:
                     # Fixed backoff: bounded work cycles, no immediate retry storm.
-                    self.calendar_next_work = dt_util.utcnow() + timedelta(seconds=60)
+                    clock = dt_util.utcnow()
+                    self.calendar_next_work = max(
+                        clock + timedelta(seconds=60),
+                        min(
+                            self.calendar_retry_at.get(day, clock)
+                            for day in self.calendar_pending_days
+                        ),
+                    )
+                    delay = (self.calendar_next_work - clock).total_seconds()
                     if self.calendar_retry:
                         self.calendar_retry.cancel()
                     self.calendar_retry = self.hass.loop.call_later(
-                        60, self._refresh_later
+                        delay, self._refresh_later
                     )
         if not self.stopping:
             await self.async_request_refresh()
