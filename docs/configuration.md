@@ -1,9 +1,12 @@
-# Configuration
+# Native configuration walkthrough
 
-Initial setup requires only an odometer, optionally a vehicle name. Configure each vehicle separately. Sources must be numeric lifetime mileage in km or mi, not battery range or daily trip distance.
+Initial setup is unchanged: **Add your vehicle** → optional **Vehicle name**, required **Odometer sensor** → submit. Invalid sources show “Select a numeric cumulative vehicle odometer with km or mi units, not a range or trip sensor.” Calendars/routing are never required here.
 
-Options rename the vehicle, select multiple calendars, opt into Waze and select its region. Region defaults displayed in the form must be checked by the user; routing is disabled by default. Known locations accepts a mapping from aliases to full addresses (street number plus locality) or latitude,longitude. HA zone names and entity IDs resolve locally.
+**Configure → Vehicle settings** has three menu choices:
+- **Vehicle**: edit **Vehicle name**, submit.
+- **Calendars**: multi-select **Calendars**, optional **Use Waze for routes**, submit. With routing off this completes immediately. With routing on, a second **Waze region** screen asks **Region**, with any previous selection retained. A missing provider shows “Install Waze Travel Time before enabling routes.” The calendar form explains that locations go to an external service, not event titles.
+- **Known locations**: optional exception management. **Add location** asks **Location name in calendar** and **Address or coordinates**. **Edit location** selects an existing name then displays the same editable fields. **Remove location** selects one existing name and submits. There is no JSON/object editor. Invalid addresses show “Enter a full address with street number and city, or valid coordinates.” Duplicate names direct the user to Edit location. Existing mappings from the original release remain compatible.
 
-Reconfigure changes the source while preserving history. Continuity is checked before accepting a different source. Discontinuous counters require correcting the upstream sensor or deliberately starting a new vehicle entry. Statistical constants and polling/cache details are not configurable.
+**Reconfigure** changes the mandatory source. History stays stored, source continuity is checked before accepting replacement data. Unknown or incompatible sources are not silently merged. Removing calendars or changing settings never deletes history. Vehicle removal deletes only Mobility Forecast-owned state.
 
-Removing calendars, disabling routing and renaming never delete driving history. Removing the vehicle deletes its own persisted data only.
+Dutch translations provide matching menus, fields, privacy notices and errors. Normal users never configure statistical thresholds, cache timers or model weights.

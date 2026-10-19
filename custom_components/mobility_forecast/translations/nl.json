@@ -2,25 +2,123 @@
   "title": "Mobility Forecast",
   "config": {
     "step": {
-      "user": {"title": "Voeg je voertuig toe", "description": "Selecteer de kilometerstand van je auto. Mobility Forecast gebruikt je gereden kilometers om toekomstige afstanden te voorspellen.", "data": {"name": "Voertuignaam", "odometer": "Kilometerstandsensor"}},
-      "reconfigure": {"title": "Kilometerstandsensor wijzigen", "description": "Je bestaande geschiedenis blijft bewaard. Afwijkende vervangende tellerstanden worden geweigerd. Kies een doorlopende kilometerstand van hetzelfde voertuig.", "data": {"odometer": "Kilometerstandsensor"}}
+      "user": {
+        "title": "Voeg je voertuig toe",
+        "description": "Selecteer de kilometerstand van je auto. Mobility Forecast gebruikt je gereden kilometers om toekomstige afstanden te voorspellen.",
+        "data": {
+          "name": "Voertuignaam",
+          "odometer": "Kilometerstandsensor"
+        }
+      },
+      "reconfigure": {
+        "title": "Kilometerstandsensor wijzigen",
+        "description": "Je bestaande geschiedenis blijft bewaard. Afwijkende vervangende tellerstanden worden geweigerd. Kies een doorlopende kilometerstand van hetzelfde voertuig.",
+        "data": {
+          "odometer": "Kilometerstandsensor"
+        }
+      }
     },
-    "error": {"invalid_source": "Selecteer een numerieke totale kilometerstand in km of mi, geen actieradius of dagteller."},
-    "abort": {"already_configured": "Deze kilometerstandsensor is al ingesteld.", "reconfigure_successful": "Kilometerstandsensor bijgewerkt."}
+    "error": {
+      "invalid_source": "Selecteer een numerieke totale kilometerstand in km of mi, geen actieradius of dagteller."
+    },
+    "abort": {
+      "already_configured": "Deze kilometerstandsensor is al ingesteld.",
+      "reconfigure_successful": "Kilometerstandsensor bijgewerkt."
+    }
   },
   "options": {
-    "step": {"init": {"title": "Voertuig en agenda's", "description": "Agenda's zijn optioneel. Als je Waze inschakelt, worden alleen vertrek- en bestemmingslocaties naar een externe routedienst gestuurd. Installeer eerst Waze Travel Time en kies de juiste regio. Bekende locaties is een optionele koppeling van namen aan coördinaten of volledige straatadressen met plaatsnaam.", "data": {"name": "Voertuignaam", "calendars": "Agenda's", "routing": "Waze gebruiken voor agendaroutes", "region": "Waze-regio", "known_locations": "Bekende locaties (optioneel)"}}},
-    "error": {"region_required": "Kies een Waze-regio.", "invalid_locations": "Koppel locatienamen aan adressen of coördinaten."}
+    "step": {
+      "init": {
+        "title": "Voertuig instellen",
+        "menu_options": {
+          "vehicle": "Voertuig",
+          "calendars": "Agenda’s",
+          "locations": "Bekende locaties"
+        }
+      },
+      "locations": {
+        "title": "Bekende locaties",
+        "menu_options": {
+          "add_location": "Locatie toevoegen",
+          "edit_location": "Locatie wijzigen",
+          "remove_location": "Locatie verwijderen"
+        }
+      },
+      "vehicle": {
+        "title": "Voertuig",
+        "data": {
+          "name": "Voertuignaam"
+        }
+      },
+      "calendars": {
+        "title": "Agenda’s",
+        "description": "Agenda’s zijn optioneel. Waze stuurt vertrek- en bestemmingslocaties naar een externe dienst, nooit afspraaktitels. Installeer eerst Waze Travel Time.",
+        "data": {
+          "calendars": "Agenda’s",
+          "routing": "Waze gebruiken voor routes"
+        }
+      },
+      "routing": {
+        "title": "Waze-regio",
+        "description": "Kies de regio van je Home Assistant-installatie.",
+        "data": {
+          "region": "Regio"
+        }
+      },
+      "add_location": {
+        "title": "Locatie toevoegen",
+        "description": "Voer een volledig straatadres met plaatsnaam of breedtegraad,lengtegraad in.",
+        "data": {
+          "name": "Locatienaam in de agenda",
+          "address": "Adres of coördinaten"
+        }
+      },
+      "edit_location": {
+        "title": "Locatie wijzigen",
+        "data": {
+          "location": "Locatie"
+        }
+      },
+      "remove_location": {
+        "title": "Locatie verwijderen",
+        "data": {
+          "location": "Locatie"
+        }
+      }
+    },
+    "error": {
+      "routing_unavailable": "Installeer Waze Travel Time voordat je routes inschakelt.",
+      "invalid_location": "Voer een volledig adres met huisnummer en plaatsnaam, of geldige coördinaten in.",
+      "duplicate_location": "Deze locatienaam bestaat al. Kies Locatie wijzigen."
+    }
   },
-  "entity": {"sensor": {
-    "today": {"name": "Verwachte afstand vandaag"},
-    "tomorrow": {"name": "Verwachte afstand morgen"},
-    "next_7_days": {"name": "Verwachte afstand komende 7 dagen"},
-    "next_30_days": {"name": "Verwachte afstand komende 30 dagen"},
-    "annual": {"name": "Verwachte jaarlijkse afstand"}
-  }},
+  "entity": {
+    "sensor": {
+      "today": {
+        "name": "Verwachte afstand vandaag"
+      },
+      "tomorrow": {
+        "name": "Verwachte afstand morgen"
+      },
+      "next_7_days": {
+        "name": "Verwachte afstand komende 7 dagen"
+      },
+      "next_30_days": {
+        "name": "Verwachte afstand komende 30 dagen"
+      },
+      "annual": {
+        "name": "Verwachte jaarlijkse afstand"
+      }
+    }
+  },
   "issues": {
-    "source": {"title": "Kilometerstandsensor niet gevonden", "description": "Controleer de voertuigintegratie of wijzig de kilometerstandsensor in Mobility Forecast. Je bestaande gegevens blijven bewaard."},
-    "storage": {"title": "Voertuiggeschiedenis niet leesbaar", "description": "Opslaan is gestopt om je gegevens te beschermen. Herstel een Home Assistant-back-up of verwijder dit voertuig en voeg het opnieuw toe om opnieuw te beginnen."}
+    "source": {
+      "title": "Kilometerstandsensor niet gevonden",
+      "description": "Controleer de voertuigintegratie of wijzig de kilometerstandsensor in Mobility Forecast. Je bestaande gegevens blijven bewaard."
+    },
+    "storage": {
+      "title": "Voertuiggeschiedenis niet leesbaar",
+      "description": "Opslaan is gestopt om je gegevens te beschermen. Herstel een Home Assistant-back-up of verwijder dit voertuig en voeg het opnieuw toe om opnieuw te beginnen."
+    }
   }
 }

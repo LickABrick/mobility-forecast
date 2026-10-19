@@ -10,7 +10,6 @@ from homeassistant.helpers.selector import (
     BooleanSelector,
     EntitySelector,
     EntitySelectorConfig,
-    ObjectSelector,
     SelectSelector,
     SelectSelectorConfig,
     TextSelector,
@@ -105,50 +104,146 @@ class MobilityFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class MobilityOptions(config_entries.OptionsFlow):
+    """Separate simple settings from the optional location exception editor."""
+
+    def _options(self):
+        if not hasattr(self, "draft"):
+            self.draft = dict(self.config_entry.options)
+            self.draft["known_locations"] = dict(self.draft.get("known_locations", {}))
+        return self.draft
+
     async def async_step_init(self, user_input=None):
+        self._options()
+        return self.async_show_menu(
+            step_id="init", menu_options=["vehicle", "calendars", "locations"]
+        )
+
+    async def async_step_vehicle(self, user_input=None):
         if user_input is not None:
             self.hass.config_entries.async_update_entry(
                 self.config_entry, title=user_input["name"]
             )
-            if user_input.get("routing") and not user_input.get("region"):
-                return self.async_show_form(
-                    step_id="init",
-                    data_schema=self._schema(),
-                    errors={"base": "region_required"},
-                )
-            aliases = user_input.get("known_locations", {})
-            if not isinstance(aliases, dict) or not all(
-                isinstance(k, str) and isinstance(v, str) for k, v in aliases.items()
-            ):
-                return self.async_show_form(
-                    step_id="init",
-                    data_schema=self._schema(),
-                    errors={"base": "invalid_locations"},
-                )
-            return self.async_create_entry(title="", data=user_input)
-        return self.async_show_form(step_id="init", data_schema=self._schema())
+            return self.async_create_entry(title="", data=self._options())
+        return self.async_show_form(
+            step_id="vehicle",
+            data_schema=vol.Schema(
+                {vol.Required("name", default=self.config_entry.title): TextSelector()}
+            ),
+        )
 
-    def _schema(self):
-        return vol.Schema(
-            {
-                vol.Required("name", default=self.config_entry.title): TextSelector(),
-                vol.Optional(
-                    "calendars",
-                    default=self.config_entry.options.get("calendars", []),
-                ): EntitySelector(
-                    EntitySelectorConfig(domain="calendar", multiple=True)
-                ),
-                vol.Optional(
-                    "routing", default=self.config_entry.options.get("routing", False)
-                ): BooleanSelector(),
-                vol.Optional(
-                    "region", default=self.config_entry.options.get("region", "eu")
-                ): SelectSelector(
-                    SelectSelectorConfig(options=["eu", "us", "na", "il", "au"])
-                ),
-                vol.Optional(
-                    "known_locations",
-                    default=self.config_entry.options.get("known_locations", {}),
-                ): ObjectSelector(),
-            }
+    async def async_step_calendars(self, user_input=None):
+        options = self._options()
+        errors = {}
+        if user_input is not None:
+            if user_input.get("routing") and not self.hass.services.has_service(
+                "waze_travel_time", "get_travel_times"
+            ):
+                errors["base"] = "routing_unavailable"
+            else:
+                options.update(user_input)
+                if user_input.get("routing"):
+                    return await self.async_step_routing()
+                return self.async_create_entry(title="", data=options)
+        return self.async_show_form(
+            step_id="calendars",
+            errors=errors,
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        "calendars", default=options.get("calendars", [])
+                    ): EntitySelector(
+                        EntitySelectorConfig(domain="calendar", multiple=True)
+                    ),
+                    vol.Optional(
+                        "routing", default=options.get("routing", False)
+                    ): BooleanSelector(),
+                }
+            ),
+        )
+
+    async def async_step_routing(self, user_input=None):
+        options = self._options()
+        if user_input is not None:
+            options.update(user_input)
+            return self.async_create_entry(title="", data=options)
+        field = vol.Required(
+            "region",
+            **({"default": options["region"]} if options.get("region") else {}),
+        )
+        return self.async_show_form(
+            step_id="routing",
+            data_schema=vol.Schema(
+                {
+                    field: SelectSelector(
+                        SelectSelectorConfig(options=["eu", "us", "na", "il", "au"])
+                    )
+                }
+            ),
+        )
+
+    async def async_step_locations(self, user_input=None):
+        aliases = self._options()["known_locations"]
+        return self.async_show_menu(
+            step_id="locations",
+            menu_options=["add_location"]
+            + (["edit_location", "remove_location"] if aliases else []),
+        )
+
+    async def async_step_add_location(self, user_input=None):
+        from .locations import normalize
+
+        errors = {}
+        if user_input is not None:
+            name = user_input["name"].strip()
+            if not name or normalize(user_input["address"]) is None:
+                errors["base"] = "invalid_location"
+            else:
+                aliases = self._options()["known_locations"]
+                if any(
+                    k.casefold() == name.casefold() for k in aliases
+                ) and name != getattr(self, "editing", None):
+                    errors["base"] = "duplicate_location"
+                else:
+                    aliases.pop(getattr(self, "editing", ""), None)
+                    aliases[name] = user_input["address"].strip()
+                    return self.async_create_entry(title="", data=self._options())
+        editing = getattr(self, "editing", "")
+        return self.async_show_form(
+            step_id="add_location",
+            errors=errors,
+            data_schema=vol.Schema(
+                {
+                    vol.Required("name", default=editing): TextSelector(),
+                    vol.Required(
+                        "address",
+                        default=self._options()["known_locations"].get(editing, ""),
+                    ): TextSelector(),
+                }
+            ),
+        )
+
+    async def async_step_edit_location(self, user_input=None):
+        if user_input is not None:
+            self.editing = user_input["location"]
+            return await self.async_step_add_location()
+        return self._location_picker("edit_location")
+
+    async def async_step_remove_location(self, user_input=None):
+        if user_input is not None:
+            self._options()["known_locations"].pop(user_input["location"], None)
+            return self.async_create_entry(title="", data=self._options())
+        return self._location_picker("remove_location")
+
+    def _location_picker(self, step):
+        return self.async_show_form(
+            step_id=step,
+            data_schema=vol.Schema(
+                {
+                    vol.Required("location"): SelectSelector(
+                        SelectSelectorConfig(
+                            options=list(self._options()["known_locations"])
+                        )
+                    )
+                }
+            ),
         )
