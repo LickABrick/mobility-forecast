@@ -549,6 +549,10 @@ class VehicleCoordinator(DataUpdateCoordinator):
                 "Calendar stage=%s exception=%s", category, type(err).__name__
             )
         finally:
+            # Also save successful legs when the generation is cancelled or a
+            # later day fails; HA storage coalesces these cycle-level writes.
+            if provider:
+                self.store.schedule_routes()
             if self._calendar_current(generation, options):
                 if provider:
                     self.calendar_metrics["requests"] = (

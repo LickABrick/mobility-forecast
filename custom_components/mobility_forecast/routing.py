@@ -50,17 +50,34 @@ class WazeProvider:
         self.inflight = {}
         self.failures = 0
         self.last_failure = None
-        # Persisted cache entries are untrusted input after upgrades/restores.
+        self.prune_cache()
+
+    def prune_cache(self):
+        """Validate legacy v1 numeric payloads; expire before capacity eviction."""
+        now = datetime.now(UTC).timestamp()
         for key, value in list(self.cache.items()):
-            try:
-                valid = (
-                    all(math.isfinite(float(value[k])) for k in ("at", "km", "minutes"))
-                    and value["km"] > 0
-                    and value["minutes"] >= 0
+            valid = (
+                isinstance(key, str)
+                and len(key) == 64
+                and all(c in "0123456789abcdef" for c in key)
+            )
+            valid = (
+                valid
+                and isinstance(value, dict)
+                and all(
+                    isinstance(value.get(field), (int, float))
+                    and not isinstance(value.get(field), bool)
+                    and math.isfinite(value[field])
+                    for field in ("at", "km", "minutes")
                 )
-            except (KeyError, TypeError, ValueError):
-                valid = False
-            if not valid:
+            )
+            if (
+                not valid
+                or not (
+                    0 < value["at"] <= now and value["km"] > 0 and value["minutes"] >= 0
+                )
+                or now - value["at"] >= CACHE_TTL
+            ):
                 del self.cache[key]
         while len(self.cache) > MAX_CACHE:
             del self.cache[min(self.cache, key=lambda k: self.cache[k]["at"])]
@@ -149,8 +166,7 @@ class WazeProvider:
                 "km": route.distance_km,
                 "minutes": route.duration_minutes,
             }
-            while len(self.cache) > MAX_CACHE:
-                del self.cache[min(self.cache, key=lambda k: self.cache[k]["at"])]
+            self.prune_cache()
             return route
         except Exception as err:
             self.failures += 1

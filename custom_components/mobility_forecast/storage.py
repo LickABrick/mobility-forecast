@@ -55,6 +55,11 @@ class VehicleStore(Store):
         self.last_scheduled = copy.deepcopy(self.payload)
         self.async_delay_save(lambda: self.payload, 30)
 
+    def schedule_routes(self):
+        """Debounce cache persistence without reserializing odometer history."""
+        if not self.corrupt:
+            self.async_delay_save(lambda: self.payload, 30)
+
     async def flush(self):
         if not self.corrupt:
             await self.async_save(self.payload)
