@@ -17,6 +17,8 @@ async def async_get_config_entry_diagnostics(hass, entry):
         "calendar_count": len(entry.options.get("calendars", [])),
         "calendar_status": runtime.calendar_status,
         "calendar_progress": dict(runtime.calendar_metrics),
+        "route_cache_statistics_scope": "last_processing_cycle",
+        "route_cache_statistics": dict(runtime.route_metrics),
         "cached_routes": len(runtime.store.payload["routes"]),
         "evaluation": runtime.store.payload["evaluation"],
     }

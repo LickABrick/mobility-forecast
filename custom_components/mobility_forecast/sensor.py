@@ -66,6 +66,17 @@ class ForecastSensor(CoordinatorEntity, SensorEntity):
             "calendar_included": any(d.planned_km is not None for d in data.days[:31]),
             "calendar_status": self.coordinator.calendar_status,
             **{
+                key: value
+                for key, value in self.coordinator.route_metrics.items()
+                if key
+                in (
+                    "route_cache_entries",
+                    "route_cache_hits",
+                    "waze_requests",
+                    "waze_failures",
+                )
+            },
+            **{
                 f"calendar_{key}": value
                 for key, value in self.coordinator.calendar_metrics.items()
             },

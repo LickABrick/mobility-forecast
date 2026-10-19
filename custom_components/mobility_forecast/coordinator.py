@@ -49,6 +49,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
         self.import_task = None
         self.source_available = False
         self.plans = {}
+        self.route_metrics = {}
         self.calendar_metrics = {}
         self.calendar_days = None
         self.calendar_pending_days = set()
@@ -358,6 +359,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
             self.calendar_days = None
             self.calendar_pending_days = set()
             self.calendar_next_work = None
+            self.route_metrics = {}
             self.calendar_metrics = {}
             if self.calendar_retry:
                 self.calendar_retry.cancel()
@@ -553,6 +555,17 @@ class VehicleCoordinator(DataUpdateCoordinator):
             # later day fails; HA storage coalesces these cycle-level writes.
             if provider:
                 await provider.async_close()
+                if self._calendar_current(generation, options):
+                    self.route_metrics = provider.statistics
+                    _LOGGER.debug(
+                        "Routing cycle events=%d relevant=%d nested_ignored=%d cache_hits=%d waze_requests=%d waze_failures=%d",
+                        self.calendar_metrics.get("events_count", 0),
+                        self.calendar_metrics.get("relevant_count", 0),
+                        self.calendar_metrics.get("nested_ignored", 0),
+                        provider.statistics["route_cache_hits"],
+                        provider.requests,
+                        provider.failures,
+                    )
                 self.store.schedule_routes()
             if self._calendar_current(generation, options):
                 if provider:

@@ -52,6 +52,17 @@ class WazeProvider:
         self.slots = asyncio.Semaphore(3)
         self.failures = 0
         self.last_failure = None
+        self.metrics = dict.fromkeys(
+            (
+                "route_lookups",
+                "route_cache_hits",
+                "route_cache_misses",
+                "route_cache_expired",
+                "route_requests_deduplicated",
+                "route_cache_evictions",
+            ),
+            0,
+        )
         self.prune_cache()
 
     def prune_cache(self):
@@ -73,6 +84,8 @@ class WazeProvider:
                     for field in ("at", "km", "minutes")
                 )
             )
+            if valid and 0 < value["at"] <= now and now - value["at"] >= CACHE_TTL:
+                self.metrics["route_cache_expired"] += 1
             if (
                 not valid
                 or not (
@@ -82,9 +95,20 @@ class WazeProvider:
             ):
                 del self.cache[key]
         while len(self.cache) > MAX_CACHE:
+            self.metrics["route_cache_evictions"] += 1
             del self.cache[min(self.cache, key=lambda k: self.cache[k]["at"])]
 
+    @property
+    def statistics(self):
+        return {
+            **self.metrics,
+            "route_cache_entries": len(self.cache),
+            "waze_requests": self.requests,
+            "waze_failures": self.failures,
+        }
+
     async def get_route(self, origin, destination):
+        self.metrics["route_lookups"] += 1
         identity = self.cache_key(origin.identifier, destination.identifier)
         if identity not in self.inflight:
             # Planner has three workers. Refuse unbounded standalone fan-out too;
@@ -97,6 +121,8 @@ class WazeProvider:
                 self.consumers[identity] = 0
             else:
                 self.slots.release()
+        if self.consumers[identity]:
+            self.metrics["route_requests_deduplicated"] += 1
         task = self.inflight[identity]
         self.consumers[identity] += 1
         try:
@@ -149,7 +175,9 @@ class WazeProvider:
                 if cached is not None:
                     break
         if cached and 0 <= now - cached["at"] < CACHE_TTL:
+            self.metrics["route_cache_hits"] += 1
             return Route(cached["km"], cached["minutes"])
+        self.metrics["route_cache_misses"] += 1
         if self.requests >= MAX_REQUESTS:
             self.last_failure = "request_budget"
             raise RequestBudgetExceeded

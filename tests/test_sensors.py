@@ -11,6 +11,7 @@ def test_sensor_unknown_and_metadata():
         data=Forecast(datetime.now(UTC), Status.LEARNING, {"today": None}),
         calendar_status="disabled",
         calendar_metrics={},
+        route_metrics={},
     )
     entity = ForecastSensor(coordinator, "today")
     assert entity.native_value is None
