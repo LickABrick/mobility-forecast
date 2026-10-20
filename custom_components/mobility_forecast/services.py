@@ -62,7 +62,38 @@ def register_services(hass):
         if call.service == "get_ev_plan":
             if not runtime.ev:
                 return {"schema": 1, "entry_id": entry.entry_id, "status": "disabled"}
-            return {"entry_id": entry.entry_id, **runtime.ev.result}
+            from copy import deepcopy
+            from datetime import datetime, time, timedelta
+
+            result = deepcopy(runtime.ev.result)
+            now = dt_util.utcnow().astimezone(ZoneInfo(hass.config.time_zone))
+            cutoff = datetime.combine(
+                now.date() + timedelta(days=call.data["horizon_days"]),
+                time(),
+                now.tzinfo,
+            )
+            result["calculation_horizon_days"] = 7
+            result["response_horizon_days"] = call.data["horizon_days"]
+            result["opportunities"] = [
+                item
+                for item in result.get("opportunities", [])
+                if datetime.fromisoformat(item["start"]) < cutoff
+                and datetime.fromisoformat(item["end"]) <= cutoff
+            ]
+            for key in ("recommendation", "alternative"):
+                item = result.get(key)
+                if (
+                    item
+                    and item.get("start")
+                    and datetime.fromisoformat(item["start"]) >= cutoff
+                ):
+                    result[key] = None
+            result["energy_demand_kwh"] = sum(
+                day.total_km * runtime.ev.config.consumption_kwh_per_100km / 100
+                for day in runtime.data.days
+                if now.date() <= day.day < cutoff.date()
+            )
+            return {"entry_id": entry.entry_id, **result}
         return (
             history_data(runtime, call.data["days"])
             if call.service == "get_history"
