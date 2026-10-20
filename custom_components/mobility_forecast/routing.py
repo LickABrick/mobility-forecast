@@ -5,10 +5,11 @@ import hashlib
 import logging
 import math
 from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from typing import Protocol
 
 from .calendar_manager import Appointment
+from .ev.models import JourneyLeg, Stop
 from .locations import Location
 
 CACHE_TTL = 7 * 86400
@@ -29,6 +30,8 @@ class Plan:
     complete: bool
     missing: int = 0
     reason: str | None = None
+    legs: tuple[JourneyLeg, ...] = ()
+    stops: tuple[Stop, ...] = ()
 
     @property
     def retryable(self):
@@ -293,7 +296,6 @@ async def _plan_journeys(events, home, provider: RouteProvider):
     for event in events:
         day = event.start.date()
         # Mark every affected date, not only departure day, for overnight events.
-        from datetime import timedelta
 
         while day <= event.end.date():
             if day < event.end.date() or event.end.time().isoformat() != "00:00:00":
@@ -349,6 +351,8 @@ async def _plan_journeys(events, home, provider: RouteProvider):
             continue
         total = 0.0
         previous = home
+        legs = []
+        stops = []
         last_end = None
         complete = True
         reason = None
@@ -374,12 +378,44 @@ async def _plan_journeys(events, home, provider: RouteProvider):
                 complete = False
                 reason = "impossible_itinerary"
                 break
+            departure = event.start.astimezone(UTC) - timedelta(
+                minutes=route.duration_minutes
+            )
+            legs.append(
+                JourneyLeg(
+                    departure,
+                    event.start,
+                    route.distance_km,
+                    route.duration_minutes,
+                    previous.identifier,
+                    event.location.identifier,
+                )
+            )
+            stops.append(
+                Stop(
+                    event.start,
+                    event.end,
+                    event.location.identifier,
+                    event.location.query,
+                )
+            )
             total += route.distance_km
             previous = event.location
             last_end = event.end
         if complete:
             route = await provider.get_route(previous, home)
             if route is not None:
+                legs.append(
+                    JourneyLeg(
+                        last_end,
+                        last_end.astimezone(UTC)
+                        + timedelta(minutes=route.duration_minutes),
+                        route.distance_km,
+                        route.duration_minutes,
+                        previous.identifier,
+                        home.identifier,
+                    )
+                )
                 total += route.distance_km
             else:
                 complete = False
@@ -393,5 +429,7 @@ async def _plan_journeys(events, home, provider: RouteProvider):
             complete,
             int(not complete),
             reason,
+            tuple(legs) if complete else (),
+            tuple(stops) if complete else (),
         )
     return plans
