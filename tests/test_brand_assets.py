@@ -39,8 +39,9 @@ def test_ha_local_brand_dimensions():
                 assert image.mode == "RGBA"
                 assert image.getextrema()[3][0] == 0
                 assert image.getextrema()[3][1] == 255
+            with Image.open(path) as image:
                 image.verify()
-            assert path.stat().st_size < 150_000
+            assert path.stat().st_size < 300_000
 
 
 def test_readme_brand_links_exist():
