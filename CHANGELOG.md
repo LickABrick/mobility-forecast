@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.1.0](https://github.com/LickABrick/mobility-forecast/compare/v1.0.0...v1.1.0) (2026-10-20)
+
+
+### Features
+
+* improve synchronization diagnostics and calendar-only forecasts ([2d5a8c6](https://github.com/LickABrick/mobility-forecast/commit/2d5a8c6f1c4374a03c40278f2a18c7981101eada))
+* track bounded sync outcomes and expose native vehicle diagnostics ([4134fb0](https://github.com/LickABrick/mobility-forecast/commit/4134fb029891daa9971bbc5ebaed60317febd0bb))
+
+
+### Bug fixes
+
+* exclude changed calendar plans from preliminary forecasts ([d37eb00](https://github.com/LickABrick/mobility-forecast/commit/d37eb000ec484ba99953de208ace18db3124823c))
+* remove published first-release override and verify semantic releases ([2339807](https://github.com/LickABrick/mobility-forecast/commit/23398074873794c6710dd3305ac0e70b3abc7735))
+
+
+### Documentation
+
+* explain sync outcomes diagnostics and calendar-only mileage ([12d019c](https://github.com/LickABrick/mobility-forecast/commit/12d019c745ce4a325891fddf6ee19bc2fd8bbe51))
+
 ## [1.0.0](https://github.com/LickABrick/mobility-forecast/compare/v1.0.0...v1.0.0) (2026-10-20)
 
 
