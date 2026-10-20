@@ -16,7 +16,10 @@ for (const name of ['release-please-config.json', '.release-please-manifest.json
 // Keep lifecycle scenarios independent of the real checkout's version/changelog.
 // Retain the production strategy and extra-file definitions, but explicitly seed
 // the historical first-release state even after the bootstrap config is removed.
-const fixtureConfig = JSON.parse(files.get('release-please-config.json'));
+const productionConfig = files.get('release-please-config.json');
+assert.equal(JSON.parse(productionConfig)['release-as'], undefined, 'Published releases must not retain a global version override');
+assert.equal(JSON.parse(productionConfig).packages['.']['release-as'], undefined, 'Published releases must not retain the bootstrap version override');
+const fixtureConfig = JSON.parse(productionConfig);
 fixtureConfig['bootstrap-sha'] = 'd'.repeat(40);
 fixtureConfig.packages['.']['release-as'] = '1.0.0';
 files.set('release-please-config.json', JSON.stringify(fixtureConfig));
@@ -81,15 +84,16 @@ function versions(expected) {
   assert.equal(candidates[0].tag.toString(), 'v1.0.0');
   assert.equal(candidates[0].sha, sha);
   console.log(JSON.stringify({title: pr.title.toString(), branch: pr.headRefName, labels: pr.labels, version: candidates[0].tag.version.toString()}));
-  // Simulate the published lifecycle, remove the bootstrap pin, then test patch/minor.
-  const config = JSON.parse(files.get('release-please-config.json'));
-  delete config.packages['.']['release-as'];
-  files.set('release-please-config.json', JSON.stringify(config));
+  // From here use the unmodified production config, not a fixture-only deletion
+  // of release-as that could hide an accidentally retained production pin.
+  files.set('release-please-config.json', productionConfig);
   releases = [{tagName: 'v1.0.0', sha, notes: 'First public release'}];
   tags = [{name: 'v1.0.0', sha}];
   merged = [];
   commits = [{sha, message: pr.title.toString(), files: pr.updates.map(u => u.path)}];
   assert.equal((await (await manifest()).buildPullRequests()).length, 0);
+  assert.equal((await (await manifest()).buildReleases()).length, 0, 'Never recreate the published v1.0.0 release');
+  const publishedFiles = new Map(files);
   for (const [message, expected] of [['fix: next fix', '1.0.1'], ['feat: next feature', '1.1.0']]) {
     commits.unshift({sha: 'c'.repeat(40), message, files: ['README.md']});
     const next = (await (await manifest()).buildPullRequests())[0];
@@ -98,8 +102,17 @@ function versions(expected) {
     assert.ok(next.body.toString().includes(message.split(': ')[1]));
     apply(next); versions(expected);
     assert.ok(files.get('CHANGELOG.md').includes(expected));
-    // Restore previous version manifest for independent bump from 1.0.0.
-    files.set('.release-please-manifest.json', '{".":"1.0.0"}');
+    assert.notEqual(next.version.toString(), '1.0.0');
+    // The next release can be built from a merged PR while v1.0.0 already exists.
+    merged = [{number: 13, sha: 'c'.repeat(40), title: next.title.toString(), body: next.body.toString(), labels: next.labels, headBranchName: next.headRefName, baseBranchName: 'main', files: next.updates.map(u => u.path)}];
+    const futureReleases = await (await manifest()).buildReleases();
+    assert.equal(futureReleases.length, 1);
+    assert.equal(futureReleases[0].tag.toString(), `v${expected}`);
+    assert.equal(futureReleases[0].sha, 'c'.repeat(40));
+    // Restore ALL metadata and changelog for independent patch/minor scenarios.
+    files.clear();
+    for (const [name, content] of publishedFiles) files.set(name, content);
+    merged = [];
     commits.shift();
   }
   console.log('PASS: actual Release Please bootstrap, notes, labels, merged candidate, all updaters, repeat/no-change, patch and minor (no writes/network).');

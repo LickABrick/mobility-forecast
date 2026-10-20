@@ -5,7 +5,20 @@ Release Please atomically updates manifest JSON, project TOML, the annotated run
 constant and its release manifest. CI checks parity. No runtime GitHub requests or
 TOML parsing are added to the integration.
 
-## Bootstrap
+## Published release and future preparation
+
+`v1.0.0` is published. The one-time production `release-as` override has been
+removed; canonical metadata remains at 1.0.0 until the next release PR updates it.
+Release Please now selects normal semantic versions from commits since the published
+release: bugfixes select 1.0.1 and features select 1.1.0. The remaining bootstrap SHA
+is historical and ignored once a release exists; it does not pin future versions.
+
+The nonpublishing fixture uses the unmodified production config for this published
+state: no-change yields no PR/release, and independent fix/feature scenarios build
+1.0.1/1.1.0 PRs and matching release candidates, never another v1.0.0. A separate
+in-memory historical bootstrap scenario retains first-release regression coverage.
+
+## Historical bootstrap
 
 The first public target is intentionally **1.0.0**, matching existing metadata.
 `bootstrap-sha` stops notes at the audited pre-polish baseline. The manifest already

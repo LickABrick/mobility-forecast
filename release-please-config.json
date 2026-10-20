@@ -7,7 +7,6 @@
     ".": {
       "release-type": "simple",
       "version-file": "version.txt",
-      "release-as": "1.0.0",
       "changelog-path": "CHANGELOG.md",
       "extra-files": [
         {"type": "json", "path": "custom_components/mobility_forecast/manifest.json", "jsonpath": "$.version"},
