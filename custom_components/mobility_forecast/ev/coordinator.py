@@ -272,6 +272,10 @@ class EVRuntime:
                 "insufficient_data", "calendar_itinerary_incomplete"
             )
 
+        if result.status in ("insufficient_data", "provider_unavailable"):
+            alternative = None
+            shortfall = None
+
         def serialized(value):
             if isinstance(value, datetime):
                 return value.isoformat()

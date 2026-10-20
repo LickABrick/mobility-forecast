@@ -109,3 +109,7 @@ fixtures now process all destinations across bounded passes rather than starving
 entries after the first ten. Full suite: 218 passed. The full requested restart,
 race, session and DST matrices are not yet covered; multi-session scheduling,
 coarse-day timing and provider semantics remain supervised-test limitations.
+
+## Reliability correction (2026-10-20)
+
+Python distribution discovery is explicitly restricted to `custom_components` and its namespace packages. Repository assets are not Python packages. CI now builds and inspects a wheel, in addition to editable installation and `pip check`. Pillow is explicitly test-only; offline brand tooling remains outside runtime requirements.

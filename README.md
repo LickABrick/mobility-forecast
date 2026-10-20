@@ -171,3 +171,7 @@ coarse-day timing and provider semantics remain supervised-test limitations.
 Turn on the vehicle’s **Manual Sync** switch to request an immediate bounded
 synchronization. It returns off automatically, including after errors. It is not
 a persistent setting. See [manual sync behavior and action](docs/configuration.md#manual-sync).
+
+## Reliability correction (2026-10-20)
+
+Reliability update: explicit package discovery fixes editable installs with the brand directory present. Manual Sync now returns immediately from switch commands; the waiting `sync_now` action raises a sanitized error on failed synchronization. See [reliability notes](docs/reliability.md).

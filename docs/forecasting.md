@@ -79,3 +79,7 @@ fixtures now process all destinations across bounded passes rather than starving
 entries after the first ten. Full suite: 218 passed. The full requested restart,
 race, session and DST matrices are not yet covered; multi-session scheduling,
 coarse-day timing and provider semantics remain supervised-test limitations.
+
+## Reliability correction (2026-10-20)
+
+Agenda verification freshness remains two hours. Complete, identity-compatible distance overlays can be retained provisionally for up to 24 hours after verification, including across reload. `cached` means restored pending verification; `provisional` means beyond freshness but within retention; `stale` indicates a failed verification with retained data. Older/untrusted records fall back honestly to history. Authoritative cancellation removes the overlay immediately. Numeric cached plans never supply EV journey timing.

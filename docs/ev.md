@@ -192,3 +192,7 @@ coarse-day timing and provider semantics remain supervised-test limitations.
 The [Mobility Forecast brand assets](../assets/brand/README.md) include transparent
 icons and light/dark wordmarks. They are repository presentation assets, not an
 automatically installed Home Assistant integration tile.
+
+## Reliability correction (2026-10-20)
+
+Already-below-reserve SoC never means no charge needed. Feasible charging can restore reserve; physical energy reachability is distinct from preferred reserve. Untimed historical extra demand is separate from real journey legs; reserve risk with unknown departure gives insufficient timing information, not a fabricated 23:59 deadline. Current away evidence allows home charging only after a known return. NDW units remain unresolved: [verified evidence](ndw-contract.md).

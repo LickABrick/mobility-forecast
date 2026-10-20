@@ -162,3 +162,7 @@ data:
 
 The action targets one loaded entry and waits for its cycle; result metadata is
 on the switch. An invalid/unloaded entry raises a clean action error.
+
+## Reliability correction (2026-10-20)
+
+A provisional calendar forecast is retained information, not a newly verified agenda. After 24 hours without verification, fallback to history is intentional. A failed waited manual-sync action now reports an action error; inspect switch status and calendar/EV categorical reasons. Never assume a public charging candidate is reserved or will be free.

@@ -200,3 +200,7 @@ data:
 
 The action targets one loaded entry and waits for its cycle; result metadata is
 on the switch. An invalid/unloaded entry raises a clean action error.
+
+## Reliability correction (2026-10-20)
+
+Short EV action horizons count local calendar dates including today (one day means the remainder of today). Shortened responses are labeled `filtered_not_recalculated`: seven-day recommendation/alternative/shortfall are withheld, not presented as a newly optimized short-horizon assessment. Opportunities wholly inside the interval and daily energy fields are filtered without network work.

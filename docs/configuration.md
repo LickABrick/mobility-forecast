@@ -160,3 +160,7 @@ data:
 
 The action targets one loaded entry and waits for its cycle; result metadata is
 on the switch. An invalid/unloaded entry raises a clean action error.
+
+## Reliability correction (2026-10-20)
+
+The Manual Sync switch now queues background work and returns promptly. The `mobility_forecast.sync_now` action intentionally waits and raises `HomeAssistantError` if synchronization fails. User-off remains non-canceling. Provider cooldowns remain enforced.

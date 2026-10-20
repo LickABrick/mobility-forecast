@@ -183,3 +183,16 @@ while busy, coalescing, failure sanitization, timeout, independent controllers,
 unload interruption, forced agenda verification, odometer ingestion and EV
 orchestration (mocked EV boundary). Existing calendar/provider/lifecycle tests
 remain green; this does not establish live external-provider availability.
+
+## Comprehensive remediation validation — 2026-10-20
+
+Current branch: 259 tests pass in the clean Python 3.14.2 environment installed via
+`python -m pip install -e '.[test]'`. `pip check` reports no broken requirements.
+Normal wheel build and `scripts/check_wheel.py` pass. Ruff lint and formatting
+pass; Mypy passes its expanded 14-module scope; metadata/translation parity and
+`git diff --check` pass. Hassfest Docker reports one integration, zero invalid.
+HACS Docker was attempted but requires unavailable `GITHUB_TOKEN`.
+
+See [reliability evidence and remaining gaps](reliability.md) and
+[NDW live contract verification](ndw-contract.md). Full requested acceptance
+coverage and live HA/EV production verification are not claimed.
