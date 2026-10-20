@@ -1,6 +1,8 @@
 """Independent vehicle state, debounced ingestion and periodic recalculation."""
 
 import asyncio
+import hashlib
+import json
 import logging
 from datetime import timedelta
 from zoneinfo import ZoneInfo
@@ -27,6 +29,7 @@ from .odometer import InvalidReading, kilometers
 from .storage import VehicleStore
 
 _LOGGER = logging.getLogger(__name__)
+CALENDAR_STALE_SECONDS = 2 * 3600
 MAX_DAY_ATTEMPTS = 3
 CALENDAR_REFRESH_BUDGET = 45  # seconds, includes retrieval and all route legs
 
@@ -50,6 +53,9 @@ class VehicleCoordinator(DataUpdateCoordinator):
         self.import_task = None
         self.source_available = False
         self.plans = {}
+        self.day_fingerprints = {}
+        self.day_verified = {}
+        self.candidate_fingerprints = {}
         self.route_metrics = {}
         self.calendar_metrics = {}
         self.calendar_days = None
@@ -373,6 +379,8 @@ class VehicleCoordinator(DataUpdateCoordinator):
                 self.calendar_retry.cancel()
                 self.calendar_retry = None
             self.plans = {}
+            self.day_fingerprints = {}
+            self.day_verified = {}
             if self.calendar_task and not self.calendar_task.done():
                 self.calendar_task.cancel()
         if self.stopping:
@@ -515,11 +523,56 @@ class VehicleCoordinator(DataUpdateCoordinator):
                             ):
                                 grouped.setdefault(day, []).append(event)
                             day += timedelta(days=1)
+                    fingerprints = {
+                        day: hashlib.sha256(
+                            json.dumps(
+                                [
+                                    day.isoformat(),
+                                    options.get("region"),
+                                    options.get("ignore_nested_appointments", False),
+                                    home.identifier,
+                                    [
+                                        (
+                                            e.start.isoformat(),
+                                            e.end.isoformat(),
+                                            e.location.identifier,
+                                            e.all_day,
+                                        )
+                                        for e in sorted(
+                                            items, key=lambda e: (e.start, e.identifier)
+                                        )
+                                    ],
+                                ],
+                                sort_keys=True,
+                            ).encode()
+                        ).hexdigest()
+                        for day, items in grouped.items()
+                    }
+                    # A successful response is authoritative: deletion/changed
+                    # input invalidates obsolete overlays, unchanged plans survive.
+                    for day in list(self.plans):
+                        if (
+                            day not in fingerprints
+                            or self.day_fingerprints.get(day) != fingerprints[day]
+                        ):
+                            self.plans.pop(day, None)
+                            self.day_fingerprints.pop(day, None)
+                            self.day_verified.pop(day, None)
+                    unchanged = {
+                        day
+                        for day, fingerprint in fingerprints.items()
+                        if self.day_fingerprints.get(day) == fingerprint
+                        and day in self.plans
+                        and self.plans[day].complete
+                        and (now - self.day_verified[day]).total_seconds() < 7 * 86400
+                    }
                     self.calendar_days = grouped
-                    self.calendar_pending_days = set(grouped)
+                    self.candidate_fingerprints = fingerprints
+                    self.calendar_pending_days = set(grouped) - unchanged
+                    for day in unchanged:
+                        self.day_verified[day] = now
                     self.calendar_attempts = {}
                     self.calendar_retry_at = {}
-                    self.plans = {}
                 stage = "route_planning"
                 provider = WazeProvider(
                     self.hass, options.get("region", ""), self.store.payload["routes"]
@@ -546,6 +599,9 @@ class VehicleCoordinator(DataUpdateCoordinator):
                         plan = results[day]
                         # Atomic day commit; never publish a partial chain.
                         self.plans[day] = plan
+                        self.day_fingerprints[day] = self.candidate_fingerprints[day]
+                        if plan.complete:
+                            self.day_verified[day] = now
                         if plan.reason:
                             self.calendar_metrics["last_failure"] = plan.reason
                         if plan.retryable:
@@ -611,7 +667,14 @@ class VehicleCoordinator(DataUpdateCoordinator):
             )
             self.calendar_metrics["last_failure"] = category
             if stage == "calendar_fetch":
-                self.plans = {}
+                self.plans = {
+                    day: plan
+                    for day, plan in self.plans.items()
+                    if day >= now.date()
+                    and day in self.day_verified
+                    and (now - self.day_verified[day]).total_seconds()
+                    <= CALENDAR_STALE_SECONDS
+                }
                 self.calendar_days = None
                 self.calendar_pending_days.clear()
             self.calendar_status = (
@@ -619,6 +682,8 @@ class VehicleCoordinator(DataUpdateCoordinator):
                 if any(p.complete for p in self.plans.values())
                 else "routing_timeout"
                 if isinstance(err, TimeoutError)
+                else "stale"
+                if self.plans
                 else "calendar_unavailable"
                 if stage == "calendar_fetch"
                 else "routing_unavailable"
