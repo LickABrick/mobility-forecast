@@ -5,7 +5,7 @@ import json
 import pytest
 
 from custom_components.mobility_forecast.config_flow import HELP_TARGETS, help_link
-from scripts.check_docs import ROOT, check_link
+from scripts.check_docs import ROOT, check_help_url, check_link
 
 
 @pytest.mark.parametrize("step", list(HELP_TARGETS))
@@ -15,7 +15,7 @@ def test_help_target(step):
         "https://github.com/LickABrick/mobility-forecast/blob/main/docs/"
     )
     assert url.endswith(HELP_TARGETS[step])
-    check_link(ROOT / "README.md", url)
+    check_help_url(url)
     for language in ("en", "nl"):
         data = json.loads(
             (
@@ -39,7 +39,7 @@ def test_help_target(step):
 )
 def test_bad_help_url(url):
     with pytest.raises(AssertionError):
-        check_link(ROOT / "README.md", url)
+        check_help_url(url)
 
 
 def test_approved_external_url():
