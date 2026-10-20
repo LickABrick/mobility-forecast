@@ -54,6 +54,30 @@ def main():
             bytestring=content.encode(), write_to=str(ROOT / f"{name}.png")
         )
 
+    # HA local assets derive from the same outlined artwork. Trim logo whitespace.
+    from io import BytesIO
+
+    from PIL import Image
+
+    target = ROOT.parents[1] / "custom_components/mobility_forecast/brand"
+    target.mkdir(exist_ok=True)
+    for source, name in (
+        ("icon", "icon"),
+        ("logo", "logo"),
+        ("logo-dark", "dark_logo"),
+    ):
+        image = Image.open(
+            BytesIO(cairosvg.svg2png(bytestring=assets[source].encode()))
+        ).convert("RGBA")
+        if source != "icon":
+            image = image.crop(image.getbbox())
+        for scale, suffix in ((1, ""), (2, "@2x")):
+            height = 256 * scale
+            width = round(image.width * height / image.height)
+            image.resize((width, height), Image.Resampling.LANCZOS).save(
+                target / f"{name}{suffix}.png", optimize=True
+            )
+
 
 if __name__ == "__main__":
     main()

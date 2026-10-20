@@ -34,4 +34,4 @@ jobs:
       - uses: hacs/action@main
         with:
           category: integration
-          ignore: brands
+          # Local brand/icon.png satisfies the current HACS brands requirement.
