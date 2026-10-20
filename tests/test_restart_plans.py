@@ -4,6 +4,7 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
+import pytest
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -14,7 +15,9 @@ from custom_components.mobility_forecast.models import Reading
 from custom_components.mobility_forecast.routing import Plan
 
 
-async def test_reload_restores_calendar_before_fetch(hass):
+@pytest.mark.parametrize("age_hours", [0, 5 / 60, 3, 8, 24, 25])
+async def test_reload_restores_calendar_before_fetch(hass, age_hours, freezer):
+    freezer.move_to("2026-10-20T12:00:00+00:00")
     now = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
     tomorrow = now + timedelta(days=1)
     readings = [
@@ -62,6 +65,11 @@ async def test_reload_restores_calendar_before_fetch(hass):
         )
         await hass.async_block_till_done()
         assert float(hass.states.get(entity_id).state) == 95
+        for row in old.store.payload["calendar_plans"].values():
+            row["verified_at"] = (
+                datetime.now(UTC) - timedelta(hours=age_hours)
+            ).isoformat()
+            row["routed_at"] = row["verified_at"]
         assert await hass.config_entries.async_unload(entry.entry_id)
     entered = asyncio.Event()
     release = asyncio.Event()
@@ -92,10 +100,24 @@ async def test_reload_restores_calendar_before_fetch(hass):
             await runtime.initialization_task
             await entered.wait()
             await hass.async_block_till_done()
-            assert float(hass.states.get(entity_id).state) == 95
+            first = float(hass.states.get(entity_id).state)
+            if age_hours <= 24:
+                assert first == 95
+            else:
+                # Existing robust baseline includes the partial current-day
+                # history bracket; it is approximately, not exactly, 36 km.
+                assert 35 < first < 37
+            if 2 < age_hours <= 24:
+                assert runtime.calendar_status == "provisional"
+            # Trigger manual sync while startup verification is blocked.
+            runtime.manual_sync.trigger()
+            assert runtime.manual_sync.running
+            assert float(hass.states.get(entity_id).state) == first
             release.set()
             await runtime.calendar_task
+            await runtime.manual_sync.task
             await runtime.async_refresh()
+            assert runtime.manual_sync.status == "success"
             assert float(hass.states.get(entity_id).state) == 95
     finally:
         release.set()
