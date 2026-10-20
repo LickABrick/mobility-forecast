@@ -21,10 +21,8 @@ def parse_address(payload, query):
     # Require an explicit house number plus Dutch postcode, not a centroid or
     # guessed country. This intentionally rejects less-specific destinations.
     postcode = re.search(r"\b([1-9]\d{3})\s*([A-Za-z]{2})\b", query)
-    if not postcode:
-        return None
-    expected = "".join(postcode.groups()).upper()
-    prefix = query[: postcode.start()] + query[postcode.end() :]
+    expected = "".join(postcode.groups()).upper() if postcode else None
+    prefix = query[: postcode.start()] + query[postcode.end() :] if postcode else query
     numbers = re.findall(r"\b\d+[A-Za-z]?\b", prefix)
     if not numbers:
         return None
@@ -33,10 +31,33 @@ def parse_address(payload, query):
         house = str(doc.get("huisnummer", "")) + str(doc.get("huisletter", ""))
         if (
             doc.get("type") != "adres"
-            or str(doc.get("postcode", "")).replace(" ", "").upper() != expected
+            or (
+                expected is not None
+                and str(doc.get("postcode", "")).replace(" ", "").upper() != expected
+            )
             or house.casefold() != numbers[-1].casefold()
         ):
             continue
+        if expected is None:
+            address = re.fullmatch(
+                r"\s*(.+?)\s+(\d+[A-Za-z]?)\s*,\s*([^,]+?)(?:,\s*Nederland)?\s*",
+                query,
+                re.I,
+            )
+
+            def canonical(value):
+                return " ".join(value.casefold().split())
+
+            if (
+                not address
+                or canonical(doc.get("straatnaam", "")) != canonical(address[1])
+                or canonical(address[3])
+                not in (
+                    canonical(doc.get("woonplaatsnaam", "")),
+                    canonical(doc.get("gemeentenaam", "")),
+                )
+            ):
+                continue
         match = re.fullmatch(
             r"POINT\(([-\d.]+) ([-\d.]+)\)", doc.get("centroide_ll", "")
         )
@@ -51,7 +72,7 @@ async def resolve(http, query):
     direct = coordinates(query)
     if direct:
         return direct, "coordinates"
-    if not re.search(r"\b[1-9]\d{3}\s*[A-Za-z]{2}\b", query) or re.search(
+    if re.search(
         r"\b(germany|belgium|belgië|duitsland|france|frankrijk)\b", query, re.I
     ):
         return None, "geocoding_unsupported_region"
@@ -59,7 +80,7 @@ async def resolve(http, query):
         "q": query,
         "fq": "type:adres",
         "rows": 3,
-        "fl": "type,postcode,huisnummer,huisletter,centroide_ll",
+        "fl": "type,postcode,huisnummer,huisletter,centroide_ll,straatnaam,woonplaatsnaam,gemeentenaam",
     }
     key = cache_key(URL, params)
     value = await http.get(URL, params, 30 * 86400)
