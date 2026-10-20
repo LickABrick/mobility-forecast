@@ -62,36 +62,14 @@ def register_services(hass):
         if call.service == "get_ev_plan":
             if not runtime.ev:
                 return {"schema": 1, "entry_id": entry.entry_id, "status": "disabled"}
-            from copy import deepcopy
-            from datetime import datetime, time, timedelta
+            from .ev.response import horizon_response
 
-            result = deepcopy(runtime.ev.result)
-            now = dt_util.utcnow().astimezone(ZoneInfo(hass.config.time_zone))
-            cutoff = datetime.combine(
-                now.date() + timedelta(days=call.data["horizon_days"]),
-                time(),
-                now.tzinfo,
-            )
-            result["calculation_horizon_days"] = 7
-            result["response_horizon_days"] = call.data["horizon_days"]
-            result["opportunities"] = [
-                item
-                for item in result.get("opportunities", [])
-                if datetime.fromisoformat(item["start"]) < cutoff
-                and datetime.fromisoformat(item["end"]) <= cutoff
-            ]
-            for key in ("recommendation", "alternative"):
-                item = result.get(key)
-                if (
-                    item
-                    and item.get("start")
-                    and datetime.fromisoformat(item["start"]) >= cutoff
-                ):
-                    result[key] = None
-            result["energy_demand_kwh"] = sum(
-                day.total_km * runtime.ev.config.consumption_kwh_per_100km / 100
-                for day in runtime.data.days
-                if now.date() <= day.day < cutoff.date()
+            result = horizon_response(
+                runtime.ev.result,
+                call.data["horizon_days"],
+                dt_util.utcnow().astimezone(ZoneInfo(hass.config.time_zone)),
+                runtime.data.days,
+                runtime.ev.config.consumption_kwh_per_100km,
             )
             return {"entry_id": entry.entry_id, **result}
         return (
@@ -111,7 +89,9 @@ def register_services(hass):
             raise HomeAssistantError("Vehicle is not loaded")
         await entry.runtime_data.manual_sync.request()
         if entry.runtime_data.manual_sync.status != "success":
-            raise HomeAssistantError("Manual synchronization failed; inspect sync status")
+            raise HomeAssistantError(
+                "Manual synchronization failed; inspect sync status"
+            )
 
     hass.services.async_register(
         DOMAIN, "sync_now", sync_now, schema=vol.Schema({vol.Required("entry_id"): str})
