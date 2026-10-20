@@ -25,6 +25,31 @@ def check_link(source, link):
     link = unquote(link)
     parsed = urlsplit(link)
     if parsed.scheme or link.startswith("//"):
+        if parsed.netloc == "github.com" and "/blob/" in parsed.path:
+            parts = parsed.path.strip("/").split("/")
+            # Only this repository's docs are resolved locally; other repositories
+            # remain approved external references, unless masquerading as this one.
+            if parts[1:2] == ["mobility-forecast"] or parts[:2] == [
+                "LickABrick",
+                "mobility-forecast",
+            ]:
+                assert parsed.scheme == "https" and not parsed.query, (
+                    f"Malformed documentation URL: {link}"
+                )
+                assert parts[:4] == [
+                    "LickABrick",
+                    "mobility-forecast",
+                    "blob",
+                    "main",
+                ], f"Unexpected repository/branch: {link}"
+                assert len(parts) > 5 and parts[4] == "docs", (
+                    f"Unexpected documentation URL: {link}"
+                )
+                check_link(
+                    ROOT / "README.md",
+                    "/".join(parts[4:])
+                    + (f"#{parsed.fragment}" if parsed.fragment else ""),
+                )
         return
     target = (source.parent / parsed.path).resolve() if parsed.path else source
     assert target.is_relative_to(ROOT) and target.exists(), f"{source}: missing {link}"
@@ -68,16 +93,22 @@ def main():
         data = json.loads(
             (ROOT / "custom_components/mobility_forecast" / name).read_text()
         )
-        for target in re.findall(
-            r"https://github.com/LickABrick/mobility-forecast/blob/master/([^\s)]+)",
-            json.dumps(data),
-        ):
+        for target in re.findall(r"https://[^\s)\"]+", json.dumps(data)):
             check_link(ROOT / "README.md", target)
     import ast
 
     flow = ast.parse(
         (ROOT / "custom_components/mobility_forecast/config_flow.py").read_text()
     )
+    constants = {
+        node.targets[0].id: ast.literal_eval(node.value)
+        for node in flow.body
+        if isinstance(node, ast.Assign)
+        and isinstance(node.targets[0], ast.Name)
+        and isinstance(node.value, ast.Constant)
+    }
+    assert constants["DOCS_REPOSITORY"] == "LickABrick/mobility-forecast"
+    assert constants["DOCS_BRANCH"] == "main"
     targets = next(
         ast.literal_eval(node.value)
         for node in flow.body

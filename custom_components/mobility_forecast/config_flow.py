@@ -34,11 +34,14 @@ HELP_TARGETS = {
 }
 
 
+DOCS_REPOSITORY = "LickABrick/mobility-forecast"
+DOCS_BRANCH = "main"
+DOCS_BASE_URL = f"https://github.com/{DOCS_REPOSITORY}/blob/{DOCS_BRANCH}/docs/"
+
+
 def help_link(step):
-    return {
-        "help_url": "https://github.com/LickABrick/mobility-forecast/blob/master/docs/"
-        + HELP_TARGETS[step]
-    }
+    """Deterministic default-branch documentation; never query GitHub at runtime."""
+    return {"help_url": DOCS_BASE_URL + HELP_TARGETS[step]}
 
 
 def vehicle_schema() -> vol.Schema:
