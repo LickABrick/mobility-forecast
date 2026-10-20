@@ -36,7 +36,9 @@ def validate_candidate(
     assert pr["title"] == f"chore(main): release {version}", (
         "Release PR version mismatch"
     )
-    assert f"## {version}" in pr.get("body", ""), "Missing Release Please version body"
+    assert re.search(
+        rf"^## (?:\[)?{re.escape(version)}(?:\]|\s|$)", pr.get("body", ""), re.M
+    ), "Missing Release Please version body"
     assert f"v{version}" not in {tag["name"] for tag in tags}, (
         "Tag already exists: never overwrite or repeat publication"
     )

@@ -31,6 +31,13 @@ jobs:
       - run: ruff format --check .
       - run: mypy
       - run: python scripts/validate.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify Release Please without publishing
+        run: |
+          npm install --prefix "$RUNNER_TEMP/release-fixture" --ignore-scripts release-please@17.3.0
+          NODE_PATH="$RUNNER_TEMP/release-fixture/node_modules" PYTHON=python node scripts/test_release_please.cjs
       - run: python scripts/check_release.py
       - run: python scripts/check_docs.py
       - name: Tagged release metadata
