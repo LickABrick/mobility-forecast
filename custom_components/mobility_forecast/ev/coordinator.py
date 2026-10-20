@@ -28,6 +28,8 @@ class EVRuntime:
         self.task = None
         self.pending = None
         self.stopping = False
+        self.revision = 0
+        self.dirty = False
         self.lookup_signature = None
         self.lookup_at = None
         self.public = []
@@ -54,6 +56,8 @@ class EVRuntime:
         self.schedule()
 
     def schedule(self):
+        self.revision += 1
+        self.dirty = True
         if self.stopping or self.pending:
             return
         self.pending = self.hass.loop.call_later(2, self.launch)
@@ -62,10 +66,31 @@ class EVRuntime:
         self.pending = None
         if not self.stopping and (self.task is None or self.task.done()):
             self.task = self.parent.entry.async_create_background_task(
-                self.hass, self.update(), "EV forecast"
+                self.hass, self.worker(), "EV forecast"
             )
 
+    async def worker(self):
+        try:
+            while self.dirty and not self.stopping:
+                self.dirty = False
+                await self.update()
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            if not self.stopping:
+                self.result = {
+                    "schema": 1,
+                    "status": "insufficient_data",
+                    "reason": "processing_error",
+                    "recommendation": None,
+                    "alternative": None,
+                    "opportunities": [],
+                }
+                for listener in tuple(self.listeners):
+                    listener()
+
     async def update(self):
+        revision = self.revision
         now = dt_util.utcnow().astimezone(ZoneInfo(self.hass.config.time_zone))
         cutoff = datetime.combine(now.date() + timedelta(days=7), time(), now.tzinfo)
         config = self.config
@@ -185,6 +210,9 @@ class EVRuntime:
                 return {key: serialized(item) for key, item in value.items()}
             return value
 
+        if self.stopping or revision != self.revision:
+            self.dirty = True
+            return
         self.result = {
             "schema": 1,
             "status": result.status,
