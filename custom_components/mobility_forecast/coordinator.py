@@ -4,7 +4,7 @@ import asyncio
 import hashlib
 import json
 import logging
-from datetime import timedelta
+from datetime import UTC, timedelta
 from zoneinfo import ZoneInfo
 
 from homeassistant.core import callback
@@ -57,6 +57,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
         self.source_available = False
         self.plans = {}
         self.day_fingerprints = {}
+        self.day_routed = {}
         self.day_verified = {}
         self.candidate_fingerprints = {}
         self.route_metrics = {}
@@ -343,6 +344,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
         ):
             return
         await self.async_refresh()
+        local = dt_util.utcnow().astimezone(zone)
         if capture(self.store.payload["snapshots"], self.data, local):
             cutoff = (local.date() - timedelta(days=365)).isoformat()
             self.store.payload["snapshots"] = {
@@ -351,6 +353,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
                 if key >= cutoff
             }
             self.store.schedule(self.readings)
+            self.async_set_updated_data(self.data)
 
     async def _midnight(self, now):
         await self.async_request_refresh()
@@ -366,6 +369,17 @@ class VehicleCoordinator(DataUpdateCoordinator):
             now = dt_util.utcnow().astimezone(zone)
             # A periodic read only uses last_reported, never advances a stale state.
             self._ingest(self.hass.states.get(self.source))
+            if self.day_verified:
+                self.plans = {
+                    day: plan
+                    for day, plan in self.plans.items()
+                    if day in self.day_verified
+                    and (now - self.day_verified[day]).total_seconds()
+                    <= CALENDAR_STALE_SECONDS
+                    and day >= now.date()
+                }
+                if not self.plans:
+                    self.calendar_status = "calendar_unavailable"
             self._schedule_calendar(now)
             history_key = (self.hass.config.time_zone, tuple(self.readings))
             if history_key != self.history_cache_key:
@@ -576,13 +590,18 @@ class VehicleCoordinator(DataUpdateCoordinator):
                                     home.identifier,
                                     [
                                         (
-                                            e.start.isoformat(),
-                                            e.end.isoformat(),
+                                            e.start.astimezone(UTC).isoformat(),
+                                            e.end.astimezone(UTC).isoformat(),
                                             e.location.identifier,
                                             e.all_day,
                                         )
                                         for e in sorted(
-                                            items, key=lambda e: (e.start, e.identifier)
+                                            items,
+                                            key=lambda e: (
+                                                e.start.astimezone(UTC),
+                                                e.end.astimezone(UTC),
+                                                e.location.identifier,
+                                            ),
                                         )
                                     ],
                                 ],
@@ -594,10 +613,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
                     # A successful response is authoritative: deletion/changed
                     # input invalidates obsolete overlays, unchanged plans survive.
                     for day in list(self.plans):
-                        if (
-                            day not in fingerprints
-                            or self.day_fingerprints.get(day) != fingerprints[day]
-                        ):
+                        if day not in fingerprints:
                             self.plans.pop(day, None)
                             self.day_fingerprints.pop(day, None)
                             self.day_verified.pop(day, None)
@@ -607,7 +623,10 @@ class VehicleCoordinator(DataUpdateCoordinator):
                         if self.day_fingerprints.get(day) == fingerprint
                         and day in self.plans
                         and self.plans[day].complete
-                        and (now - self.day_verified[day]).total_seconds() < 7 * 86400
+                        and (
+                            now - self.day_routed.get(day, self.day_verified[day])
+                        ).total_seconds()
+                        < 7 * 86400
                     }
                     self.calendar_days = grouped
                     self.candidate_fingerprints = fingerprints
@@ -641,10 +660,14 @@ class VehicleCoordinator(DataUpdateCoordinator):
                             return
                         plan = results[day]
                         # Atomic day commit; never publish a partial chain.
-                        self.plans[day] = plan
-                        self.day_fingerprints[day] = self.candidate_fingerprints[day]
+                        if plan.complete or not plan.retryable or day not in self.plans:
+                            self.plans[day] = plan
+                            self.day_fingerprints[day] = self.candidate_fingerprints[
+                                day
+                            ]
                         if plan.complete:
                             self.day_verified[day] = now
+                            self.day_routed[day] = now
                         if plan.reason:
                             self.calendar_metrics["last_failure"] = plan.reason
                         if plan.retryable:
@@ -721,7 +744,9 @@ class VehicleCoordinator(DataUpdateCoordinator):
                 self.calendar_days = None
                 self.calendar_pending_days.clear()
             self.calendar_status = (
-                "partial"
+                "stale"
+                if stage == "calendar_fetch" and self.plans
+                else "partial"
                 if any(p.complete for p in self.plans.values())
                 else "routing_timeout"
                 if isinstance(err, TimeoutError)
