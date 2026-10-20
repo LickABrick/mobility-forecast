@@ -9,7 +9,10 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SEMVER = re.compile(
-    r"(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*)?\Z"
+    r"(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)"
+    r"(?:-(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)"
+    r"(?:\.(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*))*)?"
+    r"(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?\Z"
 )
 
 
@@ -39,6 +42,8 @@ def validate(root=ROOT, tag=None):
     assert headings and len(headings) == len(set(headings)), (
         "Missing/duplicate changelog headings"
     )
+    releases = re.findall(r"^## \[?([0-9][0-9A-Za-z.+-]*)(?=\]|\s|$)", changelog, re.M)
+    assert len(releases) == len(set(releases)), "Duplicate release headings"
     assert json.loads((root / "hacs.json").read_text())["homeassistant"] == "2026.10.2"
     if tag:
         assert tag == f"v{version}", "Tag must match manifest"
