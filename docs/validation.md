@@ -167,3 +167,19 @@ fixtures now process all destinations across bounded passes rather than starving
 entries after the first ten. Full suite: 218 passed. The full requested restart,
 race, session and DST matrices are not yet covered; multi-session scheduling,
 coarse-day timing and provider semantics remain supervised-test limitations.
+
+## Manual sync and brand validation
+
+The manual-sync/branding change passes 228 tests on the Python 3.14 / HA 2026.10.2
+test environment, Ruff lint/format, configured seven-module Mypy, metadata and
+translation parity, and diff checks. Hassfest Docker: one integration, zero
+invalid. HACS Docker cannot proceed without `GITHUB_TOKEN`; offline HACS metadata
+validation passed. No real HA process restart or GitHub browser rendering was
+performed. SVG links resolve locally; PNGs were generated and visually inspected,
+and automated checks cover dimensions, transparency, local SVG structure and size.
+
+Manual-sync coverage includes entry setup/reload, HA switch services, user-off
+while busy, coalescing, failure sanitization, timeout, independent controllers,
+unload interruption, forced agenda verification, odometer ingestion and EV
+orchestration (mocked EV boundary). Existing calendar/provider/lifecycle tests
+remain green; this does not establish live external-provider availability.

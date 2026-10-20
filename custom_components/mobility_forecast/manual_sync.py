@@ -47,14 +47,14 @@ class ManualSync:
 
     async def run(self):
         try:
-            # At most two passes per burst. Continuous triggers cannot keep the
-            # switch busy indefinitely or grow a queue without bound.
-            for _ in range(2):
-                self.again = False
-                async with asyncio.timeout(120):
+            # One shared deadline bounds the whole burst. Only one dirty bit is
+            # queued; a request during a follow-up is not silently dropped.
+            async with asyncio.timeout(120):
+                while True:
+                    self.again = False
                     await self.cycle()
-                if not self.again:
-                    break
+                    if not self.again:
+                        break
             self.status = "success"
         except asyncio.CancelledError:
             self.status = "interrupted"

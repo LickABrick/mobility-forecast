@@ -24,3 +24,12 @@ def test_brand_assets_are_local_transparent_and_bounded():
             assert image.getpixel((0, 0))[3] == 0
             assert image.getbbox() is not None
         assert png.stat().st_size < 100_000
+
+
+def test_readme_brand_links_exist():
+    import re
+
+    content = (ROOT / "README.md").read_text()
+    paths = re.findall(r'(?:src|srcset)="(assets/brand/[^\"]+)"', content)
+    assert len(paths) == 2
+    assert all((ROOT / path).is_file() for path in paths)

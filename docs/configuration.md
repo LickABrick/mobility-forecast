@@ -124,3 +124,39 @@ coarse-day timing and provider semantics remain supervised-test limitations.
 The [Mobility Forecast brand assets](../assets/brand/README.md) include transparent
 icons and light/dark wordmarks. They are repository presentation assets, not an
 automatically installed Home Assistant integration tile.
+
+## Manual sync
+
+Each vehicle has a **Manual Sync** switch (Dutch: **Handmatige synchronisatie**),
+normally `switch.<vehicle>_manual_sync`. Turning it on runs an immediate bounded
+sync cycle; it stays on while busy and returns off on completion or failure. It
+is an action-style switch, **not** an enable/disable setting. Turning it off while
+busy does not cancel work. It starts off after reload/restart.
+
+The cycle reads the current odometer, refreshes forecasts, bypasses the calendar
+30-minute wait for verification, reuses bounded routing/cache logic, and refreshes
+optional EV planning/discovery. It does not purge caches, force every route to be
+recalculated, bypass provider cooldowns, or finish an entire destination crawl.
+Useful after updates/restarts or when you want fresh inputs. Repeated requests
+share one worker with a single pending follow-up bit and a **120-second total
+deadline**. Existing automatic provider work is joined rather than duplicated.
+A timeout ends the manual wait; normal owned background work can continue.
+Unload cancels the manual controller and the integration's owned background work.
+
+Attributes include `status`, `last_triggered_at`, `last_started_at`,
+`last_finished_at` and sanitized `last_error_code`. `success` means the bounded
+cycle completed, not that every external datum is available or every route is
+complete. Check sensor calendar/EV status for partial/uncertain data. No private
+event content is exposed. Busy-state publications occur at start/end, not each
+sub-step. Existing mileage sensor unique IDs are unchanged.
+
+Automation / Developer Tools → Actions alternative:
+
+```yaml
+action: mobility_forecast.sync_now
+data:
+  entry_id: YOUR_CONFIG_ENTRY_ID
+```
+
+The action targets one loaded entry and waits for its cycle; result metadata is
+on the switch. An invalid/unloaded entry raises a clean action error.

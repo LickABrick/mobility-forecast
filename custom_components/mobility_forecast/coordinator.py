@@ -869,6 +869,8 @@ class VehicleCoordinator(DataUpdateCoordinator):
         # Initialization owns Store loading; never refresh an uninitialized store.
         if self.initialization_task and not self.initialization_task.done():
             await asyncio.shield(self.initialization_task)
+        if not self.initialized:
+            raise RuntimeError("initialization_incomplete")
         # Join automatic calendar work instead of starting competing providers.
         if self.calendar_task and not self.calendar_task.done():
             await asyncio.shield(self.calendar_task)
@@ -891,6 +893,10 @@ class VehicleCoordinator(DataUpdateCoordinator):
             self.ev.launch()
             if self.ev.task:
                 await asyncio.shield(self.ev.task)
+            if self.ev.result.get("reason") == "processing_error":
+                raise RuntimeError("sync_incomplete")
+        if not self.last_update_success:
+            raise RuntimeError("sync_incomplete")
         if self.calendar_status in (
             "calendar_unavailable",
             "routing_unavailable",

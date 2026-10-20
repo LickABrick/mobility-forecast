@@ -48,7 +48,8 @@ async def test_disabled_identity_preserved_on_reload(hass):
                 [
                     e
                     for e in er.async_entries_for_config_entry(registry, entry.entry_id)
-                    if e.entity_id.startswith("sensor.") and hass.states.get(e.entity_id)
+                    if e.entity_id.startswith("sensor.")
+                    and hass.states.get(e.entity_id)
                 ]
             )
             == 4
