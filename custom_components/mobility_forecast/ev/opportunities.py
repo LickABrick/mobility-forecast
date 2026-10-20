@@ -56,28 +56,36 @@ def home_windows(config, now, legs, telemetry):
             start <= now.astimezone(UTC) and telemetry.location_state == "not_home"
         ):
             continue
-        # Home-to-home chain: all time from first departure to final return is away.
-        for day_legs in (
-            {
-                leg.departure.astimezone(now.tzinfo).date(): [
-                    item
-                    for item in legs
-                    if item.departure.astimezone(now.tzinfo).date()
-                    == leg.departure.astimezone(now.tzinfo).date()
-                ]
-                for leg in legs
-            }
-        ).values():
-            away_start = min(item.departure for item in day_legs).astimezone(UTC)
-            away_end = max(item.arrival for item in day_legs).astimezone(UTC)
-            if start < away_end and end > away_start:
-                if start < away_start:
-                    end = min(end, away_start)
+        grouped = {}
+        for leg in legs:
+            if leg.quality == "daily_estimate":
+                continue
+            grouped.setdefault(leg.departure.astimezone(now.tzinfo).date(), []).append(
+                leg
+            )
+        away = [
+            (
+                min(item.departure.astimezone(UTC) for item in items),
+                max(item.arrival.astimezone(UTC) for item in items),
+            )
+            for items in grouped.values()
+        ]
+        segments = [(start, end)]
+        for away_start, away_end in sorted(away):
+            retained = []
+            for left, right in segments:
+                if away_end <= left or away_start >= right:
+                    retained.append((left, right))
                 else:
-                    start = max(start, away_end)
-        opportunity = window(config, "home", start, end, now)
-        if opportunity:
-            result.append(opportunity)
+                    if left < away_start:
+                        retained.append((left, away_start))
+                    if away_end < right:
+                        retained.append((away_end, right))
+            segments = retained
+        for left, right in segments:
+            opportunity = window(config, "home", left, right, now)
+            if opportunity:
+                result.append(opportunity)
     return result
 
 
