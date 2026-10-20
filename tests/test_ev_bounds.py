@@ -74,4 +74,10 @@ async def test_destination_batch_bound(hass, count):
         assert geo.call_count == count  # Completed destinations are not repeated.
         assert len(runtime.destination_results) == count
         assert len(runtime.result["opportunities"]) == 0
+    # Identical calculations must not generate another entity publication.
+    writes = []
+    runtime.listeners = [lambda: writes.append(True)]
+    with patch("custom_components.mobility_forecast.ev.coordinator.resolve") as again:
+        await runtime.update()
+    assert not again.called and not writes
     await runtime.close()

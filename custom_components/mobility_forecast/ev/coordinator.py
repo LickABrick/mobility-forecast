@@ -179,6 +179,9 @@ class EVRuntime:
                         else []
                     )
                     self.destination_results[identity] = points
+                    if self.stopping or revision != self.revision:
+                        self.dirty = True
+                        return
                     if not coords:
                         self.reason = status
                 except (ProviderError, ValueError, TypeError, KeyError):
@@ -186,6 +189,10 @@ class EVRuntime:
                     self.destination_attempts[identity] = (
                         self.destination_attempts.get(identity, 0) + 1
                     )
+                    if self.destination_attempts[identity] >= 3:
+                        self.destination_attempts[identity] = 0
+                        self.destination_retry[identity] = now + timedelta(days=1)
+                        continue
                     self.destination_retry[identity] = now + timedelta(
                         seconds=300
                         if self.http.cooldown
@@ -275,6 +282,7 @@ class EVRuntime:
         if self.stopping or revision != self.revision:
             self.dirty = True
             return
+        previous = self.result
         self.result = {
             "schema": 1,
             "status": result.status,
@@ -321,8 +329,9 @@ class EVRuntime:
             ],
             "provider_status": self.reason,
         }
-        for listener in self.listeners:
-            listener()
+        if self.result != previous:
+            for listener in self.listeners:
+                listener()
 
     listeners = ()
 
