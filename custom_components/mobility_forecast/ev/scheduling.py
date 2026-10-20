@@ -128,7 +128,12 @@ def recommend(config, telemetry, legs, opportunities, now, estimated=False):
             pre_soc,
             target,
             config.max_ac_charge_power_kw,
-            opportunity.effective_power_kw,
+            min(opportunity.effective_power_kw, telemetry.charging_power_kw)
+            if telemetry.charging_state == "charging"
+            and telemetry.charging_power_kw
+            and opportunity.start <= anchor
+            and opportunity.source == "home"
+            else opportunity.effective_power_kw,
         )
         if minutes <= 0 or minutes * 60 > (end - opportunity.start).total_seconds():
             continue
@@ -165,7 +170,8 @@ def recommend(config, telemetry, legs, opportunities, now, estimated=False):
         )
     candidates.sort(
         key=lambda candidate: (
-            (-candidate.battery_energy_kwh if config.prefer_long_sessions else 0),
+            (candidate.battery_energy_kwh < config.minimum_useful_charge_kwh),
+            (candidate.target_soc if config.prefer_long_sessions else 0),
             -candidate.start.timestamp(),
             candidate.location_type,
         )
