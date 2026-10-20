@@ -72,7 +72,7 @@ async def test_history_response_matches_chart_and_reload(hass):
             blocking=True,
             return_response=True,
         )
-        assert future["forecast"] == state.attributes["forecast"]
+        assert future["forecast"] == state.attributes["forecast"][:30]
         assert all("timestamp" in r for r in future["forecast"])
         await hass.config_entries.async_unload(entry.entry_id)
         with pytest.raises(HomeAssistantError):

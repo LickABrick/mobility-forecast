@@ -32,11 +32,9 @@
         "title": "Vehicle settings",
         "menu_options": {
           "vehicle": "Vehicle",
-          "calendars": "Calendars",
+          "calendars": "Calendars and routes",
           "locations": "Known locations",
-          "ev": "Electric vehicle",
-          "ev_advanced": "EV advanced settings",
-          "ev_entities": "Additional vehicle data"
+          "ev_menu": "Electric vehicle"
         }
       },
       "locations": {
@@ -51,30 +49,31 @@
         "title": "Vehicle",
         "data": {
           "name": "Vehicle name"
-        }
+        },
+        "description": " [Learn more about vehicle settings](https://github.com/LickABrick/mobility-forecast/blob/master/docs/configuration.md#vehicle)."
       },
       "calendars": {
         "title": "Calendars",
-        "description": "Calendars are optional. Waze sends origin and destination locations to an external service, never event titles. Install Waze Travel Time first.",
+        "description": "Calendars are optional. Waze sends origin and destination locations to an external service, never event titles. Install Waze Travel Time first. [Learn more about calendar predictions](https://github.com/LickABrick/mobility-forecast/blob/master/docs/calendar-routing.md#setup).",
         "data": {
           "calendars": "Calendars",
           "routing": "Use Waze for routes",
           "ignore_nested_appointments": "Ignore nested appointments"
         },
         "data_description": {
-          "ignore_nested_appointments": "Ignore shorter appointments completely contained within a longer appointment when planning routes, even when they have different locations."
+          "ignore_nested_appointments": "Ignores fully contained appointments. May also exclude genuine separate journeys."
         }
       },
       "routing": {
         "title": "Waze region",
-        "description": "Choose the region of your Home Assistant installation.",
+        "description": "Choose the region of your Home Assistant installation. [Learn more about Waze regions](https://github.com/LickABrick/mobility-forecast/blob/master/docs/calendar-routing.md#waze).",
         "data": {
           "region": "Region"
         }
       },
       "add_location": {
         "title": "Add location",
-        "description": "Enter a full street address with city, or latitude,longitude.",
+        "description": "Enter a full street address with city, or latitude,longitude. [Learn more about known locations](https://github.com/LickABrick/mobility-forecast/blob/master/docs/calendar-routing.md#known-locations).",
         "data": {
           "name": "Location name in calendar",
           "address": "Address or coordinates"
@@ -105,7 +104,12 @@
           "charging_mode": "Where can your vehicle charge?",
           "external_lookup_consent": "Allow external destination lookups"
         },
-        "description": "Appointment addresses may be sent to PDOK and destination coordinates to NDW. No titles or descriptions are sent. Explicit consent is required for public charging; disable at any time. Enter usable, not nominal capacity."
+        "description": "Appointment addresses may be sent to PDOK and destination coordinates to NDW. No titles or descriptions are sent. Explicit consent is required for public charging; disable at any time. Enter usable, not nominal capacity. [Learn more about EV setup](https://github.com/LickABrick/mobility-forecast/blob/master/docs/ev-charging.md#setup).",
+        "data_description": {
+          "preferred_max_soc": "Normal maximum battery percentage after charging, not charging power.",
+          "minimum_soc": "Battery percentage you prefer to preserve after driving.",
+          "external_lookup_consent": "Sends destination addresses to PDOK and coordinates to NDW, not titles or descriptions."
+        }
       },
       "ev_advanced": {
         "title": "EV advanced settings",
@@ -119,6 +123,12 @@
           "home_window_end": "Home charging available until",
           "allow_above_preferred_soc": "Allow higher targets for long journeys",
           "absolute_max_soc": "Maximum exceptional target (%)"
+        },
+        "description": " [Learn more about charging preferences](https://github.com/LickABrick/mobility-forecast/blob/master/docs/ev-charging.md#advanced-options).",
+        "data_description": {
+          "minimum_appointment_minutes": "Shorter appointments are not considered charging opportunities.",
+          "max_charger_distance_m": "Straight-line distance, not walking distance.",
+          "prefer_long_sessions": "A preference; cannot override reachability or reserve constraints."
         }
       },
       "ev_entities": {
@@ -133,6 +143,19 @@
           "vehicle_location_entity": "Vehicle home/away location",
           "consumption_entity": "Vehicle average consumption",
           "energy_added_entity": "Charging energy added"
+        },
+        "description": " [Learn more about vehicle data](https://github.com/LickABrick/mobility-forecast/blob/master/docs/ev-charging.md#vehicle-entities).",
+        "data_description": {
+          "range_entity": "Same-device suggestions only; review the meaning before selecting."
+        }
+      },
+      "ev_menu": {
+        "title": "Electric vehicle",
+        "menu_options": {
+          "ev": "EV setup",
+          "ev_entities": "Additional vehicle data",
+          "ev_advanced": "Advanced charging preferences",
+          "init": "Back to vehicle settings"
         }
       }
     },
@@ -141,7 +164,11 @@
       "invalid_location": "Enter a full address with street number and city, or valid coordinates.",
       "duplicate_location": "This location name already exists. Choose Edit location.",
       "invalid_ev": "Invalid EV value or incompatible entity unit.",
-      "consent_required": "Consent is required for external lookups."
+      "consent_required": "Consent is required for external lookups.",
+      "invalid_number": "Enter a finite number within the indicated range.",
+      "invalid_soc_sensor": "Select a battery sensor reporting percent.",
+      "invalid_reserve": "Reserve must be below the preferred charging limit.",
+      "invalid_time": "Enter a valid home charging time."
     }
   },
   "entity": {
@@ -228,7 +255,7 @@
         },
         "days": {
           "name": "Days",
-          "description": "1–365 days of history."
+          "description": "Number of local forecast dates (1–365); default 30, capped by available data."
         }
       }
     },

@@ -24,7 +24,7 @@ def history_data(runtime, days=30):
     }
 
 
-def forecast_data(runtime):
+def forecast_data(runtime, days=31):
     from datetime import datetime, time
 
     data = runtime.data
@@ -40,7 +40,7 @@ def forecast_data(runtime):
                 "low_km": d.low_km,
                 "high_km": d.high_km,
             }
-            for d in data.days[:31]
+            for d in data.days[:days]
         ],
     }
 
@@ -75,7 +75,7 @@ def register_services(hass):
         return (
             history_data(runtime, call.data["days"])
             if call.service == "get_history"
-            else forecast_data(runtime)
+            else forecast_data(runtime, call.data["days"])
         )
 
     async def sync_now(call):

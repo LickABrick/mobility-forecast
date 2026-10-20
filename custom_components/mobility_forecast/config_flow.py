@@ -10,9 +10,13 @@ from homeassistant.helpers.selector import (
     BooleanSelector,
     EntitySelector,
     EntitySelectorConfig,
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
     SelectSelector,
     SelectSelectorConfig,
     TextSelector,
+    TimeSelector,
 )
 
 from .const import DOMAIN
@@ -135,10 +139,20 @@ class MobilityOptions(config_entries.OptionsFlow):
                 "vehicle",
                 "calendars",
                 "locations",
-                "ev",
-                "ev_advanced",
-                "ev_entities",
+                "ev_menu",
             ],
+        )
+
+    async def async_step_ev_menu(self, user_input=None):
+        return self.async_show_menu(
+            step_id="ev_menu",
+            menu_options=["ev"]
+            + (
+                ["ev_entities", "ev_advanced"]
+                if self._options().get("ev_enabled")
+                else []
+            )
+            + ["init"],
         )
 
     async def async_step_vehicle(self, user_input=None):
@@ -293,21 +307,21 @@ class MobilityOptions(config_entries.OptionsFlow):
                         or not math.isfinite(value)
                         or not 0 < value <= upper
                     ):
-                        errors[key] = "invalid_ev"
+                        errors[key] = "invalid_number"
                 state = self.hass.states.get(user_input.get("soc_entity", ""))
                 if (
                     state is None
                     or state.domain != "sensor"
                     or state.attributes.get("unit_of_measurement") != "%"
                 ):
-                    errors["soc_entity"] = "invalid_ev"
+                    errors["soc_entity"] = "invalid_soc_sensor"
                 if (
                     not 0 <= user_input.get("minimum_soc", 15) <= 50
                     or not 50 <= user_input.get("preferred_max_soc", 80) <= 100
                     or user_input.get("minimum_soc", 15)
                     >= user_input.get("preferred_max_soc", 80)
                 ):
-                    errors["base"] = "invalid_ev"
+                    errors["minimum_soc"] = "invalid_reserve"
                 if user_input.get(
                     "charging_mode"
                 ) != "home_only" and not user_input.get("external_lookup_consent"):
@@ -326,7 +340,11 @@ class MobilityOptions(config_entries.OptionsFlow):
                     if options.get("soc_entity")
                     else {}
                 ),
-            ): EntitySelector(EntitySelectorConfig(domain="sensor")),
+            ): EntitySelector(
+                EntitySelectorConfig(
+                    filter={"domain": "sensor", "unit_of_measurement": "%"}
+                )
+            ),
         }
         for key, default in (
             ("usable_capacity_kwh", None),
@@ -338,7 +356,27 @@ class MobilityOptions(config_entries.OptionsFlow):
             value = options.get(key, default)
             fields[
                 vol.Optional(key, **({"default": value} if value is not None else {}))
-            ] = vol.Coerce(float)
+            ] = NumberSelector(
+                NumberSelectorConfig(
+                    min=0,
+                    max={
+                        "usable_capacity_kwh": 300,
+                        "consumption_kwh_per_100km": 100,
+                        "max_ac_charge_power_kw": 43,
+                        "minimum_soc": 50,
+                        "preferred_max_soc": 100,
+                    }[key],
+                    step=0.1,
+                    mode=NumberSelectorMode.BOX,
+                    unit_of_measurement={
+                        "usable_capacity_kwh": "kWh",
+                        "consumption_kwh_per_100km": "kWh/100 km",
+                        "max_ac_charge_power_kw": "kW",
+                        "minimum_soc": "%",
+                        "preferred_max_soc": "%",
+                    }[key],
+                )
+            )
         fields[
             vol.Required(
                 "charging_mode", default=options.get("charging_mode", "home_only")
@@ -383,13 +421,13 @@ class MobilityOptions(config_entries.OptionsFlow):
                     or not math.isfinite(value)
                     or not low <= value <= high
                 ):
-                    errors[key] = "invalid_ev"
+                    errors[key] = "invalid_number"
             for key in ("home_window_start", "home_window_end"):
                 if key in user_input:
                     try:
                         time.fromisoformat(user_input[key])
-                    except ValueError:
-                        errors[key] = "invalid_ev"
+                    except (ValueError, TypeError):
+                        errors[key] = "invalid_time"
             if user_input.get("absolute_max_soc", 100) < options.get(
                 "preferred_max_soc", 80
             ):
@@ -398,8 +436,22 @@ class MobilityOptions(config_entries.OptionsFlow):
                 options.update(user_input)
                 return self.async_create_entry(title="", data=options)
         fields = {
-            vol.Required(key, default=options.get(key, default)): vol.Coerce(float)
-            for key, (_, _, default) in bounds.items()
+            vol.Required(key, default=options.get(key, default)): NumberSelector(
+                NumberSelectorConfig(
+                    min=low,
+                    max=high,
+                    step=0.1,
+                    mode=NumberSelectorMode.BOX,
+                    unit_of_measurement={
+                        "session_overhead_minutes": "min",
+                        "minimum_useful_charge_kwh": "kWh",
+                        "absolute_max_soc": "%",
+                        "minimum_appointment_minutes": "min",
+                        "max_charger_distance_m": "m",
+                    }[key],
+                )
+            )
+            for key, (low, high, default) in bounds.items()
         }
         for key, default in (
             ("prefer_long_sessions", True),
@@ -414,7 +466,7 @@ class MobilityOptions(config_entries.OptionsFlow):
                 ("home_window_end", "07:00"),
             ):
                 fields[vol.Required(key, default=options.get(key, default))] = (
-                    TextSelector()
+                    TimeSelector()
                 )
         return self.async_show_form(
             step_id="ev_advanced", data_schema=vol.Schema(fields), errors=errors
@@ -434,7 +486,7 @@ class MobilityOptions(config_entries.OptionsFlow):
                     and state.attributes.get("unit_of_measurement")
                     not in OPTIONAL_UNITS[key]
                 ):
-                    errors[key] = "invalid_ev"
+                    errors[key] = "invalid_number"
             if not errors:
                 for key in (
                     *OPTIONAL_UNITS,
@@ -445,6 +497,7 @@ class MobilityOptions(config_entries.OptionsFlow):
                     options.pop(key, None)
                 options.update({k: v for k, v in user_input.items() if v})
                 return self.async_create_entry(title="", data=options)
+        suggestions = self._entity_suggestions()
         fields = {}
         for key in (
             *OPTIONAL_UNITS,
@@ -454,7 +507,14 @@ class MobilityOptions(config_entries.OptionsFlow):
         ):
             fields[
                 vol.Optional(
-                    key, **({"default": options[key]} if options.get(key) else {})
+                    key,
+                    **(
+                        {"default": options[key]}
+                        if options.get(key)
+                        else {"description": {"suggested_value": suggestions[key]}}
+                        if key in suggestions and key not in options
+                        else {}
+                    ),
                 )
             ] = EntitySelector(
                 EntitySelectorConfig(
@@ -464,3 +524,35 @@ class MobilityOptions(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="ev_entities", data_schema=vol.Schema(fields), errors=errors
         )
+
+    def _entity_suggestions(self):
+        """Suggest only unambiguous same-device numeric semantics; never persist here."""
+        from .ev.vehicle import OPTIONAL_UNITS
+
+        registry = er.async_get(self.hass)
+        source = registry.async_get(self._options().get("soc_entity", ""))
+        if source is None or source.device_id is None:
+            return {}
+        classes = {
+            "range_entity": "distance",
+            "charging_power_entity": "power",
+            "remaining_charge_time_entity": "duration",
+        }
+        result = {}
+        for key, device_class in classes.items():
+            candidates = []
+            for entity in er.async_entries_for_device(registry, source.device_id):
+                state = self.hass.states.get(entity.entity_id)
+                if (
+                    entity.domain == "sensor"
+                    and not entity.disabled
+                    and state is not None
+                    and state.state not in ("unknown", "unavailable")
+                    and state.attributes.get("device_class") == device_class
+                    and state.attributes.get("unit_of_measurement")
+                    in OPTIONAL_UNITS[key]
+                ):
+                    candidates.append(entity.entity_id)
+            if len(candidates) == 1:
+                result[key] = candidates[0]
+        return result

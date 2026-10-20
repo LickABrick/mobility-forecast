@@ -12,7 +12,12 @@ async def test_ev_opt_in_validation_and_preservation(hass, enable_custom_integra
     entry.add_to_hass(hass)
     hass.states.async_set("sensor.soc", "unavailable", {"unit_of_measurement": "%"})
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    assert "ev" in result["menu_options"]
+    assert "ev_menu" in result["menu_options"]
+    assert "ev_advanced" not in result["menu_options"]
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"next_step_id": "ev_menu"}
+    )
+    assert result["menu_options"] == ["ev", "init"]
     result = await hass.config_entries.options.async_configure(
         result["flow_id"], {"next_step_id": "ev"}
     )

@@ -32,11 +32,9 @@
         "title": "Voertuig instellen",
         "menu_options": {
           "vehicle": "Voertuig",
-          "calendars": "Agenda’s",
+          "calendars": "Agenda’s en routes",
           "locations": "Bekende locaties",
-          "ev": "Elektrisch voertuig",
-          "ev_advanced": "Geavanceerde EV-instellingen",
-          "ev_entities": "Aanvullende voertuiggegevens"
+          "ev_menu": "Elektrisch voertuig"
         }
       },
       "locations": {
@@ -51,30 +49,31 @@
         "title": "Voertuig",
         "data": {
           "name": "Voertuignaam"
-        }
+        },
+        "description": " [Meer over voertuiginstellingen](https://github.com/LickABrick/mobility-forecast/blob/master/docs/configuration.md#vehicle)."
       },
       "calendars": {
         "title": "Agenda’s",
-        "description": "Agenda’s zijn optioneel. Waze stuurt vertrek- en bestemmingslocaties naar een externe dienst, nooit afspraaktitels. Installeer eerst Waze Travel Time.",
+        "description": "Agenda’s zijn optioneel. Waze stuurt vertrek- en bestemmingslocaties naar een externe dienst, nooit afspraaktitels. Installeer eerst Waze Travel Time. [Meer over agendavoorspellingen](https://github.com/LickABrick/mobility-forecast/blob/master/docs/calendar-routing.md#setup).",
         "data": {
           "calendars": "Agenda’s",
           "routing": "Waze gebruiken voor routes",
           "ignore_nested_appointments": "Geneste afspraken negeren"
         },
         "data_description": {
-          "ignore_nested_appointments": "Negeer kortere afspraken die volledig binnen een langere afspraak vallen bij het berekenen van routes, ook wanneer ze een ander adres hebben."
+          "ignore_nested_appointments": "Negeert volledig ingesloten afspraken. Kan ook echte afzonderlijke ritten uitsluiten."
         }
       },
       "routing": {
         "title": "Waze-regio",
-        "description": "Kies de regio van je Home Assistant-installatie.",
+        "description": "Kies de regio van je Home Assistant-installatie. [Meer over Waze-regio’s](https://github.com/LickABrick/mobility-forecast/blob/master/docs/calendar-routing.md#waze).",
         "data": {
           "region": "Regio"
         }
       },
       "add_location": {
         "title": "Locatie toevoegen",
-        "description": "Voer een volledig straatadres met plaatsnaam of breedtegraad,lengtegraad in.",
+        "description": "Voer een volledig straatadres met plaatsnaam of breedtegraad,lengtegraad in. [Meer over bekende locaties](https://github.com/LickABrick/mobility-forecast/blob/master/docs/calendar-routing.md#known-locations).",
         "data": {
           "name": "Locatienaam in de agenda",
           "address": "Adres of coördinaten"
@@ -105,7 +104,12 @@
           "charging_mode": "Waar kan je auto laden?",
           "external_lookup_consent": "Externe bestemmingsaanvragen toestaan"
         },
-        "description": "Afspraakadressen kunnen naar PDOK worden verstuurd en bestemmingscoördinaten naar NDW. Titels en beschrijvingen worden niet verstuurd. Openbaar laden vereist toestemming; uitschakelen kan altijd. Gebruik de bruikbare, niet nominale capaciteit."
+        "description": "Afspraakadressen kunnen naar PDOK worden verstuurd en bestemmingscoördinaten naar NDW. Titels en beschrijvingen worden niet verstuurd. Openbaar laden vereist toestemming; uitschakelen kan altijd. Gebruik de bruikbare, niet nominale capaciteit. [Meer over EV instellen](https://github.com/LickABrick/mobility-forecast/blob/master/docs/ev-charging.md#setup).",
+        "data_description": {
+          "preferred_max_soc": "Normale maximale acculading na laden; geen laadvermogen.",
+          "minimum_soc": "Gewenste resterende acculading na het rijden.",
+          "external_lookup_consent": "Stuurt bestemmingsadressen naar PDOK en coördinaten naar NDW; geen titels of beschrijvingen."
+        }
       },
       "ev_advanced": {
         "title": "Geavanceerde EV-instellingen",
@@ -119,6 +123,12 @@
           "home_window_end": "Tot hoe laat kun je thuis laden?",
           "allow_above_preferred_soc": "Bij lange ritten een hogere acculading adviseren",
           "absolute_max_soc": "Maximale acculading bij uitzonderingen (%)"
+        },
+        "description": " [Meer over laadvoorkeuren](https://github.com/LickABrick/mobility-forecast/blob/master/docs/ev-charging.md#advanced-options).",
+        "data_description": {
+          "minimum_appointment_minutes": "Kortere afspraken zijn geen laadkans.",
+          "max_charger_distance_m": "Hemelsbrede afstand, geen loopafstand.",
+          "prefer_long_sessions": "Voorkeur; bereikbaarheid en reserve blijven leidend."
         }
       },
       "ev_entities": {
@@ -133,6 +143,19 @@
           "vehicle_location_entity": "Locatie of thuisstatus van de auto",
           "consumption_entity": "Gemiddeld verbruik volgens de auto",
           "energy_added_entity": "Toegevoegde laadenergie"
+        },
+        "description": " [Meer over voertuiggegevens](https://github.com/LickABrick/mobility-forecast/blob/master/docs/ev-charging.md#vehicle-entities).",
+        "data_description": {
+          "range_entity": "Alleen suggesties van hetzelfde apparaat; controleer de betekenis."
+        }
+      },
+      "ev_menu": {
+        "title": "Elektrisch voertuig",
+        "menu_options": {
+          "ev": "EV instellen",
+          "ev_entities": "Aanvullende voertuiggegevens",
+          "ev_advanced": "Geavanceerde laadvoorkeuren",
+          "init": "Terug naar voertuiginstellingen"
         }
       }
     },
@@ -141,7 +164,11 @@
       "invalid_location": "Voer een volledig adres met huisnummer en plaatsnaam, of geldige coördinaten in.",
       "duplicate_location": "Deze locatienaam bestaat al. Kies Locatie wijzigen.",
       "invalid_ev": "Ongeldige EV-waarde of ongeschikte entiteitseenheid.",
-      "consent_required": "Toestemming voor externe aanvragen is vereist."
+      "consent_required": "Toestemming voor externe aanvragen is vereist.",
+      "invalid_number": "Voer een getal binnen het aangegeven bereik in.",
+      "invalid_soc_sensor": "Selecteer een accusensor met eenheid %.",
+      "invalid_reserve": "De reserve moet onder de gewenste laadlimiet liggen.",
+      "invalid_time": "Voer een geldige laadtijd in."
     }
   },
   "entity": {
@@ -228,7 +255,7 @@
         },
         "days": {
           "name": "Dagen",
-          "description": "1–365 dagen geschiedenis."
+          "description": "Aantal lokale voorspellingsdatums (1–365); standaard 30, begrensd door beschikbare gegevens."
         }
       }
     },
