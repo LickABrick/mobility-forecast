@@ -661,6 +661,9 @@ class VehicleCoordinator(DataUpdateCoordinator):
                         and day in self.plans
                         and self.plans[day].complete
                         and (
+                            not options.get("ev_enabled") or bool(self.plans[day].legs)
+                        )
+                        and (
                             now - self.day_routed.get(day, self.day_verified[day])
                         ).total_seconds()
                         < 7 * 86400

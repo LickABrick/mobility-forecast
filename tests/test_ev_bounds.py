@@ -66,7 +66,12 @@ async def test_destination_batch_bound(hass, count):
         await runtime.update()
         assert geo.call_count == 10
         assert points.call_count == 10
+        for _ in range(count // 10 - 1):
+            await runtime.update()
+        assert geo.call_count == count
+        assert points.call_count == count
         await runtime.update()
-        assert geo.call_count == 10  # SoC/unchanged forecast does not refetch.
+        assert geo.call_count == count  # Completed destinations are not repeated.
+        assert len(runtime.destination_results) == count
         assert len(runtime.result["opportunities"]) == 0
     await runtime.close()

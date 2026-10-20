@@ -32,6 +32,10 @@ class EVRuntime:
         self.dirty = False
         self.lookup_signature = None
         self.lookup_at = None
+        self.destination_results = {}
+        self.destination_attempts = {}
+        self.destination_retry = {}
+        self.discovery_timer = None
         self.public = []
         self.reason = None
         self.result = {
@@ -133,34 +137,81 @@ class EVRuntime:
                 or (now - self.lookup_at).total_seconds() >= 86400
             )
         ):
-            self.public = []
+            if signature != self.lookup_signature:
+                retained = {stop.destination_identity for stop in stops}
+                self.destination_results = {
+                    key: value
+                    for key, value in self.destination_results.items()
+                    if key in retained
+                }
+                self.destination_attempts = {
+                    key: value
+                    for key, value in self.destination_attempts.items()
+                    if key in retained
+                }
+                self.destination_retry = {
+                    key: value
+                    for key, value in self.destination_retry.items()
+                    if key in retained
+                }
+            if self.lookup_at and (now - self.lookup_at).total_seconds() >= 86400:
+                self.destination_results = {}
             self.reason = None
-            self.lookup_at = now
-            selected = []
-            identities = set()
-            for stop in stops:
-                if stop.destination_identity not in identities:
-                    identities.add(stop.destination_identity)
-                    if len(identities) > 10:
-                        self.reason = "lookup_budget_deferred"
-                        continue
-                selected.append(stop)
-            for stop in selected[:30]:
+            destinations = {}
+            for stop in sorted(stops, key=lambda item: item.arrival):
+                destinations.setdefault(stop.destination_identity, stop)
+            pending = [
+                stop
+                for identity, stop in destinations.items()
+                if identity not in self.destination_results
+                and self.destination_attempts.get(identity, 0) < 3
+                and self.destination_retry.get(identity, now) <= now
+            ]
+            for stop in pending[:10]:
+                identity = stop.destination_identity
                 try:
                     coords, status = await resolve(self.http, stop.query)
+                    points = (
+                        await discover(
+                            self.http, *coords, config.max_charger_distance_m, now
+                        )
+                        if coords
+                        else []
+                    )
+                    self.destination_results[identity] = points
                     if not coords:
                         self.reason = status
-                        continue
-                    points = await discover(
-                        self.http, *coords, config.max_charger_distance_m, now
-                    )
-                    for point in points:
-                        opportunity = appointment_window(config, stop, point, now)
-                        if opportunity:
-                            self.public.append(opportunity)
                 except (ProviderError, ValueError, TypeError, KeyError):
                     self.reason = "charger_data_unavailable"
+                    self.destination_attempts[identity] = (
+                        self.destination_attempts.get(identity, 0) + 1
+                    )
+                    self.destination_retry[identity] = now + timedelta(
+                        seconds=300
+                        if self.http.cooldown
+                        else 60 * self.destination_attempts[identity]
+                    )
+            self.public = []
+            for stop in stops:
+                for point in self.destination_results.get(
+                    stop.destination_identity, []
+                ):
+                    opportunity = appointment_window(config, stop, point, now)
+                    if opportunity:
+                        self.public.append(opportunity)
+            remaining = [
+                identity
+                for identity in destinations
+                if identity not in self.destination_results
+                and self.destination_attempts.get(identity, 0) < 3
+            ]
+            if remaining:
+                self.reason = self.reason or "lookup_budget_deferred"
+                if self.discovery_timer:
+                    self.discovery_timer.cancel()
+                self.discovery_timer = self.hass.loop.call_later(60, self.schedule)
             self.lookup_signature = signature
+            self.lookup_at = now if not remaining else None
             self.parent.store.payload["ev_cache"] = self.http.cache
             self.parent.store.schedule_routes()
         from .demand import reconcile
@@ -266,6 +317,8 @@ class EVRuntime:
 
     async def close(self):
         self.stopping = True
+        if self.discovery_timer:
+            self.discovery_timer.cancel()
         if self.pending:
             self.pending.cancel()
         if self.task and not self.task.done():
