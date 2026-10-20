@@ -112,6 +112,9 @@
       },
       "annual": {
         "name": "Expected annual distance"
+      },
+      "mileage_timeline": {
+        "name": "Mileage timeline"
       }
     }
   },
@@ -127,6 +130,36 @@
     "resetting_counter": {
       "title": "Distance counter resets detected",
       "description": "This sensor appears to reset its distance counter. Mobility Forecast requires a cumulative odometer that does not reset daily. Reconfigure the source; existing history is preserved."
+    }
+  },
+  "services": {
+    "get_history": {
+      "name": "Get mileage history",
+      "description": "Read-only mileage data without calendar content.",
+      "fields": {
+        "entry_id": {
+          "name": "Vehicle config entry",
+          "description": "Config entry ID for the vehicle."
+        },
+        "days": {
+          "name": "Days",
+          "description": "1–365 days of history."
+        }
+      }
+    },
+    "get_forecast": {
+      "name": "Get distance forecast",
+      "description": "Read-only mileage data without calendar content.",
+      "fields": {
+        "entry_id": {
+          "name": "Vehicle config entry",
+          "description": "Config entry ID for the vehicle."
+        },
+        "days": {
+          "name": "Days",
+          "description": "1–365 days of history."
+        }
+      }
     }
   }
 }

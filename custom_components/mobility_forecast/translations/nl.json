@@ -112,6 +112,9 @@
       },
       "annual": {
         "name": "Verwachte jaarlijkse afstand"
+      },
+      "mileage_timeline": {
+        "name": "Kilometervergelijking"
       }
     }
   },
@@ -127,6 +130,36 @@
     "resetting_counter": {
       "title": "Afstandsteller wordt opnieuw ingesteld",
       "description": "Deze sensor lijkt de afstandsteller regelmatig te resetten. Mobility Forecast heeft een doorlopende kilometerstand nodig die niet dagelijks opnieuw begint. Wijzig de bron; bestaande geschiedenis blijft bewaard."
+    }
+  },
+  "services": {
+    "get_history": {
+      "name": "Kilometergeschiedenis ophalen",
+      "description": "Alleen-lezen gegevens zonder kalenderinhoud.",
+      "fields": {
+        "entry_id": {
+          "name": "Voertuigconfiguratie",
+          "description": "Configuratie-ID van het voertuig."
+        },
+        "days": {
+          "name": "Dagen",
+          "description": "1–365 dagen geschiedenis."
+        }
+      }
+    },
+    "get_forecast": {
+      "name": "Afstandsprognose ophalen",
+      "description": "Alleen-lezen gegevens zonder kalenderinhoud.",
+      "fields": {
+        "entry_id": {
+          "name": "Voertuigconfiguratie",
+          "description": "Configuratie-ID van het voertuig."
+        },
+        "days": {
+          "name": "Dagen",
+          "description": "1–365 dagen geschiedenis."
+        }
+      }
     }
   }
 }

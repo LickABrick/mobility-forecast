@@ -11,6 +11,9 @@ type MobilityEntry = ConfigEntry[VehicleCoordinator]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: MobilityEntry) -> bool:
+    from .services import register_services
+
+    register_services(hass)
     coordinator = entry.runtime_data = VehicleCoordinator(hass, entry)
     # Register the platform before storage, history or model work. A successful
     # config flow must yield entities even if initialization later fails.

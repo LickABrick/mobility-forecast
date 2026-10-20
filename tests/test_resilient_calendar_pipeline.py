@@ -97,7 +97,13 @@ async def test_calendar_service_to_five_sensors(hass, count):
         # Final direct refresh also flushes the coordinator's native debounce.
         await runtime.async_refresh()
         await hass.async_block_till_done()
-        entities = er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id)
+        entities = [
+            e
+            for e in er.async_entries_for_config_entry(
+                er.async_get(hass), entry.entry_id
+            )
+            if not e.unique_id.endswith("_mileage_timeline")
+        ]
         assert len(entities) == 5
         assert all(
             hass.states.get(entity.entity_id).state not in ("unknown", "unavailable")
@@ -126,6 +132,7 @@ async def test_calendar_service_to_five_sensors(hass, count):
             for e in er.async_entries_for_config_entry(
                 er.async_get(hass), entry.entry_id
             )
+            if not e.unique_id.endswith("_mileage_timeline")
         }
         assert entry.runtime_data.store.payload["routes"] == cache
         await hass.config_entries.async_unload(entry.entry_id)

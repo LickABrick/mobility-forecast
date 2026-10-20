@@ -30,7 +30,10 @@ async def test_disabled_identity_preserved_on_reload(hass):
             e.unique_id: e.entity_id
             for e in er.async_entries_for_config_entry(registry, entry.entry_id)
         }
-        assert len(before) == 5
+        assert len(before) == 6
+        timeline = registry.async_get(before[f"{entry.entry_id}_mileage_timeline"])
+        assert timeline.disabled_by == er.RegistryEntryDisabler.INTEGRATION
+        assert hass.states.get(timeline.entity_id) is None
         assert hass.states.get(disabled.entity_id) is None
         assert await hass.config_entries.async_reload(entry.entry_id)
         await entry.runtime_data.initialization_task

@@ -13,7 +13,12 @@ from .const import DOMAIN, FORECAST_KEYS
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
-    async_add_entities(ForecastSensor(entry.runtime_data, key) for key in FORECAST_KEYS)
+    async_add_entities(
+        [
+            *(ForecastSensor(entry.runtime_data, key) for key in FORECAST_KEYS),
+            TimelineSensor(entry.runtime_data),
+        ]
+    )
 
 
 class ForecastSensor(CoordinatorEntity, SensorEntity):
@@ -81,4 +86,35 @@ class ForecastSensor(CoordinatorEntity, SensorEntity):
                 f"calendar_{key}": value
                 for key, value in self.coordinator.calendar_metrics.items()
             },
+        }
+
+
+class TimelineSensor(ForecastSensor):
+    """Opt-in bounded series on one entity, never duplicated onto forecasts."""
+
+    _attr_entity_registry_enabled_default = False
+    _attr_device_class = None
+    _attr_state_class = None
+    _attr_suggested_display_precision = None
+    _attr_native_unit_of_measurement = None
+    _unrecorded_attributes = frozenset({"history", "forecast", "accuracy"})
+
+    def __init__(self, coordinator):
+        super().__init__(coordinator, "mileage_timeline")
+
+    @property
+    def native_value(self):
+        return self.coordinator.data.status.value
+
+    @property
+    def extra_state_attributes(self):
+        from .services import forecast_data, history_data
+
+        history = history_data(self.coordinator)
+        future = forecast_data(self.coordinator)
+        return {
+            "history": history["history"],
+            "forecast": future["forecast"],
+            "accuracy": history["accuracy"],
+            "timezone": history["timezone"],
         }

@@ -25,7 +25,13 @@ async def test_learning_entities_exist_in_registry_and_states(hass, value):
         await entry.runtime_data.initialization_task
         await entry.runtime_data.import_task
         await hass.async_block_till_done()
-        entities = er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id)
+        entities = [
+            e
+            for e in er.async_entries_for_config_entry(
+                er.async_get(hass), entry.entry_id
+            )
+            if not e.unique_id.endswith("_mileage_timeline")
+        ]
         assert len(entities) == 5
         assert {e.unique_id for e in entities} == {
             f"{entry.entry_id}_{key}" for key in FORECAST_KEYS
@@ -55,7 +61,13 @@ async def test_slow_initialization_does_not_delay_registration(hass):
     ):
         async with asyncio.timeout(1):
             assert await async_setup_component(hass, DOMAIN, {})
-        entities = er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id)
+        entities = [
+            e
+            for e in er.async_entries_for_config_entry(
+                er.async_get(hass), entry.entry_id
+            )
+            if not e.unique_id.endswith("_mileage_timeline")
+        ]
         assert len(entities) == 5
         assert all(hass.states.get(e.entity_id).state == "unknown" for e in entities)
         await hass.config_entries.async_unload(entry.entry_id)
@@ -74,7 +86,15 @@ async def test_import_failure_keeps_states(hass):
         await hass.async_block_till_done()
         assert entry.runtime_data.import_status == "failed"
         assert (
-            len(er.async_entries_for_config_entry(er.async_get(hass), entry.entry_id))
+            len(
+                [
+                    e
+                    for e in er.async_entries_for_config_entry(
+                        er.async_get(hass), entry.entry_id
+                    )
+                    if not e.unique_id.endswith("_mileage_timeline")
+                ]
+            )
             == 5
         )
         await hass.config_entries.async_unload(entry.entry_id)
