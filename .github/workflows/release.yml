@@ -1,6 +1,8 @@
 name: Release
 on:
-  push:
+  workflow_run:
+    workflows: [Quality]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -15,15 +17,37 @@ concurrency:
   cancel-in-progress: false
 jobs:
   quality:
+    if: github.event_name == 'workflow_dispatch' && inputs.publish && github.ref_name == github.event.repository.default_branch
     uses: ./.github/workflows/ci.yml
   prepare:
-    needs: quality
-    if: github.event_name == 'push' && github.ref_name == github.event.repository.default_branch
+    if: >-
+      github.event_name == 'workflow_run' &&
+      github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository &&
+      github.repository == 'LickABrick/mobility-forecast' &&
+      github.event.workflow_run.head_branch == github.event.repository.default_branch &&
+      github.event.repository.default_branch == 'main'
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
+      # No checkout, artifacts, or code from the triggering head with a write token.
+      - name: Check validated SHA is still main HEAD
+        id: current
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VALIDATED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          head=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
+          if [ "$head" = "$VALIDATED_SHA" ]; then
+            echo 'current=true' >> "$GITHUB_OUTPUT"
+          else
+            echo '::notice::Preparation skipped: main advanced beyond the validated commit. No release PR was created by this run.'
+            echo 'current=false' >> "$GITHUB_OUTPUT"
+          fi
       - name: Require preparation credential
+        if: steps.current.outputs.current == 'true'
         env:
           RELEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         run: |
@@ -32,6 +56,7 @@ jobs:
             exit 1
           fi
       - uses: googleapis/release-please-action@v4
+        if: steps.current.outputs.current == 'true'
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           target-branch: main
