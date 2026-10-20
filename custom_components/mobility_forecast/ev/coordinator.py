@@ -11,7 +11,7 @@ from homeassistant.util import dt as dt_util
 from .charge_points import discover
 from .energy import drive_energy, reserve_range
 from .geocoding import resolve
-from .models import ChargingRecommendation, EVConfig, JourneyLeg
+from .models import ChargingRecommendation, EVConfig
 from .opportunities import appointment_window, home_windows
 from .providers import HTTP, ProviderError
 from .scheduling import recommend
@@ -138,33 +138,22 @@ class EVRuntime:
             self.lookup_signature = signature
             self.parent.store.payload["ev_cache"] = self.http.cache
             self.parent.store.schedule_routes()
-        estimated = False
-        # Retain daily demand without fabricating appointment stops. Coarse
-        # day-end debit is an explicit estimate, not a precise travel departure.
-        for day in self.parent.data.days[:7]:
-            if day.day in plans and plans[day.day].complete and plans[day.day].legs:
-                continue
-            estimated = True
-            if day.day == now.date():
-                continue  # Unknown remaining portion of today's driving.
-            departure = datetime.combine(day.day, time(23, 59), now.tzinfo)
-            legs.append(
-                JourneyLeg(
-                    departure,
-                    departure,
-                    day.total_km,
-                    0,
-                    "estimated",
-                    "estimated",
-                    "daily_estimate",
-                )
-            )
+        from .demand import reconcile
+
+        legs, unallocated = reconcile(
+            self.parent.data.days, plans, getattr(self.parent, "history_cache", []), now
+        )
+        estimated = bool(unallocated)
         opportunities = home_windows(config, now, legs, vehicle) + [
             item for item in self.public if item.end > now and item.end < cutoff
         ]
         result, alternative, shortfall = recommend(
             config, vehicle, legs, opportunities, now, estimated
         )
+        if any(plan.complete and not plan.legs for plan in plans.values()):
+            result = ChargingRecommendation(
+                "insufficient_data", "restored_itinerary_pending_verification"
+            )
         if config.charging_mode == "appointments_only" and not any(
             plan.complete and plan.legs for plan in plans.values()
         ):
@@ -218,6 +207,7 @@ class EVRuntime:
             )
             if vehicle.current_soc_percent is not None
             else None,
+            "unallocated_demand": unallocated,
             "energy_demand_kwh": sum(
                 drive_energy(day.total_km, config.consumption_kwh_per_100km)
                 for day in self.parent.data.days[:7]
