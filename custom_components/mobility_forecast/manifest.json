@@ -1,8 +1,14 @@
 {
   "domain": "mobility_forecast",
   "name": "Mobility Forecast",
-  "after_dependencies": ["calendar", "recorder", "waze_travel_time"],
-  "codeowners": ["@LickABrick"],
+  "after_dependencies": [
+    "calendar",
+    "recorder",
+    "waze_travel_time"
+  ],
+  "codeowners": [
+    "@LickABrick"
+  ],
   "config_flow": true,
   "documentation": "https://github.com/LickABrick/mobility-forecast",
   "iot_class": "local_push",
