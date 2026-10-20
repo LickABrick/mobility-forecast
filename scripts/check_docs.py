@@ -59,6 +59,20 @@ def check_link(source, link):
         )
 
 
+def check_help_url(link):
+    parsed = urlsplit(link)
+    assert parsed.scheme == "https" and parsed.netloc == "github.com", (
+        "Unexpected help URL origin"
+    )
+    assert parsed.path.startswith("/LickABrick/mobility-forecast/blob/main/docs/"), (
+        "Unexpected help repository/branch/path"
+    )
+    assert parsed.fragment and not parsed.query, (
+        "Help must target a section without a query"
+    )
+    check_link(ROOT / "README.md", link)
+
+
 def main():
     files = [
         ROOT / "README.md",
@@ -88,7 +102,14 @@ def main():
         manifest["documentation"] == "https://github.com/LickABrick/mobility-forecast"
     )
     for path in (ROOT / ".github").rglob("*.yml"):
-        yaml.safe_load(path.read_text())
+        text = path.read_text()
+        yaml.safe_load(text)
+        assert "github.com/LickABrick/mobility-forecast/blob/master/" not in text, path
+        for link in re.findall(
+            r"https://github.com/LickABrick/mobility-forecast/blob/main/docs/[^\s]+",
+            text,
+        ):
+            check_link(path, link)
     for name in ("strings.json", "translations/en.json", "translations/nl.json"):
         data = json.loads(
             (ROOT / "custom_components/mobility_forecast" / name).read_text()
@@ -118,7 +139,9 @@ def main():
         )
     )
     for target in targets.values():
-        check_link(ROOT / "docs/index.md", target)
+        check_help_url(
+            f"https://github.com/{constants['DOCS_REPOSITORY']}/blob/{constants['DOCS_BRANCH']}/docs/{target}"
+        )
     print(
         "Documentation links, anchors, YAML examples, help targets and drift checks passed."
     )
