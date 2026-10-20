@@ -88,3 +88,9 @@ a 23:55 capture and a completed target day with adequate odometer coverage.
 Legacy first-calculation snapshots are not verified pre-day predictions. Enable
 the timeline entity and use its actual ID in the optional ApexCharts examples.
 The chart timezone should match HA. Never convert missing distances to zero.
+
+## Optional EV charging forecast
+
+See [EV setup, assumptions, provider limits and native dashboard](ev.md). EV is
+disabled by default and never controls the vehicle or charger. Existing mileage
+entities, history and calendar synchronization remain independent.

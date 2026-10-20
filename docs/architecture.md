@@ -71,3 +71,9 @@ the read action exposes calculation time. Status/progress attributes still updat
 Comparison functions are pure; schema-v1 vehicle storage remains atomic and keeps
 four-column readings and route caches. Snapshots use individual structured schema-1
 records inside that existing store, not a destructive store-version migration.
+
+## Optional EV charging forecast
+
+See [EV setup, assumptions, provider limits and native dashboard](ev.md). EV is
+disabled by default and never controls the vehicle or charger. Existing mileage
+entities, history and calendar synchronization remain independent.

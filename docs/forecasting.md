@@ -41,3 +41,9 @@ counts are available for 7/30/90 days. Exclusion counts can overlap. Zero actual
 totals have null percentage error. Example: predictions 42/55 and observed 48/51
 give MAE 5 km, bias +1 km, totals 97/99 km and aggregate error +2.02%. Synthetic
 backtesting remains separate from these installed-instance snapshots.
+
+## Optional EV charging forecast
+
+See [EV setup, assumptions, provider limits and native dashboard](ev.md). EV is
+disabled by default and never controls the vehicle or charger. Existing mileage
+entities, history and calendar synchronization remain independent.

@@ -120,3 +120,9 @@ tested in-process with HA 2026.10.2. The JavaScript generators are executable
 examples, but graphical rendering in a real Lovelace browser has **not** been
 verified locally. ApexCharts is third-party software; report card version and
 browser timezone when reporting display issues.
+
+## Optional EV charging forecast
+
+See [EV setup, assumptions, provider limits and native dashboard](ev.md). EV is
+disabled by default and never controls the vehicle or charger. Existing mileage
+entities, history and calendar synchronization remain independent.

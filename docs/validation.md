@@ -119,3 +119,19 @@ production process restart, actual Lovelace browser rendering, comprehensive new
 benchmark was executed. The chart examples match tested response fields, but are
 not certified through a graphical browser. HACS Docker is blocked without a GitHub
 token. Hassfest Docker passes including new services/translations.
+
+## Initial EV extension validation
+
+213 tests pass on HA 2026.10.2 / Python 3.14.2. Ruff lint/format, configured
+seven-module Mypy, metadata/EN-NL parity, diff checks and Hassfest Docker pass.
+HACS remains token-blocked. New deterministic coverage includes unit-aware energy,
+SoC invalid values, reserve ranges, target exceptions and enforced limits,
+chronological unreachability, optional setup consent, strict provider parsing,
+30/150/300 lookup bounds, native EV entities/action and unload. This does not
+constitute the full requested 90-scenario matrix.
+
+PDOK OpenAPI and NDW OpenAPI plus a real small-area NDW response were retrieved.
+NDW power units disagree between specification and observed response; adapter
+rejects ambiguous powers. No real vehicle/session, end-to-end live PDOK address
+resolution, public-charging success or graphical dashboard was certified. See
+[EV limitations](ev.md) before supervised testing.

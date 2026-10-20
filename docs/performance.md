@@ -90,3 +90,13 @@ The aggregation memo avoids repeated daily-distance aggregation on identical
 readings, but forecasts still calculate for legitimate fractional rolling windows.
 Storage payload equality suppresses redundant scheduled saves; shutdown still
 flushes. Timeline arrays are excluded from Recorder and not copied to five sensors.
+
+## EV discovery bounds (synthetic)
+
+30/150/300 unique-destination fixtures each produce 10 mocked geocoding and 10
+charger-discovery calls in the first batch, zero additional calls on the identical
+second calculation, zero eligible opportunities when the mocked provider returns
+none. Three parameter cases complete in 0.17 seconds locally; this is not network
+latency. Real HTTP is serialized at one request per second per vehicle. Existing
+calendar/Waze behavior is exercised by the complete regression suite; no matched
+EV-enabled live-Waze throughput or actual-publication benchmark is claimed.

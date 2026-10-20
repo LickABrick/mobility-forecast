@@ -116,3 +116,9 @@ uses hashed daily itinerary identities, and routes only changed days. Optional
 **Mileage timeline** and response actions provide predicted-versus-actual mileage.
 See [dashboard setup](docs/dashboard.md). Verified predictions start with the first
 successful 23:55 local pre-day capture; past predictions are never fabricated.
+
+## Optional EV charging forecast
+
+See [EV setup, assumptions, provider limits and native dashboard](docs/ev.md). EV is
+disabled by default and never controls the vehicle or charger. Existing mileage
+entities, history and calendar synchronization remain independent.

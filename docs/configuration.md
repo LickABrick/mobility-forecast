@@ -80,3 +80,9 @@ attributes. The five existing distance sensor unique IDs are unchanged.
 `mobility_forecast.get_history` and `mobility_forecast.get_forecast` are read-only
 response actions selected by config-entry ID. History accepts 1–365 days; the
 timeline entity carries 30 completed days, future dates and 7/30/90 metrics.
+
+## Optional EV charging forecast
+
+See [EV setup, assumptions, provider limits and native dashboard](ev.md). EV is
+disabled by default and never controls the vehicle or charger. Existing mileage
+entities, history and calendar synchronization remain independent.

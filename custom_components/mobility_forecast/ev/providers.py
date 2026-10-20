@@ -5,6 +5,7 @@ import hashlib
 import json
 import time
 
+from aiohttp import ClientError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 
@@ -62,7 +63,7 @@ class HTTP:
                     if len(raw) > 512000:
                         raise ProviderError("provider_response_too_large")
                     return json.loads(raw)
-            except (TimeoutError, OSError, ValueError) as err:
+            except (TimeoutError, OSError, ValueError, ClientError) as err:
                 raise ProviderError("provider_unavailable") from err
 
     def put(self, key, value, ttl):

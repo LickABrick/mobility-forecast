@@ -403,6 +403,7 @@ async def _plan_journeys(events, home, provider: RouteProvider):
             previous = event.location
             last_end = event.end
         if complete:
+            assert last_end is not None
             route = await provider.get_route(previous, home)
             if route is not None:
                 legs.append(
