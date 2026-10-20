@@ -100,3 +100,35 @@ none. Three parameter cases complete in 0.17 seconds locally; this is not networ
 latency. Real HTTP is serialized at one request per second per vehicle. Existing
 calendar/Waze behavior is exercised by the complete regression suite; no matched
 EV-enabled live-Waze throughput or actual-publication benchmark is claimed.
+
+## Restart and EV remediation update
+
+Complete calendar distance overlays are now stored separately from Waze route
+cache entries. Startup restores validated, configuration-compatible plans before
+the first forecast calculation, for up to two hours since agenda verification.
+Stored records contain hashed fingerprints/config identity, dates, distances and
+verification/routing times, not addresses or stops. Old storage needs no migration.
+Restored data is labeled cached pending asynchronous verification. EV timing must
+be rebuilt from the agenda; a numeric restored overlay is not a timed itinerary.
+Failed startup retrieval uses 10/30/60/120-second retries then normal 30-minute
+checks, rather than treating failure as successful retrieval. Routing identity
+excludes unrelated EV options.
+
+EV demand now reconciles full forecast distance with timed legs and measured
+minimum movement today; remaining mileage is explicitly unallocated estimated
+demand. Its day-end debit remains a coarse assumption, not exact travel timing.
+Home windows preserve both sides of away intervals. Postcode-free Dutch addresses
+require exact street, house number and municipality/locality. NDW ambiguous power
+units remain fail-closed; no new evidence justifies automatic watts conversion.
+Discovery progresses through ten unique destinations per pass, retaining completed
+results and bounding temporary-failure retries. Revision tracking prevents old EV
+calculations from publishing after inputs change. Response horizons filter windows
+and demand while explicitly retaining a seven-day internal calculation horizon.
+
+Validation evidence: reconstructed-store HA entry reload reproduces 95 km before,
+95 km while calendar fetch is blocked after reload, and 95 km after verification.
+This is in-process HA testing, not a real HA process restart. The 30/150/300
+fixtures now process all destinations across bounded passes rather than starving
+entries after the first ten. Full suite: 218 passed. The full requested restart,
+race, session and DST matrices are not yet covered; multi-session scheduling,
+coarse-day timing and provider semantics remain supervised-test limitations.
