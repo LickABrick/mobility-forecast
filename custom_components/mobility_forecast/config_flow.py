@@ -511,7 +511,14 @@ class MobilityOptions(config_entries.OptionsFlow):
         if user_input is not None:
             for key, entity_id in user_input.items():
                 state = self.hass.states.get(entity_id) if entity_id else None
-                if (
+                allowed = (
+                    ["sensor"]
+                    if key in OPTIONAL_UNITS
+                    else ["sensor", "binary_sensor", "device_tracker"]
+                )
+                if entity_id and entity_id.split(".", 1)[0] not in allowed:
+                    errors[key] = "invalid_ev"
+                elif (
                     state is not None
                     and key in OPTIONAL_UNITS
                     and state.attributes.get("unit_of_measurement")
@@ -560,7 +567,9 @@ class MobilityOptions(config_entries.OptionsFlow):
                 )
             ] = EntitySelector(
                 EntitySelectorConfig(
-                    domain=["sensor", "binary_sensor", "device_tracker"]
+                    domain=["sensor"]
+                    if key in OPTIONAL_UNITS
+                    else ["sensor", "binary_sensor", "device_tracker"]
                 )
             )
         return self.async_show_form(
