@@ -10,6 +10,7 @@ from .locations import home_and_known
 from .routing import Plan
 
 TTL = 7200
+RETENTION = 24 * 3600
 
 
 def routing_identity(hass, options):
@@ -50,7 +51,7 @@ def restore(payload, identity, now):
                 or routed.tzinfo is None
                 or not 0
                 <= (now.astimezone(UTC) - verified.astimezone(UTC)).total_seconds()
-                <= TTL
+                <= RETENTION
                 or routed > verified
                 or (now.astimezone(UTC) - routed.astimezone(UTC)).total_seconds()
                 > 7 * 86400

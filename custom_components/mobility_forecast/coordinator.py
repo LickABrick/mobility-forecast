@@ -31,6 +31,7 @@ from .storage import VehicleStore
 
 _LOGGER = logging.getLogger(__name__)
 CALENDAR_STALE_SECONDS = 2 * 3600
+CALENDAR_RETENTION_SECONDS = 24 * 3600
 MAX_DAY_ATTEMPTS = 3
 CALENDAR_REFRESH_BUDGET = 45  # seconds, includes retrieval and all route legs
 
@@ -135,7 +136,15 @@ class VehicleCoordinator(DataUpdateCoordinator):
             self.day_verified[day] = verified
             self.day_routed[day] = routed
         if restored:
-            self.calendar_status = "cached"
+            self.calendar_status = (
+                "provisional"
+                if any(
+                    (dt_util.utcnow() - verified).total_seconds()
+                    > CALENDAR_STALE_SECONDS
+                    for _, _, verified, _ in restored.values()
+                )
+                else "cached"
+            )
         if self.entry.options.get("ev_enabled"):
             from .ev.coordinator import EVRuntime
 
@@ -402,11 +411,17 @@ class VehicleCoordinator(DataUpdateCoordinator):
                     for day, plan in self.plans.items()
                     if day in self.day_verified
                     and (now - self.day_verified[day]).total_seconds()
-                    <= CALENDAR_STALE_SECONDS
+                    <= CALENDAR_RETENTION_SECONDS
                     and day >= now.date()
                 }
                 if not self.plans:
                     self.calendar_status = "calendar_unavailable"
+            if any(
+                (now - self.day_verified[day]).total_seconds() > CALENDAR_STALE_SECONDS
+                for day in self.plans
+                if day in self.day_verified
+            ):
+                self.calendar_status = "provisional"
             self._schedule_calendar(now)
             history_key = (self.hass.config.time_zone, tuple(self.readings))
             if history_key != self.history_cache_key:
@@ -503,7 +518,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
         if not continuing:
             self.calendar_days = None
             self.calendar_attempted_at = now
-        if self.calendar_status != "cached":
+        if self.calendar_status not in ("cached", "provisional"):
             self.calendar_status = "refreshing"
         generation = self.calendar_generation
         self.calendar_task = self.entry.async_create_background_task(
@@ -798,7 +813,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
                     if day >= now.date()
                     and day in self.day_verified
                     and (now - self.day_verified[day]).total_seconds()
-                    <= CALENDAR_STALE_SECONDS
+                    <= CALENDAR_RETENTION_SECONDS
                 }
                 self.calendar_days = None
                 self.calendar_pending_days.clear()
