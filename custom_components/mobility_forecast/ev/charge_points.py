@@ -59,7 +59,7 @@ def parse_points(payload, lat, lon, radius, now):
                 # AC connector: ambiguous units are NOT silently reinterpreted.
                 try:
                     power = number(connector["power_max"], 0.1, 43)
-                except (KeyError, ValueError, TypeError):
+                except KeyError, ValueError, TypeError:
                     continue
                 status = (
                     "unknown"
@@ -79,7 +79,7 @@ def parse_points(payload, lat, lon, radius, now):
                         updated_at=updated.isoformat(),
                     )
                 )
-        except (KeyError, ValueError, TypeError, OverflowError):
+        except KeyError, ValueError, TypeError, OverflowError:
             continue
     return sorted(points, key=lambda p: (p.distance_m, -p.ac_power_kw, p.provider_id))[
         :3

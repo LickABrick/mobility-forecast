@@ -18,11 +18,26 @@ jobs:
       - run: pip check
       - run: pip wheel --no-deps --wheel-dir dist .
       - run: python scripts/check_wheel.py
-      - run: pytest -q
+      - run: pytest -q --cov=custom_components.mobility_forecast --cov-fail-under=85 --cov-report=term-missing --cov-report=xml --junitxml=test-results.xml -o junit_family=legacy
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quality-reports
+          path: |
+            coverage.xml
+            test-results.xml
+          retention-days: 7
       - run: ruff check .
       - run: ruff format --check .
       - run: mypy
       - run: python scripts/validate.py
+      - run: python scripts/check_release.py
+      - run: python scripts/check_docs.py
+      - name: Tagged release metadata
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: python scripts/check_release.py --tag "$RELEASE_TAG"
   hassfest:
     runs-on: ubuntu-latest
     steps:

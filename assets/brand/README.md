@@ -15,12 +15,13 @@ battery symbols. Prefer SVG; use PNG where SVG is not supported. The route artwo
 is provided under the repository license. DejaVu Sans Bold letter outlines retain
 the notice in `FONT-LICENSE.txt`.
 
-To regenerate offline, install `cairosvg` and `fonttools` in a separate environment
+To regenerate offline, install `cairosvg`, `fonttools` and `Pillow` in a separate environment
 and run `python assets/brand/generate.py` on a machine with DejaVu Sans Bold at the
 path in that script. These are **not integration runtime dependencies**.
 
-HACS has no repository-local custom logo field used here; `hacs.json` is unchanged.
-These files do not make HA display an official branded integration tile. A future
-submission to `home-assistant/brands` must follow its then-current size, naming,
-review and licensing requirements; these are editable source assets, not a claim
-of submission or acceptance.
+HA 2026.3+ supports local custom-integration images. The generator also writes
+`custom_components/mobility_forecast/brand/`: icon 256×256 and 512×512, trimmed logos
+with 256px height and high-DPI 512px height, including dark wordmarks. HA serves
+these through its authenticated brand API. These are custom integration assets,
+not an official HA endorsement. Current HACS accepts local `brand/icon.png`;
+`hacs.json` needs no custom logo field. No brands-repository submission is needed.

@@ -4,7 +4,7 @@
     "step": {
       "user": {
         "title": "Voeg je voertuig toe",
-        "description": "Selecteer de kilometerstand van je auto. Mobility Forecast gebruikt je gereden kilometers om toekomstige afstanden te voorspellen.",
+        "description": "Selecteer de kilometerstand van je auto. Mobility Forecast gebruikt je gereden kilometers om toekomstige afstanden te voorspellen. [Meer over de kilometerstandsensor]({help_url}).",
         "data": {
           "name": "Voertuignaam",
           "odometer": "Kilometerstandsensor"
@@ -50,11 +50,11 @@
         "data": {
           "name": "Voertuignaam"
         },
-        "description": " [Meer over voertuiginstellingen](https://github.com/LickABrick/mobility-forecast/blob/master/docs/configuration.md#vehicle)."
+        "description": "[Meer over voertuiginstellingen]({help_url})."
       },
       "calendars": {
         "title": "Agenda’s",
-        "description": "Agenda’s zijn optioneel. Waze stuurt vertrek- en bestemmingslocaties naar een externe dienst, nooit afspraaktitels. Installeer eerst Waze Travel Time. [Meer over agendavoorspellingen](https://github.com/LickABrick/mobility-forecast/blob/master/docs/calendar-routing.md#setup).",
+        "description": "Agenda’s zijn optioneel. Waze stuurt vertrek- en bestemmingslocaties naar een externe dienst, nooit afspraaktitels. Installeer eerst Waze Travel Time. [Meer over agendavoorspellingen]({help_url}).",
         "data": {
           "calendars": "Agenda’s",
           "routing": "Waze gebruiken voor routes",
@@ -66,14 +66,14 @@
       },
       "routing": {
         "title": "Waze-regio",
-        "description": "Kies de regio van je Home Assistant-installatie. [Meer over Waze-regio’s](https://github.com/LickABrick/mobility-forecast/blob/master/docs/calendar-routing.md#waze).",
+        "description": "Kies de regio van je Home Assistant-installatie. [Meer over Waze-regio’s]({help_url}).",
         "data": {
           "region": "Regio"
         }
       },
       "add_location": {
         "title": "Locatie toevoegen",
-        "description": "Voer een volledig straatadres met plaatsnaam of breedtegraad,lengtegraad in. [Meer over bekende locaties](https://github.com/LickABrick/mobility-forecast/blob/master/docs/calendar-routing.md#known-locations).",
+        "description": "Voer een volledig straatadres met plaatsnaam of breedtegraad,lengtegraad in. [Meer over bekende locaties]({help_url}).",
         "data": {
           "name": "Locatienaam in de agenda",
           "address": "Adres of coördinaten"
@@ -104,7 +104,7 @@
           "charging_mode": "Waar kan je auto laden?",
           "external_lookup_consent": "Externe bestemmingsaanvragen toestaan"
         },
-        "description": "Afspraakadressen kunnen naar PDOK worden verstuurd en bestemmingscoördinaten naar NDW. Titels en beschrijvingen worden niet verstuurd. Openbaar laden vereist toestemming; uitschakelen kan altijd. Gebruik de bruikbare, niet nominale capaciteit. [Meer over EV instellen](https://github.com/LickABrick/mobility-forecast/blob/master/docs/ev-charging.md#setup).",
+        "description": "Afspraakadressen kunnen naar PDOK worden verstuurd en bestemmingscoördinaten naar NDW. Titels en beschrijvingen worden niet verstuurd. Openbaar laden vereist toestemming; uitschakelen kan altijd. Gebruik de bruikbare, niet nominale capaciteit. [Meer over EV instellen]({help_url}).",
         "data_description": {
           "preferred_max_soc": "Normale maximale acculading na laden; geen laadvermogen.",
           "minimum_soc": "Gewenste resterende acculading na het rijden.",
@@ -124,7 +124,7 @@
           "allow_above_preferred_soc": "Bij lange ritten een hogere acculading adviseren",
           "absolute_max_soc": "Maximale acculading bij uitzonderingen (%)"
         },
-        "description": " [Meer over laadvoorkeuren](https://github.com/LickABrick/mobility-forecast/blob/master/docs/ev-charging.md#advanced-options).",
+        "description": "[Meer over laadvoorkeuren]({help_url}).",
         "data_description": {
           "minimum_appointment_minutes": "Kortere afspraken zijn geen laadkans.",
           "max_charger_distance_m": "Hemelsbrede afstand, geen loopafstand.",
@@ -144,7 +144,7 @@
           "consumption_entity": "Gemiddeld verbruik volgens de auto",
           "energy_added_entity": "Toegevoegde laadenergie"
         },
-        "description": " [Meer over voertuiggegevens](https://github.com/LickABrick/mobility-forecast/blob/master/docs/ev-charging.md#vehicle-entities).",
+        "description": "[Meer over voertuiggegevens]({help_url}).",
         "data_description": {
           "range_entity": "Alleen suggesties van hetzelfde apparaat; controleer de betekenis."
         }

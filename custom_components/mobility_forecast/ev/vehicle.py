@@ -23,7 +23,7 @@ def telemetry(hass, options, now, readings=()):
                 number(state.state, 0, maximum)
                 * units[state.attributes["unit_of_measurement"]]
             )
-        except (ValueError, TypeError):
+        except ValueError, TypeError:
             return None
 
     state = hass.states.get(options.get("soc_entity", ""))

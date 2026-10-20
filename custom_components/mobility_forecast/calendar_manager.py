@@ -73,7 +73,7 @@ def normalize_events(rows, zone, known=None):
                 fingerprint,
                 virtual,
             )
-        except (ValueError, TypeError, KeyError, AttributeError, OverflowError):
+        except ValueError, TypeError, KeyError, AttributeError, OverflowError:
             invalid_count += 1
     return EventBatch(
         sorted(unique.values(), key=lambda e: e.start.astimezone(UTC)),

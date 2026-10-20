@@ -58,7 +58,7 @@ def restore(payload, identity, now):
             ):
                 continue
             result[day] = (Plan(float(distance), True), fingerprint, verified, routed)
-        except (ValueError, TypeError, KeyError, AttributeError):
+        except ValueError, TypeError, KeyError, AttributeError:
             continue
     return result
 

@@ -184,7 +184,7 @@ class EVRuntime:
                         return
                     if not coords:
                         self.reason = status
-                except (ProviderError, ValueError, TypeError, KeyError):
+                except ProviderError, ValueError, TypeError, KeyError:
                     self.reason = "charger_data_unavailable"
                     self.destination_attempts[identity] = (
                         self.destination_attempts.get(identity, 0) + 1

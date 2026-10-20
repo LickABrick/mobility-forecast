@@ -284,7 +284,7 @@ async def import_history(
                                         entity_id,
                                     )
                                 )
-                        except (InvalidReading, ValueError, TypeError):
+                        except InvalidReading, ValueError, TypeError:
                             continue
                 imported, _ = await hass.async_add_executor_job(
                     merge_readings, imported, []

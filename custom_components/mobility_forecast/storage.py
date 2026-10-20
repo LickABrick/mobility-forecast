@@ -41,7 +41,7 @@ class VehicleStore(Store):
             if rejected:
                 raise ValueError("Invalid persisted samples; preserve original file")
             return accepted
-        except (ValueError, TypeError, KeyError, IndexError):
+        except ValueError, TypeError, KeyError, IndexError:
             self.corrupt = True
             return []
 

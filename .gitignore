@@ -6,6 +6,8 @@ __pycache__/
 .mypy_cache/
 .coverage
 htmlcov/
+coverage.xml
+test-results.xml
 *.db*
 .storage/
 *.egg-info/

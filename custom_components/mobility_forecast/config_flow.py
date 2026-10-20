@@ -22,6 +22,24 @@ from homeassistant.helpers.selector import (
 from .const import DOMAIN
 from .odometer import InvalidReading, validate_source
 
+HELP_TARGETS = {
+    "user": "getting-started.md#odometer",
+    "vehicle": "configuration.md#vehicle",
+    "calendars": "calendar-routing.md#setup",
+    "routing": "calendar-routing.md#waze",
+    "add_location": "calendar-routing.md#known-locations",
+    "ev": "ev-charging.md#setup",
+    "ev_advanced": "ev-charging.md#advanced-options",
+    "ev_entities": "ev-charging.md#vehicle-entities",
+}
+
+
+def help_link(step):
+    return {
+        "help_url": "https://github.com/LickABrick/mobility-forecast/blob/master/docs/"
+        + HELP_TARGETS[step]
+    }
+
 
 def vehicle_schema() -> vol.Schema:
     return vol.Schema(
@@ -66,7 +84,10 @@ class MobilityFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
                 return self.async_create_entry(title=title, data=data)
         return self.async_show_form(
-            step_id="user", data_schema=vehicle_schema(), errors=errors
+            step_id="user",
+            description_placeholders=help_link("user"),
+            data_schema=vehicle_schema(),
+            errors=errors,
         )
 
     async def async_step_reconfigure(self, user_input=None):
@@ -163,6 +184,7 @@ class MobilityOptions(config_entries.OptionsFlow):
             return self.async_create_entry(title="", data=self._options())
         return self.async_show_form(
             step_id="vehicle",
+            description_placeholders=help_link("vehicle"),
             data_schema=vol.Schema(
                 {vol.Required("name", default=self.config_entry.title): TextSelector()}
             ),
@@ -183,6 +205,7 @@ class MobilityOptions(config_entries.OptionsFlow):
                 return self.async_create_entry(title="", data=options)
         return self.async_show_form(
             step_id="calendars",
+            description_placeholders=help_link("calendars"),
             errors=errors,
             data_schema=vol.Schema(
                 {
@@ -213,6 +236,7 @@ class MobilityOptions(config_entries.OptionsFlow):
         )
         return self.async_show_form(
             step_id="routing",
+            description_placeholders=help_link("routing"),
             data_schema=vol.Schema(
                 {
                     field: SelectSelector(
@@ -251,6 +275,7 @@ class MobilityOptions(config_entries.OptionsFlow):
         editing = getattr(self, "editing", "")
         return self.async_show_form(
             step_id="add_location",
+            description_placeholders=help_link("add_location"),
             errors=errors,
             data_schema=vol.Schema(
                 {
@@ -394,7 +419,10 @@ class MobilityOptions(config_entries.OptionsFlow):
             )
         ] = BooleanSelector()
         return self.async_show_form(
-            step_id="ev", data_schema=vol.Schema(fields), errors=errors
+            step_id="ev",
+            description_placeholders=help_link("ev"),
+            data_schema=vol.Schema(fields),
+            errors=errors,
         )
 
     async def async_step_ev_advanced(self, user_input=None):
@@ -426,7 +454,7 @@ class MobilityOptions(config_entries.OptionsFlow):
                 if key in user_input:
                     try:
                         time.fromisoformat(user_input[key])
-                    except (ValueError, TypeError):
+                    except ValueError, TypeError:
                         errors[key] = "invalid_time"
             if user_input.get("absolute_max_soc", 100) < options.get(
                 "preferred_max_soc", 80
@@ -469,7 +497,10 @@ class MobilityOptions(config_entries.OptionsFlow):
                     TimeSelector()
                 )
         return self.async_show_form(
-            step_id="ev_advanced", data_schema=vol.Schema(fields), errors=errors
+            step_id="ev_advanced",
+            description_placeholders=help_link("ev_advanced"),
+            data_schema=vol.Schema(fields),
+            errors=errors,
         )
 
     async def async_step_ev_entities(self, user_input=None):
@@ -495,7 +526,18 @@ class MobilityOptions(config_entries.OptionsFlow):
                     "vehicle_location_entity",
                 ):
                     options.pop(key, None)
-                options.update({k: v for k, v in user_input.items() if v})
+                # Empty markers preserve an explicit clear and suppress future suggestions.
+                options.update(
+                    {
+                        key: user_input.get(key, "")
+                        for key in (
+                            *OPTIONAL_UNITS,
+                            "charging_state_entity",
+                            "plugged_in_entity",
+                            "vehicle_location_entity",
+                        )
+                    }
+                )
                 return self.async_create_entry(title="", data=options)
         suggestions = self._entity_suggestions()
         fields = {}
@@ -522,7 +564,10 @@ class MobilityOptions(config_entries.OptionsFlow):
                 )
             )
         return self.async_show_form(
-            step_id="ev_entities", data_schema=vol.Schema(fields), errors=errors
+            step_id="ev_entities",
+            description_placeholders=help_link("ev_entities"),
+            data_schema=vol.Schema(fields),
+            errors=errors,
         )
 
     def _entity_suggestions(self):

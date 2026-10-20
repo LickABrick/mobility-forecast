@@ -149,7 +149,7 @@ class WazeProvider:
                     task.cancel()
                 try:
                     await task
-                except (asyncio.CancelledError, Exception):
+                except asyncio.CancelledError, Exception:
                     pass
                 finally:
                     self.slots.release()
@@ -227,7 +227,7 @@ class WazeProvider:
             for row in (response or {}).get("routes", []):
                 try:
                     distance, duration = float(row["distance"]), float(row["duration"])
-                except (KeyError, TypeError, ValueError):
+                except KeyError, TypeError, ValueError:
                     continue
                 if (
                     math.isfinite(distance)

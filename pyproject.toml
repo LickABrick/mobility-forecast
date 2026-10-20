@@ -7,6 +7,9 @@ where = ["."]
 include = ["custom_components", "custom_components.*"]
 exclude = ["assets*", "tests*", "docs*", "scripts*"]
 
+[tool.setuptools.package-data]
+"custom_components.mobility_forecast" = ["*.json", "*.yaml", "translations/*.json", "brand/*.png"]
+
 [project]
 name = "mobility-forecast"
 version = "1.0.0"
@@ -14,7 +17,7 @@ requires-python = ">=3.14.2"
 description = "Explainable per-vehicle Home Assistant distance forecasts"
 
 [project.optional-dependencies]
-test = ["homeassistant==2026.10.2", "pytest-homeassistant-custom-component==0.13.373", "ruff==0.17.1", "mypy==2.4.0", "pywaze==1.2.4", "Pillow>=12"]
+test = ["homeassistant==2026.10.2", "pytest-homeassistant-custom-component==0.13.373", "ruff==0.17.1", "mypy==2.4.0", "pywaze==1.2.4", "Pillow>=12", "pytest-cov>=7,<8"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -23,7 +26,7 @@ testpaths = ["tests"]
 pythonpath = ["."]
 
 [tool.ruff]
-target-version = "py313"
+target-version = "py314"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
 ignore = ["E501"]
