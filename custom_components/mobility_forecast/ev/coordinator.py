@@ -224,7 +224,13 @@ class EVRuntime:
             item for item in self.public if item.end > now and item.end < cutoff
         ]
         result, alternative, shortfall = recommend(
-            config, vehicle, legs, opportunities, now, estimated
+            config,
+            vehicle,
+            legs,
+            opportunities,
+            now,
+            estimated,
+            sum(item["distance_km"] for item in unallocated),
         )
         if any(plan.complete and not plan.legs for plan in plans.values()):
             result = ChargingRecommendation(

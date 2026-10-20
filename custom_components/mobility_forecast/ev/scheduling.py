@@ -6,7 +6,9 @@ from .energy import battery_energy, charge_estimate, drive_energy
 from .models import ChargingRecommendation
 
 
-def recommend(config, telemetry, legs, opportunities, now, estimated=False):
+def recommend(
+    config, telemetry, legs, opportunities, now, estimated=False, untimed_km=0
+):
     if (
         telemetry.current_soc_percent is None
         or telemetry.freshness != "fresh"
@@ -42,6 +44,21 @@ def recommend(config, telemetry, legs, opportunities, now, estimated=False):
         if remaining < reserve and not already_violated:
             shortfall = leg.departure
             break
+    if untimed_km > 0:
+        total_need = drive_energy(
+            sum(leg.distance_km for leg in future) + untimed_km,
+            telemetry.consumption_kwh_per_100km or config.consumption_kwh_per_100km,
+        )
+        if initial - total_need < reserve and not already_violated:
+            # Energy demand is real, but no artificial day-end timestamp can
+            # prove a session precedes it. Do not advertise a false deadline.
+            return (
+                ChargingRecommendation(
+                    "insufficient_data", "untimed_demand_reserve_risk", "estimated"
+                ),
+                None,
+                None,
+            )
     if shortfall is None:
         return (
             ChargingRecommendation(

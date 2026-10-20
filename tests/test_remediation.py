@@ -23,7 +23,12 @@ def test_energy_reconciliation_does_not_drop_historical_extra():
     legs, extra = reconcile(
         [forecast], {now.date(): Plan(30, True, legs=(leg,))}, [], now
     )
-    assert sum(item.distance_km for item in legs) == 180
+    assert sum(item.distance_km for item in legs) == 30
+    assert (
+        sum(item.distance_km for item in legs)
+        + sum(item["distance_km"] for item in extra)
+        == 180
+    )
     assert extra == [{"date": "2026-01-01", "distance_km": 150}]
     assert (
         reconcile(

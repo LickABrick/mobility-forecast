@@ -1,9 +1,5 @@
 """Reconcile timed legs with the complete mobility forecast, without addition."""
 
-from datetime import UTC, datetime, time
-
-from .models import JourneyLeg
-
 
 def reconcile(days, plans, history, now):
     legs = []
@@ -21,19 +17,5 @@ def reconcile(days, plans, history, now):
         accounted = max(completed, driven) + sum(leg.distance_km for leg in future)
         extra = max(0, forecast.total_km - accounted)
         if extra:
-            stamp = datetime.combine(forecast.day, time(23, 59), now.tzinfo).astimezone(
-                UTC
-            )
-            legs.append(
-                JourneyLeg(
-                    stamp,
-                    stamp,
-                    extra,
-                    0,
-                    "unallocated",
-                    "unallocated",
-                    "daily_estimate",
-                )
-            )
             unallocated.append({"date": forecast.day.isoformat(), "distance_km": extra})
     return legs, unallocated
