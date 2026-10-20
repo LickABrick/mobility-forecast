@@ -13,6 +13,15 @@ const files = new Map();
 for (const name of ['release-please-config.json', '.release-please-manifest.json', 'version.txt', 'CHANGELOG.md', 'custom_components/mobility_forecast/manifest.json', 'pyproject.toml', 'custom_components/mobility_forecast/const.py']) {
   files.set(name, fs.readFileSync(path.join(root, name), 'utf8'));
 }
+// Keep lifecycle scenarios independent of the real checkout's version/changelog.
+// Retain the production strategy and extra-file definitions, but explicitly seed
+// the historical first-release state even after the bootstrap config is removed.
+const fixtureConfig = JSON.parse(files.get('release-please-config.json'));
+fixtureConfig['bootstrap-sha'] = 'd'.repeat(40);
+fixtureConfig.packages['.']['release-as'] = '1.0.0';
+files.set('release-please-config.json', JSON.stringify(fixtureConfig));
+files.set('.release-please-manifest.json', '{".":"1.0.0"}');
+files.set('CHANGELOG.md', '# Changelog\n\n## Unreleased\n\nPending changes.\n');
 let releases = [], tags = [], merged = [];
 let commits = [
   {sha, message: 'feat: native configuration polish', files: ['custom_components/mobility_forecast/config_flow.py']},
@@ -52,6 +61,9 @@ function versions(expected) {
   assert.ok(pr.labels.includes('autorelease: pending'));
   const body = pr.body.toString();
   assert.ok(body.includes('1.0.0'));
+  // Known same-version bootstrap artifact; finalization instructions explicitly
+  // replace this heading in BOTH the changelog and PR body after the last update.
+  assert.ok(body.includes('/compare/v1.0.0...v1.0.0'));
   assert.ok(body.includes('honor forecast days'));
   assert.ok(!body.includes('excluded bootstrap baseline'));
   apply(pr); versions('1.0.0');
@@ -82,7 +94,10 @@ function versions(expected) {
     commits.unshift({sha: 'c'.repeat(40), message, files: ['README.md']});
     const next = (await (await manifest()).buildPullRequests())[0];
     assert.equal(next.version.toString(), expected);
+    assert.ok(next.body.toString().includes(`/compare/v1.0.0...v${expected}`));
+    assert.ok(next.body.toString().includes(message.split(': ')[1]));
     apply(next); versions(expected);
+    assert.ok(files.get('CHANGELOG.md').includes(expected));
     // Restore previous version manifest for independent bump from 1.0.0.
     files.set('.release-please-manifest.json', '{".":"1.0.0"}');
     commits.shift();

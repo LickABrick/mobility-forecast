@@ -64,8 +64,10 @@ Do not allow ordinary merges while preparing/approving/publishing a release.
 1. Pass hosted Quality/Hassfest/HACS and complete [real staging](staging-validation.md).
 2. Wait for the release PR after successful main push Quality. Expected title:
    `chore(main): release 1.0.0`; branch `release-please--branches--main`; label
-   `autorelease: pending`. Review body and CHANGELOG, remove the generated 1.0.0-to-itself
-   comparison link and add a summary of pre-bootstrap capabilities/experimental EV.
+   `autorelease: pending`. After its final automatic update, finalize **both** body
+   and CHANGELOG using [first-release notes](first-release-notes.md). Remove the
+   1.0.0-to-itself comparison link. Another preparation run can overwrite these edits;
+   freeze merges, recheck both copies and wait for all three checks after editing.
 3. Check version.txt, manifest.json, pyproject.toml, const.py and release manifest all
    say 1.0.0 (some may be unchanged in a same-version bootstrap). Confirm runtime marker,
    correct new changelog heading and passing PR checks. Do not modify lifecycle labels.

@@ -11,9 +11,12 @@ The first public target is intentionally **1.0.0**, matching existing metadata.
 `bootstrap-sha` stops notes at the audited pre-polish baseline. The manifest already
 says 1.0.0, so `release-as: 1.0.0` is necessary to avoid an unintended feature bump.
 With this configuration Release Please can generate a same-version comparison link
-in initial notes; replace that misleading comparison link during release PR review
-and add a human summary of pre-bootstrap functionality. Generated commits only cover
-changes after the bootstrap SHA.
+in initial notes: the declared manifest is treated as a previous version even though
+no tag exists. Do not invent a previous tag or bump to 1.0.1 to disguise this.
+Finalize the changelog **and PR body** using the [first-release notes](first-release-notes.md)
+after the final preparation run. This explicitly documented one-time editorial step
+can be overwritten by another Release Please run; freeze merges and repeat review if
+that happens. Generated commits only cover changes after the bootstrap SHA.
 
 After publishing 1.0.0, remove `release-as` and optionally `bootstrap-sha` in the next
 maintenance PR **before preparing another release**. Otherwise version forcing would
@@ -21,7 +24,12 @@ continue. Never reset the release manifest to pretend a release has not happened
 
 ## Events and authorization
 
-1. Pull requests run normal Quality. Pushes to `main` run one normal Quality workflow.
+1. Pull requests targeting main run normal Quality on opened, synchronized and reopened
+   events (including Dependabot and Release Please). Pushes run Quality only on `main`;
+   feature/release branch pushes do not independently duplicate PR validation. Manual
+   Quality dispatch and reusable publication validation remain available. Required job
+   names stay `tests`, `hassfest`, `hacs`. A successful manual Quality run or PR run
+   cannot prepare a release: the downstream guard requires a main **push**.
 2. Release preparation receives Quality's `workflow_run: completed`, but only accepts
    successful **push** runs on this repository's verified default branch `main`.
    Fork/PR events cannot reach the preparation credential. It checks the validated
