@@ -61,7 +61,8 @@ not a hard safety constraint; necessary smaller sessions remain possible.
 ## Visibility and source recovery
 
 Five forecast sensors register even while learning; disabled registry entries stay
-disabled. Mileage timeline is disabled by default. Repeated decreases on distinct
+disabled when explicitly user-disabled. Mileage Timeline is enabled by default;
+old integration-default-disabled entries are enabled without changing identity. Repeated decreases on distinct
 UTC dates trigger a resetting-counter Repair and withhold forecasts. A single decrease
 is rejected as a possible glitch. State class alone does not prove source suitability.
 
@@ -80,9 +81,9 @@ off automatically. User-off does not cancel it. It refreshes current inputs, req
 calendar verification and optional EV work, while reusing caches and provider cooldowns.
 Repeated requests coalesce; a total 120-second manual deadline bounds waiting.
 
-Attributes: `status`, `last_triggered_at`, `last_started_at`, `last_finished_at` and
-sanitized `last_error_code`. Success means the cycle completed, not all routes or
-providers succeeded. Check calendar and EV status independently.
+**Sync status** separates activity, phase and last result. Success requires the
+requested scope to finish without known incomplete routes; partial/error attempts
+do not advance **Last successful sync**. See [full scope and outcomes](sync-diagnostics.md).
 
 ```yaml
 action: mobility_forecast.sync_now
@@ -90,5 +91,5 @@ data:
   entry_id: YOUR_CONFIG_ENTRY_ID
 ```
 
-Unlike the nonblocking switch, this action waits and raises on failure. Obtain the
+Unlike the nonblocking switch, this action waits and raises on partial completion or failure. Obtain the
 entry ID with the action's native vehicle selector. See [action contracts](developer/actions.md).

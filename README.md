@@ -70,9 +70,9 @@ private storage intact. Back up before updating.
 1. Select the vehicle's cumulative odometer and optionally name the vehicle.
 2. Open its device under **Settings → Devices & services → Mobility Forecast**.
 3. Find the five expected-distance sensors. Initial `unknown` values are normal.
-4. Check `history_import_status`, `history_days` and `forecast_status` in attributes.
-   History imports asynchronously; at least seven adequately covered completed days
-   are needed. Regular observations help distinguish parked days from missing data.
+4. Check **Forecast status**, **Calendar status**, **Sync status** and **Last successful
+   sync** on the device. Seven adequately covered days establish the normal baseline;
+   verified calendar routes can provide limited preliminary daily estimates sooner.
 5. Add an ordinary Entities card. No custom frontend is required.
 
 See [Getting Started](docs/getting-started.md) for learning behavior and recovery.
@@ -87,7 +87,7 @@ unroutable journeys fall back conservatively. [Calendar guide](docs/calendar-rou
 
 ### Mileage comparisons
 
-Enable the disabled-by-default **Mileage timeline** sensor to inspect history,
+Use the enabled-by-default **Mileage timeline** sensor to inspect history,
 future daily forecasts and measured accuracy. Missing predictions are not invented
 afterwards. [Dashboard examples](docs/dashboard.md).
 
@@ -143,3 +143,5 @@ Start at the [documentation index](docs/index.md):
 Read [troubleshooting](docs/troubleshooting.md) before reporting an issue.
 See [contribution guidelines](CONTRIBUTING.md), [security reporting](SECURITY.md)
 and the [license](LICENSE). Never post private destinations or vehicle telemetry.
+
+See [sync progress, diagnostic states and calendar-only estimates](docs/sync-diagnostics.md).

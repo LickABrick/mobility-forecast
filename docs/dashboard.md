@@ -14,6 +14,10 @@ entities:
   - sensor.car_expected_distance_next_7_days
   - sensor.car_expected_distance_next_30_days
   - sensor.car_expected_annual_distance
+  - sensor.car_forecast_status
+  - sensor.car_calendar_status
+  - sensor.car_sync_status
+  - sensor.car_last_successful_sync
   - switch.car_manual_sync
 ```
 
@@ -24,10 +28,14 @@ from the same device. Native cards inherit light/dark themes. Use Developer Tool
 ## Optional Mileage Timeline and ApexCharts
 
 
-The five existing forecast sensors are unchanged. For daily charts, enable the
-**Mileage timeline** entity on your vehicle's device page (Settings → Devices &
-services → Mobility Forecast → vehicle → disabled entities). Copy its actual
-entity ID into the examples below; `sensor.car_mileage_timeline` is an example.
+The five existing forecast sensors retain their identities. **Mileage Timeline** is
+now enabled by default. Previously integration-default-disabled entries are enabled
+on reload; explicitly user-disabled entries stay disabled. Copy the actual entity ID
+into the examples; `sensor.car_mileage_timeline` is only an example. Large history,
+forecast and accuracy attributes remain excluded from Recorder. Predictions require
+genuine pre-day snapshots: enabling Timeline does not create past forecasts.
+Calendar-only and missing daily values have null uncertainty or mileage; charts must
+preserve those gaps rather than convert them to zero.
 
 Install **ApexCharts Card** separately through HACS Frontend and reload the browser.
 It is optional, not a dependency of this integration. Paste these complete cards

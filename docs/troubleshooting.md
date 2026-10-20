@@ -5,7 +5,7 @@
 **Cause:** platform setup failed or entities were disabled. **Check:** vehicle device,
 HA logs and entity registry. **Do:** reload after correcting setup; enable wanted
 entities explicitly. Five mileage sensors register even while values are unknown.
-Mileage timeline is disabled by default; enabling it does not invent earlier predictions.
+Mileage Timeline is enabled by default; enabling it does not invent earlier predictions.
 
 ## Forecast is unknown / not enough history
 
@@ -66,7 +66,7 @@ use [dashboard examples](dashboard.md). Missing predictions are not backfilled.
 **Cause:** unavailable input, provider failure, shutdown or timeout. **Check:** switch
 status/timestamps/`last_error_code` and calendar/EV statuses. **Do:** fix source problems,
 wait out cooldowns and retry. Switch-on is nonblocking; user-off does not cancel work.
-The waiting action raises on failure. Success does not guarantee every route is complete.
+The waiting action raises on failure. Partial means relevant work remains deferred/incomplete; inspect Sync Status.
 
 ## EV battery data unavailable
 
@@ -96,3 +96,19 @@ reproducing. Review exports before sharing. Report versions, installation method
 features, sanitized failure category and reproduction steps. Never post raw calendar
 payloads, addresses, coordinates, vehicle identifiers, credentials or private stores.
 `error` is not proof of data loss; storage Repairs stop writes to preserve unreadable data.
+
+## I added calendars and pressed Manual Sync, but mileage is still unknown
+
+1. Open **Forecast status** on the vehicle: learning is not a sync failure.
+2. Inspect its `history_import_status`, `usable_history_days` and required days (7).
+3. Open **Calendar status**. Disabled means calendars/routing are not both enabled.
+4. Check vehicle options → Calendars and routes, and install/configure Waze Travel Time.
+5. Inspect `events_retrieved`, `events_routable`, locationless/virtual/invalid counts.
+   Zero physical appointments is not proof of zero driving.
+6. Check `days_complete`, `days_incomplete`, `days_pending` and next retry time.
+7. Check **Sync status** → `last_result`, phase and `last_error_code`. A partial result
+   means the bounded attempt finished, not all routes. Correct failures and retry.
+8. Complete fresh routes with insufficient history give `calendar_only` for individual
+   dates; rolling and annual values remain unknown. Otherwise collect valid history.
+
+See [diagnostic definitions and calendar-only rules](sync-diagnostics.md).
