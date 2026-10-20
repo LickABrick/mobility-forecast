@@ -9,3 +9,5 @@ htmlcov/
 *.db*
 .storage/
 *.egg-info/
+build/
+dist/

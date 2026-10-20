@@ -14,6 +14,9 @@ jobs:
         with:
           python-version: '3.14'
       - run: pip install -e '.[test]'
+      - run: pip check
+      - run: pip wheel --no-deps --wheel-dir dist .
+      - run: python scripts/check_wheel.py
       - run: pytest -q
       - run: ruff check .
       - run: ruff format --check .
