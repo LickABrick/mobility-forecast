@@ -18,3 +18,26 @@ Retention and approximations are deliberate. There is no statistical UI question
 ## Daily evening reporting
 
 Exact midnight brackets remain the strongest weekday evidence. At least fourteen near-daily raw intervals (20–28 elapsed hours, consecutive local dates, both reports between 16:00 and 23:59 with hours differing by at most one) provide weaker evidence: the delta is attributed to the ending report date with weight 0.5. This is a heuristic for after-trip telemetry, not proof of when travel occurred. Daily totals retain their `estimated` classification and interval allocation; only weekday inference uses that attribution. Weight controls shrinkage and minimum support. Multi-day gaps and statistics never receive this evidence. Unknown days remain unknown. Tests cover UTC, Amsterdam/New York DST and midnight/evening reporting.
+
+## Genuine prediction history
+
+A native local-time callback at 23:55 refreshes the model and captures tomorrow's
+full-day prediction. The callback rechecks wall time after the refresh: a delayed
+callback cannot capture a prediction after midnight. Each target date is immutable.
+An offline/missed callback leaves a missing prediction; startup does not backfill.
+Records contain target date, distance, capture time, lead seconds, quality/status,
+calendar inclusion, origin, validity and record schema. Ready/provisional models
+qualify; learning/unavailable snapshots are not strict evaluation predictions.
+Records are retained for approximately 365 days. Legacy numeric snapshots retain
+their value with origin `legacy`, unknown capture time and `valid: false`.
+
+Completed local days use `daily_distances()`. Observed/estimated values with at
+least 90% coverage may be displayed; only observed values enter strict metrics.
+Unknown/partial coverage stays null, including days with no measurements. Today's
+unfinished mileage is excluded. Estimated days have a distinct chart series.
+Difference is **actual minus predicted**. MAE and signed bias, matched predicted
+and actual totals, aggregate percentage error, evaluated count and exclusion
+counts are available for 7/30/90 days. Exclusion counts can overlap. Zero actual
+totals have null percentage error. Example: predictions 42/55 and observed 48/51
+give MAE 5 km, bias +1 km, totals 97/99 km and aggregate error +2.02%. Synthetic
+backtesting remains separate from these installed-instance snapshots.

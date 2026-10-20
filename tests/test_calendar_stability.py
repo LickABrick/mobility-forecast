@@ -60,6 +60,15 @@ async def test_unchanged_calendar_never_publishes_baseline_dip(hass):
         "sensor", "mobility_forecast", f"{entry.entry_id}_tomorrow"
     )
     assert float(hass.states.get(entity_id).state) == 67
+    publications = []
+    unsubscribe = hass.bus.async_listen(
+        "state_changed",
+        lambda event: (
+            publications.append(event.data["new_state"])
+            if event.data["entity_id"] == entity_id
+            else None
+        ),
+    )
     entered = asyncio.Event()
     release = asyncio.Event()
 
@@ -82,8 +91,13 @@ async def test_unchanged_calendar_never_publishes_baseline_dip(hass):
             release.set()
             await runtime.calendar_task
             await runtime.async_refresh()
+            await hass.async_block_till_done()
             assert float(hass.states.get(entity_id).state) == 67
+            assert all(float(state.state) == 67 for state in publications)
+            # Status/progress attributes may publish even with identical mileage.
+            assert len(publications) == 2
     finally:
+        unsubscribe()
         release.set()
         await hass.config_entries.async_unload(entry.entry_id)
 

@@ -71,3 +71,20 @@ Same-location shortcuts count neither hits nor misses. Successful warm-cache cyc
 These counts need not sum to raw rows because normalization also deduplicates/culls canceled/out-of-horizon events. `ready` means all required known physical itineraries completed, not that the calendar describes every real trip. `partial` means completed days plus pending/incomplete days. `incomplete` identifies terminal planning failures when no complete overlay exists. `routing_unavailable` covers transient Waze failures without a usable completed day; retries may still be pending. `routing_timeout` indicates cycle-deadline deferral without a completed day. `calendar_unavailable` means response/service-level failure, not one malformed event.
 
 Current failure categories: route_unavailable, route_timeout (retryable); impossible_itinerary, conflicting_appointments, unsupported_all_day, unsupported_overnight (terminal this generation); request_budget/refresh_timeout (deferred); calendar_fetch/calendar_normalization/route_planning (pipeline failures). `calendar_retry_exhausted` counts days reaching three transient failures. A normal fresh agenda refresh can retry again. `calendar_last_failure` records a recent reason in an incomplete generation and clears on full success; it is not an individual-event diagnosis. Historical mileage remains usable during routing errors. Never enable nested filtering merely to hide genuinely conflicting physical appointments.
+
+## Stale agendas and empty comparison charts
+
+Calendar retrieval failures retain a last verified plan for at most two hours,
+reporting `stale`. After that the historical baseline applies. This deliberately
+allows a real downward change rather than claiming an old appointment remains
+verified forever. Authoritative removal invalidates canceled days immediately.
+Changed itineraries can temporarily retain their last good plan while a candidate
+retries, also subject to the two-hour verification limit. Routes are reconsidered
+after seven days even when the itinerary remains identical. Plans/fingerprints
+are runtime-only: reload rebuilds them using the persisted route cache.
+
+Empty comparison history immediately after installation is expected: wait for
+a 23:55 capture and a completed target day with adequate odometer coverage.
+Legacy first-calculation snapshots are not verified pre-day predictions. Enable
+the timeline entity and use its actual ID in the optional ApexCharts examples.
+The chart timezone should match HA. Never convert missing distances to zero.

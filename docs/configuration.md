@@ -70,3 +70,13 @@ A genuinely separate journey fully contained in a longer visit is also ignored w
 ## Locationless appointments
 
 No setting is required: internal meetings, reminders, calls, unknown venue names and virtual events without recognized physical destinations are excluded before nested filtering. Known Locations can resolve an otherwise unknown venue. Ignored events between customer visits do not split a chain into separate round trips. A locationless ticket is counted as locationless, not nested; a physical contained ticket is counted as nested only when that option is enabled. Skipping an event is not evidence of zero real travel.
+
+## Daily comparison data
+
+No new required settings. Enable the optional **Mileage timeline** sensor on the
+vehicle device for the [dashboard examples](dashboard.md). It has no state class
+or distance unit: its state is model status, with bounded history/forecast
+attributes. The five existing distance sensor unique IDs are unchanged.
+`mobility_forecast.get_history` and `mobility_forecast.get_forecast` are read-only
+response actions selected by config-entry ID. History accepts 1–365 days; the
+timeline entity carries 30 completed days, future dates and 7/30/90 metrics.

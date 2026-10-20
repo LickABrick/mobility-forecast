@@ -103,3 +103,19 @@ Root cause of missing_location confirmed in code: unresolved appointments entere
 Acceptance tests execute actual in-process HA calendar service → normalization/filtering → Waze adapter/cache → retry → coordinator → five sensors, with persisted reload identity/cache checks, for 0/1/30/150/300 rows. Synthetic external Waze responses only; no real calendar/production instance was accessed. Prior tests retain coverage for unique routes, options invalidation, cancellation, independent vehicles, storage corruption, historical-only forecasts and rolling/annual values. Not every requested scheduling/cancellation combination is exhaustively exercised; production process restart/browser/live-network testing remains manual.
 
 Final local checks: **189 tests passed** on HA 2026.10.2/Python 3.14.2; Ruff lint/format passed, Mypy seven-module scope passed, metadata/English-Dutch translation parity passed, git diff --check passed. Docker Hassfest passed (one integration, zero invalid). Docker HACS attempted: blocked by missing GITHUB_TOKEN; no HACS or hosted Actions pass claimed. Final audit additionally bounded publication task creation when a prior publication is still active and reset retry-exhaustion metadata on fresh agendas. No dependencies/settings/schema/unique-ID changes, pushes or releases.
+
+## Stable synchronization and comparison acceptance
+
+Local HA 2026.10.2/Python 3.14.2 suite includes delayed 67 km refresh stability,
+24-hour unchanged itinerary reuse, canonical spelling/title reuse, changed location,
+authoritative cancellation, two-hour stale outage fallback, pre-day immutability,
+legacy migration, DST-adjacent 23:55 captures, observed-only metric eligibility,
+response-to-chart alignment and persistent snapshot reload. Existing 150/300-event,
+retry, nested, malformed, source and multi-vehicle tests remain enabled.
+
+Limitations: this is synthetic/in-process HA evidence. No live calendar/Waze,
+production process restart, actual Lovelace browser rendering, comprehensive new
+23/25-hour callback scheduling matrix or matched before/after Recorder/storage
+benchmark was executed. The chart examples match tested response fields, but are
+not certified through a graphical browser. HACS Docker is blocked without a GitHub
+token. Hassfest Docker passes including new services/translations.

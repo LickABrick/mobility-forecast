@@ -108,3 +108,11 @@ Diagnostics include last-cycle cache hits, misses, expiration, deduplication, ev
 Only appointments with recognized physical destinations contribute routes. Locationless, unrecognized-location and clearly virtual events are automatically skipped, without invalidating other customer visits. This does **not** prove those activities involve no travel: calendar mileage estimates only known routable appointments and never replaces the historical baseline with a guaranteed zero.
 
 Malformed individual events are skipped and counted; a missing calendar or invalid service-response container remains a retrieval error. Temporary Waze failures retry with bounded backoff. Physical overlaps and impossible travel schedules remain incomplete and use historical mileage. Inspect `calendar_events_without_location`, `calendar_events_virtual_skipped`, `calendar_events_invalid_skipped` and `calendar_last_failure` for aggregate explanations.
+
+## Stable forecasts and mileage comparisons
+
+Calendar synchronization retains committed plans while retrieving unchanged agendas,
+uses hashed daily itinerary identities, and routes only changed days. Optional
+**Mileage timeline** and response actions provide predicted-versus-actual mileage.
+See [dashboard setup](docs/dashboard.md). Verified predictions start with the first
+successful 23:55 local pre-day capture; past predictions are never fabricated.

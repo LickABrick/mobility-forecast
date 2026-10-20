@@ -53,3 +53,21 @@ Strict response-level validation is retained. Individual malformed rows are isol
 Plan.retryable distinguishes transient route_unavailable/route_timeout from terminal conflicting_appointments, impossible_itinerary, unsupported_all_day and unsupported_overnight. A transient day stays pending with an incomplete zero-overlay plan, cached successful legs retained. At most three transient attempts per day per generation are allowed, with 60 seconds then 120 seconds between attempts. Budget/deadline deferral does not consume transient attempts. Retry state resets on new agenda retrieval/options generation; exhausted days can be tried at the next regular 30-minute refresh. Deferred work and retry timers remain single, bounded, entry-owned callbacks. Only complete daily plans affect predicted mileage.
 
 Calendar publication is separate from odometer debounce: first completed day requests refresh promptly, subsequent completions coalesce on one two-second timer, and final cycle status requests refresh after cancelling the pending timer. Native coordinator debouncing still serializes actual updates. Publication tasks/timers are cancelled on shutdown; generation checks reject obsolete timer callbacks. Waze work never waits under the history lock. Long cycles publish intermediate batches, not just a final monthly result.
+
+## Calendar synchronization and comparison pipeline
+
+Active `plans` and committed hashed `day_fingerprints` are separate from candidate
+calendar groups/fingerprints. Retrieval does not clear active plans. A successful
+response removes deleted dates; changed physical days are routed independently and
+committed as whole-day results. Retryable candidate failures do not replace a valid
+active plan. Terminal physical conflicts invalidate the overlay. The existing
+three-worker, 60-request, 45-second cycle limits and retry/cache ownership remain.
+Fingerprints exclude titles and normalize UTC instants and canonical locations.
+
+Odometer aggregation is memoized by timezone plus the complete immutable reading
+sequence, so revised/backfilled samples invalidate it. Rolling forecasts still
+calculate against the clock. `generated_at` is no longer copied to every sensor;
+the read action exposes calculation time. Status/progress attributes still update.
+Comparison functions are pure; schema-v1 vehicle storage remains atomic and keeps
+four-column readings and route caches. Snapshots use individual structured schema-1
+records inside that existing store, not a destructive store-version migration.

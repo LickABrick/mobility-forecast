@@ -69,3 +69,24 @@ The 30-day immediate-completion publication regression verifies exactly two cale
 Re-run measurements, mocked 1 ms Waze response latency (not live service): 150/300 unique-location appointments require 180/330 calls, first cycle <=60, peak concurrency three, active fixture time 0.333/0.799 seconds (production continuation waits excluded). Five repeated locations require 6/7 calls, active time 0.129/0.223 seconds. Wall times vary. Replay `pytest tests/test_progressive_calendar.py tests/test_cache_scenarios.py -q -s` in .venv314.
 
 New service-to-five-sensor acceptance fixtures use 0/1/30/150/300 raw rows. The 150-row dataset intentionally skips 30 locationless, 30 virtual, 30 malformed and 30 nested physical tickets, retaining 30 visits. The 300-row repeated dataset deduplicates the repeated horizon: 30 normalized locationless, 30 normalized virtual and 30 nested tickets, plus 60 malformed raw rows. Both require three Waze calls including one forced timeout; retry reuses successful legs, then reload reuses cache. These mixed fixtures target resilience, not unique-destination performance. Separate tests cover impossible timing, terminal conflicts and bounded outage exhaustion.
+
+## Change-aware synchronization measurements
+
+`test_sync_review.py` simulates 24 hours in half-hour cycles, with mocked routes:
+49 fetches including initial load, **one** daily itinerary calculation rather
+than 49. Calendar polling frequency is intentionally unchanged (30 minutes).
+Unchanged cycles execute no itinerary or Waze work; this is fixture evidence,
+not a live-service latency benchmark. Changed canonical location triggers one
+additional itinerary calculation; equivalent coordinates/title edits trigger none.
+
+The delayed unchanged-refresh state-machine test records exactly **two** tomorrow
+sensor `state_changed` events, both 67 km (status/metrics attributes change). It does
+not claim zero Recorder events or zero coordinator callbacks. No matched original
+baseline publication-count benchmark was captured; the original regression test
+failed on the temporary baseline drop. Route-cache fixture counts in the earlier
+sections remain relevant; no live Waze before/after count is claimed.
+
+The aggregation memo avoids repeated daily-distance aggregation on identical
+readings, but forecasts still calculate for legitimate fractional rolling windows.
+Storage payload equality suppresses redundant scheduled saves; shutdown still
+flushes. Timeline arrays are excluded from Recorder and not copied to five sensors.
