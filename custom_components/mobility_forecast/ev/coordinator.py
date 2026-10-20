@@ -29,6 +29,7 @@ class EVRuntime:
         self.pending = None
         self.stopping = False
         self.lookup_signature = None
+        self.lookup_at = None
         self.public = []
         self.reason = None
         self.result = {
@@ -101,11 +102,25 @@ class EVRuntime:
         if (
             config.charging_mode != "home_only"
             and self.parent.entry.options.get("external_lookup_consent")
-            and (signature != self.lookup_signature or not self.public)
+            and (
+                signature != self.lookup_signature
+                or self.lookup_at is None
+                or (now - self.lookup_at).total_seconds() >= 86400
+            )
         ):
             self.public = []
             self.reason = None
-            for stop in stops[:10]:
+            self.lookup_at = now
+            selected = []
+            identities = set()
+            for stop in stops:
+                if stop.destination_identity not in identities:
+                    identities.add(stop.destination_identity)
+                    if len(identities) > 10:
+                        self.reason = "lookup_budget_deferred"
+                        continue
+                selected.append(stop)
+            for stop in selected[:30]:
                 try:
                     coords, status = await resolve(self.http, stop.query)
                     if not coords:
@@ -161,8 +176,13 @@ class EVRuntime:
             and result.status == "no_feasible_window"
         ):
             result = ChargingRecommendation("provider_unavailable", self.reason)
+        if self.parent.data.quality == "insufficient":
+            result = ChargingRecommendation(
+                "insufficient_data", "mileage_history_insufficient"
+            )
         if any(not plan.complete for plan in plans.values()) and result.status in (
             "ready",
+            "estimated",
             "no_charge_needed",
         ):
             result = ChargingRecommendation(

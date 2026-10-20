@@ -122,11 +122,6 @@ def recommend(config, telemetry, legs, opportunities, now, estimated=False):
         target = max(energy * 100 / capacity, required)
         if target > limit + 1e-8:
             continue
-        # A preference may add useful energy, but never prohibits a safety charge.
-        target = min(
-            limit,
-            max(target, 100 * (energy + config.minimum_useful_charge_kwh) / capacity),
-        )
         pre_soc = energy * 100 / capacity
         battery, grid, minutes = charge_estimate(
             capacity,
