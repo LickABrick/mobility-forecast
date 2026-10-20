@@ -49,6 +49,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
         self.readings = []
         self.store = VehicleStore(hass, entry.entry_id)
         self.lock = asyncio.Lock()
+        self.ev = None
         self.rejected = 0
         self.history_cache_key = None
         self.history_cache = []
@@ -113,6 +114,10 @@ class VehicleCoordinator(DataUpdateCoordinator):
 
     async def initialize(self):
         self.readings = await self.store.load_readings()
+        if self.entry.options.get("ev_enabled"):
+            from .ev.coordinator import EVRuntime
+
+            self.ev = EVRuntime(self)
         # Capture the import watermark BEFORE ingesting current state. Otherwise a
         # first installation imports only yesterday instead of available history.
         self.import_since = (
@@ -415,6 +420,8 @@ class VehicleCoordinator(DataUpdateCoordinator):
             ):
                 forecast.generated_at = self.data.generated_at
             self.store.schedule(self.readings)
+            if self.ev:
+                self.ev.schedule()
             return forecast
 
     def _schedule_calendar(self, now):
@@ -804,6 +811,8 @@ class VehicleCoordinator(DataUpdateCoordinator):
 
     async def shutdown(self):
         self.stopping = True
+        if self.ev:
+            await self.ev.close()
         self._cancel_calendar_publish()
         if self.calendar_publish_task and not self.calendar_publish_task.done():
             self.calendar_publish_task.cancel()
