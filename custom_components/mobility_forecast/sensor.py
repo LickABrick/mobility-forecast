@@ -60,7 +60,8 @@ class ForecastSensor(CoordinatorEntity, SensorEntity):
             "history_import_status": getattr(
                 self.coordinator, "import_status", "pending"
             ),
-            "generated_at": data.generated_at.isoformat(),
+            # Rolling calculations must not churn all five entity attributes.
+            # Calculation timestamps are available through the read-only API.
             "data_quality": data.quality,
             "history_days": data.history_days,
             "calendar_included": any(d.planned_km is not None for d in data.days[:31]),

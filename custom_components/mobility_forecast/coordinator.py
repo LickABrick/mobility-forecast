@@ -49,6 +49,8 @@ class VehicleCoordinator(DataUpdateCoordinator):
         self.store = VehicleStore(hass, entry.entry_id)
         self.lock = asyncio.Lock()
         self.rejected = 0
+        self.history_cache_key = None
+        self.history_cache = []
         self.pending = None
         self.import_task = None
         self.source_available = False
@@ -339,7 +341,11 @@ class VehicleCoordinator(DataUpdateCoordinator):
             # A periodic read only uses last_reported, never advances a stale state.
             self._ingest(self.hass.states.get(self.source))
             self._schedule_calendar(now)
-            history = daily_distances(self.readings, zone)
+            history_key = (self.hass.config.time_zone, tuple(self.readings))
+            if history_key != self.history_cache_key:
+                self.history_cache = daily_distances(self.readings, zone)
+                self.history_cache_key = history_key
+            history = self.history_cache
             forecast = predict(history, now, self.plans)
             snapshots = self.store.payload["snapshots"]
             self.store.payload["evaluation"] = evaluate(snapshots, history)
@@ -357,6 +363,22 @@ class VehicleCoordinator(DataUpdateCoordinator):
             if self.source_incompatible:
                 forecast.status = Status.SOURCE_INCOMPATIBLE
                 forecast.values = dict.fromkeys(forecast.values)
+            # Rolling forecasts still calculate against the current clock. Only
+            # preserve the timestamp when the complete meaningful result matches.
+            if self.data and (
+                forecast.values,
+                forecast.days,
+                forecast.status,
+                forecast.history_days,
+                forecast.quality,
+            ) == (
+                self.data.values,
+                self.data.days,
+                self.data.status,
+                self.data.history_days,
+                self.data.quality,
+            ):
+                forecast.generated_at = self.data.generated_at
             self.store.schedule(self.readings)
             return forecast
 
