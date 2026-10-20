@@ -1,168 +1,98 @@
 # Troubleshooting
 
-- **Mostly parked vehicles:** confirmed zero days count toward driving probability; recurring weekend or weekly travel is not discarded as an outlier. Missing telemetry is not a confirmed zero. Compare several weeks, not one unexpected journey.
-- **Slow routing:** historical forecasts publish independently. Agenda processing has a 45-second work-cycle deadline; pending days resume after one minute while failed requests retry at the regular refresh. routing_unavailable means historical fallback, not zero-distance journeys.
-- **Odometer selector:** displays distance-class sensors or sensors in km/mi. Incomplete device-class metadata is supported through the unit fallback. Final validation still rejects trip/range counters.
-- **Learning / unknown predictions:** wait for seven adequately bracketed days or verify recorder has retained this odometer. No updates is not evidence of a parked car.
-- **Source unavailable:** history remains stored. Check original integration, unit and numeric value. After seven days without valid measurements predictions become unknown instead of indefinitely fresh-looking values.
-- **Source rejected:** range/trip sensors are unsuitable. Use lifetime cumulative mileage, preferably a distance sensor with total state class.
-- **Counter decrease / replacement:** data is rejected to avoid negative trips. Restore a continuous source. Start a new vehicle entry only if deliberately discarding the model is appropriate.
-- **No calendar contribution:** verify calendars, routing opt-in, Waze action and region. Generic names need a known location/zone. Online, all-day, crossing-midnight or impossible overlapping itineraries may not yield routes.
-- **Routing unavailable:** historical forecasts remain valid. Provider errors are not zero-distance journeys. Requests retry on later refresh and usable cached routes remain until expiration.
-- **Storage repair:** unreadable state is preserved, not overwritten. Restore a backup or remove/re-add the vehicle to start fresh. There is no safe automatic interpretation of arbitrary corrupt files.
+## No entities appear
 
-For bug reports provide integration version, HA version, sanitized downloaded diagnostics and reproduction steps. Do not attach private calendar content, addresses, coordinates, storage files or authentication details publicly.
+**Cause:** platform setup failed or entities were disabled. **Check:** vehicle device,
+HA logs and entity registry. **Do:** reload after correcting setup; enable wanted
+entities explicitly. Five mileage sensors register even while values are unknown.
+Mileage timeline is disabled by default; enabling it does not invent earlier predictions.
 
-## Five sensors missing from States
+## Forecast is unknown / not enough history
 
-1. Open Settings → Devices & services → Mobility Forecast. Check whether the entry is loaded, disabled, retrying or **Failed to set up**.
-2. Open the vehicle device → Entities. Enable any user-disabled sensors. Search the actual entity IDs in Developer Tools → States (names/IDs may have been renamed).
-3. Registered enabled entities should have a state even with no history: `unknown`, not absent. Inspect `forecast_status`, `history_days`, `history_import_status`, `calendar_status`.
-4. Check Settings → System → Logs for `custom_components.mobility_forecast`, platform `sensor`, config entry setup and entity-registration errors. Enable integration debug logging temporarily if needed, then disable it.
-5. If still missing, provide HA Core version, integration version/installed commit, entry load status, entity registry disabled status and startup traceback. Redact locations, vehicle identifiers and calendar details. Do not delete the entry/history to troubleshoot.
+**Cause:** initialization, learning or missing usable observations. **Check:**
+`forecast_status`, `history_import_status`, `history_days`. **Do:** allow import to
+finish, verify Recorder includes the source and collect seven adequately covered days.
+Unknown is not zero. `provisional` means weaker estimated evidence; `ready` means
+supported mileage forecasting, not complete calendar routing or guaranteed accuracy.
 
-The production missing-entity report was not reproduced in the in-process HA tests. Startup was hardened against initialization blocking registration, but no specific cause in that installation has been confirmed.
+## Odometer unavailable or counter reset
 
-`history_import_status`: pending/importing/complete/failed/incompatible_source. `forecast_status`: initializing/learning/provisional/ready/source_unavailable/source_incompatible/error. Resetting counters raise Repairs; select a lifetime vehicle odometer via Reconfigure. Calendar `routing_unavailable` is historical fallback, not failure of the five sensors.
+**Cause:** unavailable/non-numeric state, unsupported unit or repeated decreases.
+**Check:** original vehicle integration and Repairs. **Do:** restore the source or
+Reconfigure to a continuous lifetime odometer. Never use range/trip counters.
+`source_unavailable` and `source_incompatible` withhold predictions while preserving
+history. Do not delete storage to silence a Repair; back up before deliberate reset.
 
-## Calendar progress and failures
+## Unexpectedly high or low forecast
 
-| calendar_status | Meaning |
-|---|---|
-| disabled | Calendar routing is not enabled |
-| refreshing | Retrieval or initial work is running; no completed overlay yet |
-| ready | All required days in the fetched horizon completed (including an empty agenda) |
-| partial | Some valid days completed; other days are pending or incomplete |
-| incomplete | Itineraries cannot be completed, e.g. unresolved locations or conflicts |
-| calendar_unavailable | Calendar retrieval/response validation failed; old agenda overlays are untrusted |
-| routing_unavailable | No valid completed days and route service/request failed |
-| routing_timeout | Work-cycle deadline expired before any valid day completed |
+**Cause:** sparse telemetry, changed usage, calendar journey or source semantics.
+**Check:** history quality and calendar inclusion. **Do:** compare observed and estimated
+days; do not mistake annual expectation for year-to-date distance. Unknown stationary
+periods are not zero. No configurable model weights are needed.
 
-`calendar_last_failure` uses safe categories such as calendar_fetch, calendar_normalization, route_planning, provider_unavailable, route_request, request_budget, refresh_timeout, missing_location and conflicting_appointments. Logs contain only stage, exception class and aggregate counts, never exception messages or calendar content. `calendar_last_success` is the last fully successful refresh, not a claim that pending results are fresh. Complete-day counts refer to route plans; incomplete/pending days use historical mileage. Request counts are cumulative across work cycles for the current agenda generation, including failed requests.
+## Forecast changes after restart
 
-150 appointments alone do not prove a cause for routing_unavailable. Check stage/progress first. Waze unavailability, invalid responses, conflicting calendars and the old global deadline can all explain failures. No runtime cause in the reported installation has been established. Allow several continuation cycles for a large unique-location calendar. Near-term plans should appear before the whole month completes. If a trip is missing, check unresolved locations and overlaps before enabling nested filtering.
+**Cause:** calendar verification or expired retained plan. **Check:** calendar status,
+verification age and incomplete counts. **Do:** allow asynchronous verification or
+Manual Sync. Freshness is two hours; compatible complete distances can persist
+provisionally for 24 hours. Cancellation is authoritative; expired data falls back
+to history. Numeric restoration does not establish EV journey timing.
 
-## Cache efficiency diagnostics
+## Calendar not included / Waze unavailable
 
-Counters are **per last processing cycle**, not lifetime or cumulative agenda totals. `calendar_requests` remains the separate cumulative agenda-generation counter. Diagnostics `route_cache_statistics` contains:
+**Cause:** routing off, missing Waze action, failed calendar, unresolved location or
+incomplete itinerary. **Check:** selected calendars, region, `calendar_status`,
+last-success/failure and pending/incomplete counts. **Do:** verify Waze Travel Time,
+resolve known locations and wait for bounded retries. `disabled` is intentional;
+refreshing/pending work is not complete; cached/provisional/stale data needs verification.
+Transient provider outages do not require a persistent Repair.
 
-- route_lookups: consumer calls, including same-location shortcuts.
-- route_cache_hits: valid cached lookups performed by the shared calculation (not each waiter).
-- route_cache_misses: shared calculations without a valid cache entry, including provider-unavailable/budget-deferred attempts; not synonymous with Waze calls.
-- route_cache_expired: expired entries removed by pruning, including initial cycle cleanup, not just requested entries.
-- route_requests_deduplicated: additional consumers joining an outstanding calculation.
-- waze_requests: actual service invocations, including failed/cancelled calls.
-- waze_failures: completed service attempts with exceptions or invalid/no routes; cycle cancellation is not counted as a provider failure.
-- route_cache_evictions: capacity removals only, not expired/invalid cleanup.
-- route_cache_entries: retained entries at the cycle end (a gauge).
+## Some appointments ignored
 
-Same-location shortcuts count neither hits nor misses. Successful warm-cache cycles have zero Waze calls; cache misses during an outage never become fabricated zero routes. Debug summaries contain only counts. Diagnostics expose no endpoint strings, hashes, titles or descriptions. Cache hashes hide plaintext but are not encryption against guessed-address attacks; protect HA backups.
+**Cause:** virtual/locationless/unrecognized event, unsupported all-day/overnight,
+physical overlap or nested filtering. **Check:** aggregate ignored counts and calendar
+semantics. **Do:** use [known locations](calendar-routing.md#known-locations); turn off
+nested filtering if contained appointments represent genuine separate journeys.
+Skipped appointments are not proof of no travel.
 
-## Location and retry interpretation (current behavior)
+## Mileage Timeline has no history
 
-`missing_location` is no longer emitted for intentionally excluded events. Check:
-- calendar_events_count: retrieved raw rows (including malformed/canceled/duplicates).
-- calendar_events_invalid_skipped: malformed rows; other valid events still process.
-- calendar_events_routable: normalized physical candidates before nesting.
-- calendar_events_without_location: normalized nonvirtual unresolved/locationless events skipped.
-- calendar_events_virtual_skipped: normalized virtual events skipped.
-- calendar_nested_ignored: physical children removed by the optional containment rule.
+**Cause:** disabled entity or no genuine pre-day snapshots. **Check:** registry and
+23:55 capture availability. **Do:** enable the entity, allow completed local days and
+use [dashboard examples](dashboard.md). Missing predictions are not backfilled.
 
-These counts need not sum to raw rows because normalization also deduplicates/culls canceled/out-of-horizon events. `ready` means all required known physical itineraries completed, not that the calendar describes every real trip. `partial` means completed days plus pending/incomplete days. `incomplete` identifies terminal planning failures when no complete overlay exists. `routing_unavailable` covers transient Waze failures without a usable completed day; retries may still be pending. `routing_timeout` indicates cycle-deadline deferral without a completed day. `calendar_unavailable` means response/service-level failure, not one malformed event.
+## Manual sync fails
 
-Current failure categories: route_unavailable, route_timeout (retryable); impossible_itinerary, conflicting_appointments, unsupported_all_day, unsupported_overnight (terminal this generation); request_budget/refresh_timeout (deferred); calendar_fetch/calendar_normalization/route_planning (pipeline failures). `calendar_retry_exhausted` counts days reaching three transient failures. A normal fresh agenda refresh can retry again. `calendar_last_failure` records a recent reason in an incomplete generation and clears on full success; it is not an individual-event diagnosis. Historical mileage remains usable during routing errors. Never enable nested filtering merely to hide genuinely conflicting physical appointments.
+**Cause:** unavailable input, provider failure, shutdown or timeout. **Check:** switch
+status/timestamps/`last_error_code` and calendar/EV statuses. **Do:** fix source problems,
+wait out cooldowns and retry. Switch-on is nonblocking; user-off does not cancel work.
+The waiting action raises on failure. Success does not guarantee every route is complete.
 
-## Stale agendas and empty comparison charts
+## EV battery data unavailable
 
-Calendar retrieval failures retain a last verified plan for at most two hours,
-reporting `stale`. After that the historical baseline applies. This deliberately
-allows a real downward change rather than claiming an old appointment remains
-verified forever. Authoritative removal invalidates canceled days immediately.
-Changed itineraries can temporarily retain their last good plan while a candidate
-retries, also subject to the two-hour verification limit. Routes are reconsidered
-after seven days even when the itinerary remains identical. Plans/fingerprints
-are runtime-only: reload rebuilds them using the persisted route cache.
+**Cause:** missing, stale, wrong-unit or out-of-range SoC. **Check:** percent sensor and
+freshness. **Do:** restore telemetry; do not substitute zero. Disable EV if not wanted.
+Mileage forecasting remains independent.
 
-Empty comparison history immediately after installation is expected: wait for
-a 23:55 capture and a completed target day with adequate odometer coverage.
-Legacy first-calculation snapshots are not verified pre-day predictions. Enable
-the timeline entity and use its actual ID in the optional ApexCharts examples.
-The chart timezone should match HA. Never convert missing distances to zero.
+## No suitable charging opportunity / public provider unavailable
 
-## Optional EV charging forecast
+**Cause:** insufficient timing, unreachable reserve shortfall, inadequate session,
+missing consent or rejected provider data. **Check:** EV reason/status and charging mode.
+**Do:** verify physical inputs and known opportunities. Do not interpret missing advice
+as no charging needed. NDW unit ambiguity can exclude points; no availability is guaranteed.
+See [EV limitations](ev-charging.md#limitations).
 
-See [EV setup, assumptions, provider limits and native dashboard](ev.md). EV is
-disabled by default and never controls the vehicle or charger. Existing mileage
-entities, history and calendar synchronization remain independent.
+## Upgrade problems
 
-## Restart and EV remediation update
+**Cause:** partial file replacement or unsupported/corrupt storage. **Check:** installed
+version, logs and Repairs. **Do:** restore a backup or replace the complete integration
+directory and restart. Preserve private storage. Never edit it while HA is running.
 
-Complete calendar distance overlays are now stored separately from Waze route
-cache entries. Startup restores validated, configuration-compatible plans before
-the first forecast calculation, for up to two hours since agenda verification.
-Stored records contain hashed fingerprints/config identity, dates, distances and
-verification/routing times, not addresses or stops. Old storage needs no migration.
-Restored data is labeled cached pending asynchronous verification. EV timing must
-be rebuilt from the agenda; a numeric restored overlay is not a timed itinerary.
-Failed startup retrieval uses 10/30/60/120-second retries then normal 30-minute
-checks, rather than treating failure as successful retrieval. Routing identity
-excludes unrelated EV options.
+## Logs and sanitized diagnostics
 
-EV demand now reconciles full forecast distance with timed legs and measured
-minimum movement today; remaining mileage is explicitly unallocated estimated
-demand. Its day-end debit remains a coarse assumption, not exact travel timing.
-Home windows preserve both sides of away intervals. Postcode-free Dutch addresses
-require exact street, house number and municipality/locality. NDW ambiguous power
-units remain fail-closed; no new evidence justifies automatic watts conversion.
-Discovery progresses through ten unique destinations per pass, retaining completed
-results and bounding temporary-failure retries. Revision tracking prevents old EV
-calculations from publishing after inputs change. Response horizons filter windows
-and demand while explicitly retaining a seven-day internal calculation horizon.
-
-Validation evidence: reconstructed-store HA entry reload reproduces 95 km before,
-95 km while calendar fetch is blocked after reload, and 95 km after verification.
-This is in-process HA testing, not a real HA process restart. The 30/150/300
-fixtures now process all destinations across bounded passes rather than starving
-entries after the first ten. Full suite: 218 passed. The full requested restart,
-race, session and DST matrices are not yet covered; multi-session scheduling,
-coarse-day timing and provider semantics remain supervised-test limitations.
-
-## Manual sync
-
-Each vehicle has a **Manual Sync** switch (Dutch: **Handmatige synchronisatie**),
-normally `switch.<vehicle>_manual_sync`. Turning it on runs an immediate bounded
-sync cycle; it stays on while busy and returns off on completion or failure. It
-is an action-style switch, **not** an enable/disable setting. Turning it off while
-busy does not cancel work. It starts off after reload/restart.
-
-The cycle reads the current odometer, refreshes forecasts, bypasses the calendar
-30-minute wait for verification, reuses bounded routing/cache logic, and refreshes
-optional EV planning/discovery. It does not purge caches, force every route to be
-recalculated, bypass provider cooldowns, or finish an entire destination crawl.
-Useful after updates/restarts or when you want fresh inputs. Repeated requests
-share one worker with a single pending follow-up bit and a **120-second total
-deadline**. Existing automatic provider work is joined rather than duplicated.
-A timeout ends the manual wait; normal owned background work can continue.
-Unload cancels the manual controller and the integration's owned background work.
-
-Attributes include `status`, `last_triggered_at`, `last_started_at`,
-`last_finished_at` and sanitized `last_error_code`. `success` means the bounded
-cycle completed, not that every external datum is available or every route is
-complete. Check sensor calendar/EV status for partial/uncertain data. No private
-event content is exposed. Busy-state publications occur at start/end, not each
-sub-step. Existing mileage sensor unique IDs are unchanged.
-
-Automation / Developer Tools → Actions alternative:
-
-```yaml
-action: mobility_forecast.sync_now
-data:
-  entry_id: YOUR_CONFIG_ENTRY_ID
-```
-
-The action targets one loaded entry and waits for its cycle; result metadata is
-on the switch. An invalid/unloaded entry raises a clean action error.
-
-## Reliability correction (2026-10-20)
-
-A provisional calendar forecast is retained information, not a newly verified agenda. After 24 hours without verification, fallback to history is intentional. A failed waited manual-sync action now reports an action error; inspect switch status and calendar/EV categorical reasons. Never assume a public charging candidate is reserved or will be free.
+Use Settings → Devices & services → Mobility Forecast → Download diagnostics, and
+Settings → System → Logs. Enable debug logging from the integration menu only while
+reproducing. Review exports before sharing. Report versions, installation method,
+features, sanitized failure category and reproduction steps. Never post raw calendar
+payloads, addresses, coordinates, vehicle identifiers, credentials or private stores.
+`error` is not proof of data loss; storage Repairs stop writes to preserve unreadable data.

@@ -127,80 +127,24 @@ See [EV setup, assumptions, provider limits and native dashboard](ev.md). EV is
 disabled by default and never controls the vehicle or charger. Existing mileage
 entities, history and calendar synchronization remain independent.
 
-## Restart and EV remediation update
 
-Complete calendar distance overlays are now stored separately from Waze route
-cache entries. Startup restores validated, configuration-compatible plans before
-the first forecast calculation, for up to two hours since agenda verification.
-Stored records contain hashed fingerprints/config identity, dates, distances and
-verification/routing times, not addresses or stops. Old storage needs no migration.
-Restored data is labeled cached pending asynchronous verification. EV timing must
-be rebuilt from the agenda; a numeric restored overlay is not a timed itinerary.
-Failed startup retrieval uses 10/30/60/120-second retries then normal 30-minute
-checks, rather than treating failure as successful retrieval. Routing identity
-excludes unrelated EV options.
+## Native overview
 
-EV demand now reconciles full forecast distance with timed legs and measured
-minimum movement today; remaining mileage is explicitly unallocated estimated
-demand. Its day-end debit remains a coarse assumption, not exact travel timing.
-Home windows preserve both sides of away intervals. Postcode-free Dutch addresses
-require exact street, house number and municipality/locality. NDW ambiguous power
-units remain fail-closed; no new evidence justifies automatic watts conversion.
-Discovery progresses through ten unique destinations per pass, retaining completed
-results and bounding temporary-failure retries. Revision tracking prevents old EV
-calculations from publishing after inputs change. Response horizons filter windows
-and demand while explicitly retaining a seven-day internal calculation horizon.
-
-Validation evidence: reconstructed-store HA entry reload reproduces 95 km before,
-95 km while calendar fetch is blocked after reload, and 95 km after verification.
-This is in-process HA testing, not a real HA process restart. The 30/150/300
-fixtures now process all destinations across bounded passes rather than starving
-entries after the first ten. Full suite: 218 passed. The full requested restart,
-race, session and DST matrices are not yet covered; multi-session scheduling,
-coarse-day timing and provider semantics remain supervised-test limitations.
-
-## Project branding
-
-The [Mobility Forecast brand assets](../assets/brand/README.md) include transparent
-icons and light/dark wordmarks. They are repository presentation assets, not an
-automatically installed Home Assistant integration tile.
-
-## Manual sync
-
-Each vehicle has a **Manual Sync** switch (Dutch: **Handmatige synchronisatie**),
-normally `switch.<vehicle>_manual_sync`. Turning it on runs an immediate bounded
-sync cycle; it stays on while busy and returns off on completion or failure. It
-is an action-style switch, **not** an enable/disable setting. Turning it off while
-busy does not cancel work. It starts off after reload/restart.
-
-The cycle reads the current odometer, refreshes forecasts, bypasses the calendar
-30-minute wait for verification, reuses bounded routing/cache logic, and refreshes
-optional EV planning/discovery. It does not purge caches, force every route to be
-recalculated, bypass provider cooldowns, or finish an entire destination crawl.
-Useful after updates/restarts or when you want fresh inputs. Repeated requests
-share one worker with a single pending follow-up bit and a **120-second total
-deadline**. Existing automatic provider work is joined rather than duplicated.
-A timeout ends the manual wait; normal owned background work can continue.
-Unload cancels the manual controller and the integration's owned background work.
-
-Attributes include `status`, `last_triggered_at`, `last_started_at`,
-`last_finished_at` and sanitized `last_error_code`. `success` means the bounded
-cycle completed, not that every external datum is available or every route is
-complete. Check sensor calendar/EV status for partial/uncertain data. No private
-event content is exposed. Busy-state publications occur at start/end, not each
-sub-step. Existing mileage sensor unique IDs are unchanged.
-
-Automation / Developer Tools → Actions alternative:
+No frontend plugin is needed for this card. Replace every example ID with the actual
+ID from your vehicle device or Developer Tools → States.
 
 ```yaml
-action: mobility_forecast.sync_now
-data:
-  entry_id: YOUR_CONFIG_ENTRY_ID
+type: entities
+title: Vehicle forecast
+entities:
+  - sensor.car_expected_distance_today
+  - sensor.car_expected_distance_tomorrow
+  - sensor.car_expected_distance_next_7_days
+  - sensor.car_expected_distance_next_30_days
+  - sensor.car_expected_annual_distance
+  - switch.car_manual_sync
 ```
 
-The action targets one loaded entry and waits for its cycle; result metadata is
-on the switch. An invalid/unloaded entry raises a clean action error.
-
-## Reliability correction (2026-10-20)
-
-Short EV action horizons count local calendar dates including today (one day means the remainder of today). Shortened responses are labeled `filtered_not_recalculated`: seven-day recommendation/alternative/shortfall are withheld, not presented as a newly optimized short-horizon assessment. Opportunities wholly inside the interval and daily energy fields are filtered without network work.
+Optionally add your EV status, recommended target and next suggested charging time
+from the same device. Native cards inherit light/dark themes. Use Developer Tools
+→ Actions for read-only history and forecast responses without ApexCharts.
