@@ -7,7 +7,11 @@ from .models import ChargingRecommendation
 
 
 def recommend(config, telemetry, legs, opportunities, now, estimated=False):
-    if telemetry.current_soc_percent is None or telemetry.freshness != "fresh":
+    if (
+        telemetry.current_soc_percent is None
+        or telemetry.freshness != "fresh"
+        or telemetry.soc_observed_at is None
+    ):
         return (
             ChargingRecommendation("insufficient_data", "soc_" + telemetry.freshness),
             None,
@@ -28,13 +32,14 @@ def recommend(config, telemetry, legs, opportunities, now, estimated=False):
         key=lambda leg: (leg.departure, leg.arrival, leg.destination_identity),
     )
     remaining = initial
-    shortfall = None
+    already_violated = initial < reserve
+    shortfall = anchor if already_violated else None
     for leg in future:
         remaining -= drive_energy(
             leg.distance_km,
             telemetry.consumption_kwh_per_100km or config.consumption_kwh_per_100km,
         )
-        if remaining < reserve:
+        if remaining < reserve and not already_violated:
             shortfall = leg.departure
             break
     if shortfall is None:
@@ -56,9 +61,11 @@ def recommend(config, telemetry, legs, opportunities, now, estimated=False):
     normal = min(config.preferred_max_soc, allowed)
     candidates = []
     for opportunity in opportunities:
-        if opportunity.start < anchor or opportunity.start >= shortfall:
+        if opportunity.start < anchor or (
+            not already_violated and opportunity.start >= shortfall
+        ):
             continue
-        end = min(opportunity.end, shortfall)
+        end = opportunity.end if already_violated else min(opportunity.end, shortfall)
         # A selected window cannot overlap driving; verify reserve to reach it.
         before = [leg for leg in future if leg.arrival <= opportunity.start]
         if any(
@@ -73,7 +80,7 @@ def recommend(config, telemetry, legs, opportunities, now, estimated=False):
             for leg in before
         )
         energy = initial - used
-        if energy < reserve:
+        if energy < 0 or (not already_violated and energy < reserve):
             continue
         # Cover until the next usable later window, or the horizon if none.
         next_window = min(
@@ -137,11 +144,17 @@ def recommend(config, telemetry, legs, opportunities, now, estimated=False):
         )
         if minutes <= 0 or minutes * 60 > (end - opportunity.start).total_seconds():
             continue
-        start = end - timedelta(minutes=minutes)
+        start = (
+            opportunity.start if already_violated else end - timedelta(minutes=minutes)
+        )
+        if already_violated:
+            end = start + timedelta(minutes=minutes)
         candidates.append(
             ChargingRecommendation(
                 "estimated" if estimated or opportunity.source == "home" else "ready",
-                "exceptional_target"
+                "reserve_already_violated"
+                if already_violated
+                else "exceptional_target"
                 if target > normal
                 else "charge_before_reserve_shortfall",
                 "estimated" if estimated or opportunity.source == "home" else "timed",
