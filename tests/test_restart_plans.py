@@ -4,7 +4,6 @@ import asyncio
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
-import pytest
 from homeassistant.helpers import entity_registry as er
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -15,7 +14,6 @@ from custom_components.mobility_forecast.models import Reading
 from custom_components.mobility_forecast.routing import Plan
 
 
-@pytest.mark.xfail(strict=True, reason="Completed calendar plans are not persisted")
 async def test_reload_restores_calendar_before_fetch(hass):
     now = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0)
     tomorrow = now + timedelta(days=1)

@@ -49,6 +49,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
         self.readings = []
         self.store = VehicleStore(hass, entry.entry_id)
         self.lock = asyncio.Lock()
+        self.calendar_refreshed_at = None
         self.ev = None
         self.rejected = 0
         self.history_cache_key = None
@@ -114,6 +115,21 @@ class VehicleCoordinator(DataUpdateCoordinator):
 
     async def initialize(self):
         self.readings = await self.store.load_readings()
+        from .calendar_storage import restore, routing_identity
+
+        self.calendar_signature = routing_identity(self.hass, self.entry.options)
+        restored = restore(
+            self.store.payload.get("calendar_plans", {}),
+            self.calendar_signature,
+            dt_util.utcnow().astimezone(ZoneInfo(self.hass.config.time_zone)),
+        )
+        for day, (plan, fingerprint, verified, routed) in restored.items():
+            self.plans[day] = plan
+            self.day_fingerprints[day] = fingerprint
+            self.day_verified[day] = verified
+            self.day_routed[day] = routed
+        if restored:
+            self.calendar_status = "cached"
         if self.entry.options.get("ev_enabled"):
             from .ev.coordinator import EVRuntime
 
@@ -426,7 +442,9 @@ class VehicleCoordinator(DataUpdateCoordinator):
 
     def _schedule_calendar(self, now):
         """Coalesce requests. No external work occurs under the history lock."""
-        signature = repr(dict(self.entry.options))
+        from .calendar_storage import routing_identity
+
+        signature = routing_identity(self.hass, self.entry.options)
         if getattr(self, "calendar_signature", None) != signature:
             self.calendar_signature = signature
             self.calendar_generation += 1
@@ -473,7 +491,8 @@ class VehicleCoordinator(DataUpdateCoordinator):
         if not continuing:
             self.calendar_days = None
             self.calendar_refreshed_at = now
-        self.calendar_status = "refreshing"
+        if self.calendar_status != "cached":
+            self.calendar_status = "refreshing"
         generation = self.calendar_generation
         self.calendar_task = self.entry.async_create_background_task(
             self.hass,
@@ -788,6 +807,10 @@ class VehicleCoordinator(DataUpdateCoordinator):
                     self.calendar_metrics["requests"] = (
                         self.calendar_metrics.get("requests", 0) + provider.requests
                     )
+                from .calendar_storage import serialize
+
+                self.store.payload["calendar_plans"] = serialize(self)
+                self.store.schedule_routes()
                 self._calendar_progress()
                 if self.calendar_pending_days:
                     # Deferred work waits >=60s; transient days use 60/120s backoff.
