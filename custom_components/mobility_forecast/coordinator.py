@@ -50,6 +50,9 @@ class VehicleCoordinator(DataUpdateCoordinator):
         self.store = VehicleStore(hass, entry.entry_id)
         self.lock = asyncio.Lock()
         self.calendar_refreshed_at = None
+        self.calendar_attempted_at = None
+        self.calendar_fetch_failures = 0
+        self.calendar_fetch_retry_at = None
         self.ev = None
         self.rejected = 0
         self.history_cache_key = None
@@ -475,6 +478,11 @@ class VehicleCoordinator(DataUpdateCoordinator):
             return
         if self.calendar_task and not self.calendar_task.done():
             return
+        if (
+            self.calendar_fetch_retry_at is not None
+            and now < self.calendar_fetch_retry_at
+        ):
+            return
         continuing = (
             bool(self.calendar_pending_days)
             and self.calendar_next_work is not None
@@ -490,7 +498,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
             return
         if not continuing:
             self.calendar_days = None
-            self.calendar_refreshed_at = now
+            self.calendar_attempted_at = now
         if self.calendar_status != "cached":
             self.calendar_status = "refreshing"
         generation = self.calendar_generation
@@ -569,6 +577,9 @@ class VehicleCoordinator(DataUpdateCoordinator):
                     )
                     if not self._calendar_current(generation, options):
                         return
+                    self.calendar_refreshed_at = dt_util.utcnow().astimezone(now.tzinfo)
+                    self.calendar_fetch_failures = 0
+                    self.calendar_fetch_retry_at = None
                     self.calendar_metrics["events_count"] = getattr(
                         events, "retrieved_count", len(events)
                     )
@@ -759,6 +770,21 @@ class VehicleCoordinator(DataUpdateCoordinator):
             )
             self.calendar_metrics["last_failure"] = category
             if stage == "calendar_fetch":
+                self.calendar_fetch_failures += 1
+                delays = (10, 30, 60, 120)
+                delay = (
+                    delays[self.calendar_fetch_failures - 1]
+                    if self.calendar_fetch_failures <= len(delays)
+                    else 1800
+                )
+                self.calendar_fetch_retry_at = dt_util.utcnow() + timedelta(
+                    seconds=delay
+                )
+                if self.calendar_retry:
+                    self.calendar_retry.cancel()
+                self.calendar_retry = self.hass.loop.call_later(
+                    delay, self._refresh_later
+                )
                 self.plans = {
                     day: plan
                     for day, plan in self.plans.items()
