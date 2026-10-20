@@ -20,6 +20,7 @@ from .vehicle import telemetry
 
 class EVRuntime:
     def __init__(self, parent):
+        self.listeners = []
         self.parent = parent
         self.hass = parent.hass
         self.config = EVConfig.from_options(parent.entry.options)

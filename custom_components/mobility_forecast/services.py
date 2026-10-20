@@ -59,6 +59,10 @@ def register_services(hass):
         ):
             raise HomeAssistantError("Vehicle is not loaded")
         runtime = entry.runtime_data
+        if call.service == "get_ev_plan":
+            if not runtime.ev:
+                return {"schema": 1, "entry_id": entry.entry_id, "status": "disabled"}
+            return {"entry_id": entry.entry_id, **runtime.ev.result}
         return (
             history_data(runtime, call.data["days"])
             if call.service == "get_history"
@@ -77,3 +81,18 @@ def register_services(hass):
         hass.services.async_register(
             DOMAIN, name, handle, schema=schema, supports_response=SupportsResponse.ONLY
         )
+
+    hass.services.async_register(
+        DOMAIN,
+        "get_ev_plan",
+        handle,
+        schema=vol.Schema(
+            {
+                vol.Required("entry_id"): str,
+                vol.Optional("horizon_days", default=7): vol.All(
+                    vol.Coerce(int), vol.Range(min=1, max=7)
+                ),
+            }
+        ),
+        supports_response=SupportsResponse.ONLY,
+    )

@@ -163,6 +163,24 @@
       },
       "mileage_timeline": {
         "name": "Mileage timeline"
+      },
+      "ev_estimated_range": {
+        "name": "Estimated range above reserve"
+      },
+      "ev_next_charge_start": {
+        "name": "Next suggested charging time"
+      },
+      "ev_target_soc": {
+        "name": "Recommended charging target"
+      },
+      "ev_charge_energy_needed": {
+        "name": "Recommended battery energy"
+      },
+      "ev_estimated_charge_duration": {
+        "name": "Estimated charging duration"
+      },
+      "ev_charge_forecast_status": {
+        "name": "Charging forecast status"
       }
     }
   },
@@ -206,6 +224,18 @@
         "days": {
           "name": "Days",
           "description": "1–365 days of history."
+        }
+      }
+    },
+    "get_ev_plan": {
+      "name": "Get EV charging plan",
+      "description": "Read-only charging recommendation; no vehicle control.",
+      "fields": {
+        "entry_id": {
+          "name": "Vehicle"
+        },
+        "horizon_days": {
+          "name": "Days (maximum 7)"
         }
       }
     }

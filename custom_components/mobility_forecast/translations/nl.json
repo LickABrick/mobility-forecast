@@ -163,6 +163,24 @@
       },
       "mileage_timeline": {
         "name": "Kilometervergelijking"
+      },
+      "ev_estimated_range": {
+        "name": "Geschatte actieradius boven reserve"
+      },
+      "ev_next_charge_start": {
+        "name": "Volgend aanbevolen laadmoment"
+      },
+      "ev_target_soc": {
+        "name": "Aanbevolen accudoel"
+      },
+      "ev_charge_energy_needed": {
+        "name": "Aanbevolen energie naar de accu"
+      },
+      "ev_estimated_charge_duration": {
+        "name": "Geschatte laadduur"
+      },
+      "ev_charge_forecast_status": {
+        "name": "Status laadvoorspelling"
       }
     }
   },
@@ -206,6 +224,18 @@
         "days": {
           "name": "Dagen",
           "description": "1–365 dagen geschiedenis."
+        }
+      }
+    },
+    "get_ev_plan": {
+      "name": "Laadplan ophalen",
+      "description": "Alleen-lezen laadadvies; geen aansturing.",
+      "fields": {
+        "entry_id": {
+          "name": "Voertuig"
+        },
+        "horizon_days": {
+          "name": "Dagen (maximaal 7)"
         }
       }
     }

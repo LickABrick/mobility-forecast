@@ -13,6 +13,10 @@ from .const import DOMAIN, FORECAST_KEYS
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
+    if entry.options.get("ev_enabled"):
+        from .ev.sensor import DESCRIPTIONS, EVSensor
+
+        async_add_entities(EVSensor(entry.runtime_data, key) for key in DESCRIPTIONS)
     async_add_entities(
         [
             *(ForecastSensor(entry.runtime_data, key) for key in FORECAST_KEYS),
