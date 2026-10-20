@@ -1,7 +1,9 @@
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.mobility_forecast.config_flow import MobilityOptions  # noqa: F401
 
-async def test_ev_opt_in_validation_and_preservation(hass):
+
+async def test_ev_opt_in_validation_and_preservation(hass, enable_custom_integrations):
     entry = MockConfigEntry(
         domain="mobility_forecast",
         data={"odometer": "sensor.car"},
