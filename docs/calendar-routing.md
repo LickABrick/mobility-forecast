@@ -67,3 +67,10 @@ Waze receives route origins/destinations. Titles/descriptions are not persisted 
 Mobility Forecast. Known locations, mileage and distances remain sensitive in HA
 backups even where identifiers are hashed. Public charging consent is separate;
 see [EV providers](ev-charging.md#providers-and-privacy).
+
+## Learning and diagnostics
+
+Selecting calendars alone does not enable routes. Check Calendar Status for physical
+events and complete/pending days. Fresh complete routes can supply preliminary daily
+mileage before seven historical days, never full rolling totals.
+See [sync and forecast diagnostics](sync-diagnostics.md).

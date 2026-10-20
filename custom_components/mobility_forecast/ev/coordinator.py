@@ -259,7 +259,7 @@ class EVRuntime:
             and result.status == "no_feasible_window"
         ):
             result = ChargingRecommendation("provider_unavailable", self.reason)
-        if self.parent.data.quality == "insufficient":
+        if self.parent.data.quality in ("insufficient", "calendar_only"):
             result = ChargingRecommendation(
                 "insufficient_data", "mileage_history_insufficient"
             )
@@ -310,7 +310,9 @@ class EVRuntime:
             if vehicle.current_soc_percent is not None
             else None,
             "unallocated_demand": unallocated,
-            "energy_demand_kwh": sum(
+            "energy_demand_kwh": None
+            if self.parent.data.quality in ("insufficient", "calendar_only")
+            else sum(
                 drive_energy(day.total_km, config.consumption_kwh_per_100km)
                 for day in self.parent.data.days[:7]
             ),

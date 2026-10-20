@@ -78,3 +78,20 @@ See [EV setup, assumptions, provider limits and native dashboard](../ev-charging
 disabled by default and never controls the vehicle or charger. Existing mileage
 entities, history and calendar synchronization remain independent.
 
+
+## Event-driven diagnostic entities and manual jobs
+
+`status_sensor` observes coordinator publications and manual lifecycle callbacks;
+reads never schedule external work. Effective value/attribute equality suppresses
+redundant writes. Entity removal unregisters both listeners. Four diagnostic IDs are
+entry-based and enabled by default; the five original IDs remain unchanged.
+`manual_sync` owns one shared-deadline job with a coalesced dirty bit. Initialization,
+initial import and calendar/EV workers are joined, not replaced. Only the optional
+completed-success timestamp is added to the existing v1 Store; normal debounce,
+corruption guards and unload flush remain. See [scope](../sync-diagnostics.md).
+
+Timeline registry migration enables only RegistryEntryDisabler.INTEGRATION; USER
+entries are untouched. Its unique ID and large-attribute Recorder exclusions remain.
+Calendar-only plans are filtered for freshness, identity and current candidate
+fingerprint before pure forecasting; nullable daily mileage is guarded in comparisons
+and EV consumers. Mature history calculations and cache retention are unchanged.

@@ -122,6 +122,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
 
     async def initialize(self):
         self.readings = await self.store.load_readings()
+        self.manual_sync.restore(self.store.payload)
         from .calendar_storage import restore, routing_identity
 
         self.calendar_signature = routing_identity(self.hass, self.entry.options)
@@ -255,6 +256,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
         if not self.source_continuous:
             return
         self.import_status = "importing"
+        self.manual_sync.publish()
         try:
             incoming = await import_history(
                 self.hass, self.source, dt_util.utcnow(), self.import_since
@@ -428,7 +430,34 @@ class VehicleCoordinator(DataUpdateCoordinator):
                 self.history_cache = daily_distances(self.readings, zone)
                 self.history_cache_key = history_key
             history = self.history_cache
-            forecast = predict(history, now, self.plans)
+            # Mature-history overlay semantics stay unchanged. Preliminary plans
+            # require fresh verification, not merely retained compatible cache.
+            from .calendar_storage import routing_identity
+
+            identity_matches = getattr(
+                self, "calendar_signature", None
+            ) == routing_identity(self.hass, self.entry.options)
+            eligible = {
+                day: plan
+                for day, plan in self.plans.items()
+                if not self.source_incompatible
+                and self.entry.options.get("routing")
+                and self.entry.options.get("calendars")
+                and self.calendar_status
+                not in ("stale", "provisional", "calendar_unavailable")
+                and identity_matches
+                and day in self.day_verified
+                and 0
+                <= (now - self.day_verified[day]).total_seconds()
+                <= CALENDAR_STALE_SECONDS
+                and plan.complete
+                and (
+                    self.calendar_days is None
+                    or self.candidate_fingerprints.get(day)
+                    == self.day_fingerprints.get(day)
+                )
+            }
+            forecast = predict(history, now, self.plans, verified_plans=eligible)
             if not self.source_available:
                 forecast.status = Status.SOURCE_UNAVAILABLE
             if (
@@ -521,6 +550,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
         if self.calendar_status not in ("cached", "provisional"):
             self.calendar_status = "refreshing"
         generation = self.calendar_generation
+        self.manual_sync.publish()
         self.calendar_task = self.entry.async_create_background_task(
             self.hass,
             self._refresh_calendar(now, generation),
@@ -599,6 +629,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
                     self.calendar_refreshed_at = dt_util.utcnow().astimezone(now.tzinfo)
                     self.calendar_fetch_failures = 0
                     self.calendar_fetch_retry_at = None
+                    self.manual_sync.publish()
                     self.calendar_metrics["events_count"] = getattr(
                         events, "retrieved_count", len(events)
                     )
@@ -698,6 +729,8 @@ class VehicleCoordinator(DataUpdateCoordinator):
                 provider = WazeProvider(
                     self.hass, options.get("region", ""), self.store.payload["routes"]
                 )
+                if self.manual_sync.running:
+                    self.manual_sync.set_phase("routing")
                 first_published = False
                 queue = sorted(
                     day
@@ -860,6 +893,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
                 self.store.payload["calendar_plans"] = serialize(self)
                 self.store.schedule_routes()
                 self._calendar_progress()
+                self.manual_sync.publish()
                 if self.calendar_pending_days:
                     # Deferred work waits >=60s; transient days use 60/120s backoff.
                     clock = dt_util.utcnow()
@@ -877,28 +911,72 @@ class VehicleCoordinator(DataUpdateCoordinator):
                         delay, self._refresh_later
                     )
         if self._calendar_current(generation, options):
+            self.manual_sync.publish()
             self._cancel_calendar_publish()
             await self.async_request_refresh()
 
     async def _manual_sync_cycle(self):
-        # Initialization owns Store loading; never refresh an uninitialized store.
+        from .manual_sync import SyncFailure, SyncOutcome
+
+        phase = self.manual_sync.set_phase
+        phase("initializing")
         if self.initialization_task and not self.initialization_task.done():
             await asyncio.shield(self.initialization_task)
         if not self.initialized:
-            raise RuntimeError("initialization_incomplete")
-        # Join automatic calendar work instead of starting competing providers.
-        if self.calendar_task and not self.calendar_task.done():
-            await asyncio.shield(self.calendar_task)
-        self.calendar_refreshed_at = None
-        self.calendar_fetch_retry_at = None
-        if self.calendar_retry:
-            self.calendar_retry.cancel()
-            self.calendar_retry = None
+            raise SyncFailure("initialization_incomplete")
+        phase("history")
+        if self.import_task and not self.import_task.done():
+            await asyncio.shield(self.import_task)
         await self.async_refresh()
-        if self.calendar_task and not self.calendar_task.done():
-            await asyncio.shield(self.calendar_task)
+        if self.source_incompatible:
+            raise SyncFailure("source_incompatible")
+        if not self.source_available:
+            raise SyncFailure("source_unavailable")
+        if self.import_status == "failed":
+            raise SyncFailure("history_import_failed")
+        enabled = bool(
+            self.entry.options.get("calendars") and self.entry.options.get("routing")
+        )
+        if enabled:
+            phase("calendar")
+            # Join automatic work, then fetch a fresh agenda. One fresh bounded
+            # batch is the scope; deferred retries are partial, never success.
+            if self.calendar_task and not self.calendar_task.done():
+                await asyncio.shield(self.calendar_task)
+            self.calendar_refreshed_at = None
+            self.calendar_fetch_retry_at = None
+            self.calendar_days = None
+            if self.calendar_retry:
+                self.calendar_retry.cancel()
+                self.calendar_retry = None
+            await self.async_refresh()
+            if self.calendar_task and not self.calendar_task.done():
+                await asyncio.shield(self.calendar_task)
+        phase("forecast")
         await self.async_refresh()
+        if not self.last_update_success:
+            raise SyncFailure("sync_failed")
+        if enabled and self.calendar_status in ("calendar_unavailable", "stale"):
+            raise SyncFailure("calendar_fetch_failed")
+        if enabled and self.calendar_status in (
+            "routing_unavailable",
+            "routing_timeout",
+        ):
+            raise SyncFailure("routing_unavailable")
+        partial = enabled and (
+            self.calendar_pending_days or self.calendar_status != "ready"
+        )
+        code = (
+            (
+                "routing_budget_exceeded"
+                if self.calendar_pending_days
+                else "routing_incomplete"
+            )
+            if partial
+            else None
+        )
         if self.ev:
+            phase("ev")
             self.ev.schedule()
             if self.ev.pending:
                 self.ev.pending.cancel()
@@ -909,16 +987,14 @@ class VehicleCoordinator(DataUpdateCoordinator):
             if self.ev.task:
                 await asyncio.shield(self.ev.task)
             if self.ev.result.get("reason") == "processing_error":
-                raise RuntimeError("sync_incomplete")
-        if not self.last_update_success:
-            raise RuntimeError("sync_incomplete")
-        if self.calendar_status in (
-            "calendar_unavailable",
-            "routing_unavailable",
-            "routing_timeout",
-            "stale",
-        ):
-            raise RuntimeError("sync_incomplete")
+                raise SyncFailure("ev_processing_failed")
+            if self.ev.result.get("provider_status") in (
+                "lookup_budget_deferred",
+                "lookup_pending",
+                "lookup_deferred",
+            ):
+                partial, code = True, "ev_lookup_deferred"
+        return SyncOutcome("partial" if partial else "success", code)
 
     async def shutdown(self):
         self.stopping = True

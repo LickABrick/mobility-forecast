@@ -209,6 +209,45 @@
       },
       "ev_charge_forecast_status": {
         "name": "Charging forecast status"
+      },
+      "forecast_status": {
+        "name": "Forecast status",
+        "state": {
+          "initializing": "Initializing",
+          "learning": "Learning",
+          "calendar_only": "Calendar only",
+          "provisional": "Provisional",
+          "ready": "Ready",
+          "source_unavailable": "Source unavailable",
+          "source_incompatible": "Source incompatible",
+          "error": "Error"
+        }
+      },
+      "sync_status": {
+        "name": "Sync status",
+        "state": {
+          "idle": "Idle",
+          "syncing": "Syncing"
+        }
+      },
+      "last_successful_sync": {
+        "name": "Last successful sync"
+      },
+      "calendar_status": {
+        "name": "Calendar status",
+        "state": {
+          "disabled": "Disabled",
+          "refreshing": "Refreshing",
+          "cached": "Cached",
+          "provisional": "Provisional",
+          "partial": "Partial",
+          "incomplete": "Incomplete",
+          "ready": "Ready",
+          "calendar_unavailable": "Calendar unavailable",
+          "routing_unavailable": "Routing unavailable",
+          "routing_timeout": "Routing timeout",
+          "stale": "Stale"
+        }
       }
     },
     "switch": {

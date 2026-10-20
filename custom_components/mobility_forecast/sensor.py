@@ -13,6 +13,21 @@ from .const import DOMAIN, FORECAST_KEYS
 
 
 async def async_setup_entry(hass, entry, async_add_entities):
+    from homeassistant.helpers import entity_registry as er
+
+    from .status_sensor import KEYS, DiagnosticSensor
+
+    registry = er.async_get(hass)
+    entity_id = registry.async_get_entity_id(
+        "sensor", DOMAIN, f"{entry.entry_id}_mileage_timeline"
+    )
+    if (
+        entity_id
+        and registry.async_get(entity_id).disabled_by
+        == er.RegistryEntryDisabler.INTEGRATION
+    ):
+        registry.async_update_entity(entity_id, disabled_by=None)
+    async_add_entities(DiagnosticSensor(entry.runtime_data, key) for key in KEYS)
     if entry.options.get("ev_enabled"):
         from .ev.sensor import DESCRIPTIONS, EVSensor
 
@@ -94,9 +109,9 @@ class ForecastSensor(CoordinatorEntity, SensorEntity):
 
 
 class TimelineSensor(ForecastSensor):
-    """Opt-in bounded series on one entity, never duplicated onto forecasts."""
+    """Default-enabled bounded series, never duplicated onto forecasts."""
 
-    _attr_entity_registry_enabled_default = False
+    _attr_entity_registry_enabled_default = True
     _attr_device_class = None
     _attr_state_class = None
     _attr_suggested_display_precision = None

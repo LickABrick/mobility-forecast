@@ -75,6 +75,12 @@ def test_current_metadata():
     assert validate() == current_version(ROOT)
 
 
+def test_published_release_has_no_version_override():
+    config = json.loads((ROOT / "release-please-config.json").read_text())
+    assert "release-as" not in config
+    assert all("release-as" not in package for package in config["packages"].values())
+
+
 @pytest.mark.parametrize(
     "file",
     [

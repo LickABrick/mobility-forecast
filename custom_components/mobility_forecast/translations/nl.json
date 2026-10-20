@@ -209,6 +209,45 @@
       },
       "ev_charge_forecast_status": {
         "name": "Status laadvoorspelling"
+      },
+      "forecast_status": {
+        "name": "Voorspellingsstatus",
+        "state": {
+          "initializing": "Initialiseren",
+          "learning": "Leren",
+          "calendar_only": "Alleen agenda",
+          "provisional": "Voorlopig",
+          "ready": "Gereed",
+          "source_unavailable": "Bron niet beschikbaar",
+          "source_incompatible": "Bron ongeschikt",
+          "error": "Fout"
+        }
+      },
+      "sync_status": {
+        "name": "Synchronisatiestatus",
+        "state": {
+          "idle": "Inactief",
+          "syncing": "Synchroniseren"
+        }
+      },
+      "last_successful_sync": {
+        "name": "Laatste succesvolle synchronisatie"
+      },
+      "calendar_status": {
+        "name": "Agendastatus",
+        "state": {
+          "disabled": "Uitgeschakeld",
+          "refreshing": "Vernieuwen",
+          "cached": "Uit cache",
+          "provisional": "Voorlopig",
+          "partial": "Gedeeltelijk",
+          "incomplete": "Onvolledig",
+          "ready": "Gereed",
+          "calendar_unavailable": "Agenda niet beschikbaar",
+          "routing_unavailable": "Routering niet beschikbaar",
+          "routing_timeout": "Routering verlopen",
+          "stale": "Verouderd"
+        }
       }
     },
     "switch": {

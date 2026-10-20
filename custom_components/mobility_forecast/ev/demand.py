@@ -6,6 +6,8 @@ def reconcile(days, plans, history, now):
     unallocated = []
     observed = {day.day: day for day in history}
     for forecast in days[:7]:
+        if forecast.total_km is None or forecast.baseline_km is None:
+            continue
         plan = plans.get(forecast.day)
         timed = list(plan.legs) if plan and plan.complete else []
         future = [leg for leg in timed if leg.arrival > now]

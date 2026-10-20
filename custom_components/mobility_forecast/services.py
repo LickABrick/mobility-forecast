@@ -39,6 +39,11 @@ def forecast_data(runtime, days=31):
                 "predicted_km": d.total_km,
                 "low_km": d.low_km,
                 "high_km": d.high_km,
+                "data_quality": "calendar_only"
+                if d.baseline_km is None and d.total_km is not None
+                else "unknown"
+                if d.total_km is None
+                else data.quality,
             }
             for d in data.days[:days]
         ],
@@ -90,7 +95,9 @@ def register_services(hass):
         await entry.runtime_data.manual_sync.request()
         if entry.runtime_data.manual_sync.status != "success":
             raise HomeAssistantError(
-                "Manual synchronization failed; inspect sync status"
+                f"Manual synchronization {entry.runtime_data.manual_sync.last_result}: "
+                f"{entry.runtime_data.manual_sync.error or 'sync_interrupted'}. "
+                "Inspect Sync Status and Calendar Status."
             )
 
     hass.services.async_register(

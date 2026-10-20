@@ -63,8 +63,12 @@ async def test_recorder_to_sensor_weekend_driver(hass):
         runtime = entry.runtime_data
         assert runtime.data.values["next_7_days"] == pytest.approx(300, rel=0.12)
         sensors = [s for s in hass.states.async_all("sensor") if s.entity_id != source]
-        assert len(sensors) == 5
-        assert all(s.state not in ("unknown", "unavailable") for s in sensors)
+        assert len(sensors) == 10
+        assert all(
+            s.state not in ("unknown", "unavailable")
+            for s in sensors
+            if "last_successful_sync" not in s.entity_id
+        )
         assert len(runtime.readings) >= 112
         original = runtime.readings[:]
         assert await hass.config_entries.async_reload(entry.entry_id)

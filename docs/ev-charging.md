@@ -86,3 +86,9 @@ See [staging procedure](developer/staging-validation.md) before relying on advic
 
 For a native dashboard use the [Entities example](dashboard.md); additional frontend
 components are optional. Missing recommendations must not be converted into zero.
+
+## Learning and diagnostics
+
+Calendar-only mileage does not establish complete EV demand. EV remains insufficient_data
+until supported mileage evidence exists; unknown demand is never zero charging need.
+See [sync and forecast diagnostics](sync-diagnostics.md).

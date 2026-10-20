@@ -37,7 +37,7 @@ async def test_setup_unload_and_removal(hass):
                     if s.entity_id != "sensor.odometer"
                 ]
             )
-            == 5
+            == 10
         )
         assert await hass.config_entries.async_unload(entry.entry_id)
         await hass.async_block_till_done()

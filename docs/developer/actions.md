@@ -11,6 +11,9 @@ Returned mappings/lists are new objects; callers cannot modify coordinator state
 record. Results are capped by available model dates; no missing future rows are
 fabricated. Fields remain `entry_id`, `calculated_at`, `forecast` with `date`, local
 midnight `timestamp` (including DST offset), `predicted_km`, `low_km`, `high_km`.
+Rows additionally expose `data_quality`. Before sufficient history, verified calendar-only
+rows have null baseline uncertainty (`low_km`/`high_km`); unknown dates have null mileage.
+Consumers must not coerce null to zero. See [calendar-only rules](../sync-diagnostics.md#calendar-only-estimates).
 
 **Compatibility correction:** older actions ignored days and returned up to 31 rows.
 Explicit requests now work and default actions return 30. Mileage timeline retains

@@ -18,8 +18,7 @@ be recovered from nothing; suitable physical-state statistics may supplement it.
 
 Open the vehicle device. Five distance sensors appear immediately, even while
 unknown: today, tomorrow, next seven days, next thirty days and annual expectation.
-History imports in the background. Inspect `history_import_status`, `history_days`
-and `forecast_status` in Developer Tools → States. Seven adequately covered completed
+History imports in the background. Open **Forecast status** for import status and usable history days. Seven adequately covered completed
 days establish a baseline; weekday patterns need more evidence. Unknown is not zero.
 
 Regular readings, including unchanged observations while parked, improve coverage.
@@ -30,7 +29,9 @@ Recorder, enable recording and allow history to accumulate.
 
 Use the native [Entities card example](dashboard.md). Find actual entity IDs in the
 vehicle device page or Developer Tools → States; names in examples are placeholders.
-Enable Mileage timeline explicitly only when you need comparison attributes.
+Mileage Timeline is enabled by default; existing integration-default-disabled entries
+are enabled on reload, but user-disabled entries remain disabled. Genuine predicted
+versus actual history requires pre-day snapshots; nothing is backfilled.
 
 ## Optional setup
 
@@ -41,7 +42,9 @@ and locations. EV is disabled initially; see [EV setup](ev-charging.md#setup).
 
 Turn on Manual Sync to queue bounded background work. It returns off when finished.
 The waiting `sync_now` action reports errors rather than treating failures as success.
-See [manual sync](configuration.md#manual-sync). Normal automatic refresh continues.
+Watch **Sync status** for phase and last result, **Last successful sync** for the last
+fully successful manual job, and **Calendar status** for route progress. Partial work
+is not success. See [sync diagnostics](sync-diagnostics.md). Automatic refresh continues.
 
 ## Next steps
 

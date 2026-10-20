@@ -1,8 +1,9 @@
 """Deterministic robust forecasting, independent of Home Assistant."""
 
 from datetime import UTC, datetime, time, timedelta
-from math import sqrt
+from math import isfinite, sqrt
 from statistics import pstdev
+from typing import cast
 
 from .const import FORECAST_KEYS
 from .models import DailyDistance, DailyForecast, Forecast, Status
@@ -33,7 +34,11 @@ def robust_mean(values: list[float]) -> float:
 
 
 def predict(
-    history: list[DailyDistance], now: datetime, plans: dict | None = None
+    history: list[DailyDistance],
+    now: datetime,
+    plans: dict | None = None,
+    *,
+    verified_plans: dict | None = None,
 ) -> Forecast:
     if now.tzinfo is None:
         raise ValueError("Forecast clock must be timezone aware")
@@ -50,6 +55,24 @@ def predict(
         now, Status.LEARNING, dict.fromkeys(FORECAST_KEYS), history_days=len(useful)
     )
     if len(useful) < MIN_USEFUL_DAYS:
+        # Callers provide only verified, current-identity plans in this branch.
+        # Missing days are explicit unknowns, never a learned zero baseline.
+        for offset in range(31):
+            day = now.date() + timedelta(days=offset)
+            plan = (verified_plans or {}).get(day)
+            distance = plan.distance_km if plan is not None and plan.complete else None
+            if distance is not None and (not isfinite(distance) or distance < 0):
+                distance = None
+            result.days.append(
+                DailyForecast(
+                    day, None, distance, None, None, distance, distance is not None
+                )
+            )
+        if any(day.total_km is not None for day in result.days):
+            result.status = Status.CALENDAR_ONLY
+            result.quality = "calendar_only"
+            result.values["today"] = cast(float, result.days[0].total_km)
+            result.values["tomorrow"] = result.days[1].total_km
         return result
     precise = [d for d in useful if d.quality == "observed"]
     weekday_evidence = [
@@ -131,14 +154,14 @@ def predict(
         return (
             max(
                 0,
-                result.days[0].total_km
+                cast(float, result.days[0].total_km)
                 - max(
-                    fraction * result.days[0].baseline_km,
+                    fraction * cast(float, result.days[0].baseline_km),
                     next((d.minimum_km for d in history if d.day == now.date()), 0),
                 ),
             )
-            + sum(d.total_km for d in result.days[1:count])
-            + fraction * result.days[count].total_km
+            + sum(cast(float, d.total_km) for d in result.days[1:count])
+            + fraction * cast(float, result.days[count].total_km)
         )
 
     result.values = {
@@ -146,7 +169,7 @@ def predict(
         "tomorrow": result.days[1].total_km,
         "next_7_days": rolling(7),
         "next_30_days": rolling(30),
-        "annual": sum(d.baseline_km for d in result.days[:365]),
+        "annual": sum(cast(float, d.baseline_km) for d in result.days[:365]),
     }
     return result
 
