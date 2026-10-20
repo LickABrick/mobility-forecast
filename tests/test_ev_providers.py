@@ -57,6 +57,9 @@ def test_ndw_verified_schema_fail_closed_units_and_radius():
     assert parse_points(payload, 52, 5, 300, now)[0].ac_power_kw == 11
     row["properties"]["availabilities"][0]["power_max"] = 15000
     assert not parse_points(payload, 52, 5, 300, now)
+    valid = {**row["properties"]["availabilities"][0], "power_max": 11}
+    row["properties"]["availabilities"].append(valid)
+    assert parse_points(payload, 52, 5, 300, now)[0].ac_power_kw == 11
     row["properties"]["availabilities"][0]["power_max"] = 11
     assert not parse_points(payload, 53, 5, 300, now)
     row["properties"]["open"] = False

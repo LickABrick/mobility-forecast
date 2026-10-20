@@ -47,6 +47,8 @@ def parse_points(payload, lat, lon, radius, now):
             ):
                 continue
             for connector in props.get("availabilities") or []:
+                if not isinstance(connector, dict):
+                    continue
                 if (
                     connector.get("connector_type") != "IEC_62196_T2"
                     or connector.get("power_type") not in ("AC1", "AC2", "AC3")
@@ -55,7 +57,10 @@ def parse_points(payload, lat, lon, radius, now):
                     continue
                 # Published schema says kW. Live endpoint observed 15000 for an
                 # AC connector: ambiguous units are NOT silently reinterpreted.
-                power = number(connector["power_max"], 0.1, 43)
+                try:
+                    power = number(connector["power_max"], 0.1, 43)
+                except (KeyError, ValueError, TypeError):
+                    continue
                 status = (
                     "unknown"
                     if (now - updated).total_seconds() > 300
