@@ -33,9 +33,14 @@ def horizon_response(source, days, now, forecasts, consumption):
             alternative=None,
             shortfall_at=None,
         )
-    result["energy_demand_kwh"] = sum(
-        day.total_km * consumption / 100
-        for day in forecasts
-        if now.date() <= day.day < cutoff.date()
+    selected = [day for day in forecasts if now.date() <= day.day < cutoff.date()]
+    result["energy_demand_kwh"] = (
+        None
+        if any(day.total_km is None or day.baseline_km is None for day in selected)
+        else sum(
+            day.total_km * consumption / 100
+            for day in forecasts
+            if now.date() <= day.day < cutoff.date()
+        )
     )
     return result

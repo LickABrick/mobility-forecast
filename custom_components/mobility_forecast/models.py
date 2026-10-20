@@ -8,6 +8,7 @@ from enum import StrEnum
 class Status(StrEnum):
     INITIALIZING = "initializing"
     LEARNING = "learning"
+    CALENDAR_ONLY = "calendar_only"
     PROVISIONAL = "provisional"
     READY = "ready"
     SOURCE_UNAVAILABLE = "source_unavailable"
@@ -37,10 +38,10 @@ class DailyDistance:
 @dataclass(frozen=True)
 class DailyForecast:
     day: date
-    baseline_km: float
-    total_km: float
-    low_km: float
-    high_km: float
+    baseline_km: float | None
+    total_km: float | None
+    low_km: float | None
+    high_km: float | None
     planned_km: float | None = None
     calendar_complete: bool = True
 

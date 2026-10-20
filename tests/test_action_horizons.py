@@ -13,14 +13,20 @@ from custom_components.mobility_forecast.services import forecast_data
 def test_forecast_dates_and_dst(days, start):
     records = [
         SimpleNamespace(
-            day=start + timedelta(days=i), total_km=12, low_km=8, high_km=20
+            day=start + timedelta(days=i),
+            total_km=12,
+            baseline_km=12,
+            low_km=8,
+            high_km=20,
         )
         for i in range(365)
     ]
     runtime = SimpleNamespace(
         hass=SimpleNamespace(config=SimpleNamespace(time_zone="Europe/Amsterdam")),
         entry=SimpleNamespace(entry_id="car"),
-        data=SimpleNamespace(generated_at=datetime.now(UTC), days=records),
+        data=SimpleNamespace(
+            generated_at=datetime.now(UTC), days=records, quality="daily"
+        ),
     )
     result = forecast_data(runtime, days)
     assert len(result["forecast"]) == days

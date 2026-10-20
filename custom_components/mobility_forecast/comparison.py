@@ -32,7 +32,12 @@ def capture(snapshots, forecast, now):
     if now.hour != 23 or now.minute != 55:
         return False
     day = next((d for d in forecast.days if d.day == target), None)
-    if day is None or not math.isfinite(day.total_km):
+    if (
+        day is None
+        or day.total_km is None
+        or forecast.quality == "calendar_only"
+        or not math.isfinite(day.total_km)
+    ):
         return False
     key = target.isoformat()
     if key in snapshots:

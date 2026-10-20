@@ -50,7 +50,7 @@ async def test_action_forces_calendar_and_ingests_odometer(hass):
         ):
             await runtime.manual_sync.request()
         assert runtime.manual_sync.status == "error"
-        assert runtime.manual_sync.error == "sync_failed"
+        assert runtime.manual_sync.error == "calendar_fetch_failed"
         await hass.config_entries.async_unload(entry.entry_id)
 
 
@@ -65,6 +65,7 @@ async def test_invalid_action_entry(hass):
 
 
 async def test_manual_pipeline_refreshes_ev(hass):
+    hass.states.async_set("sensor.car", "100", {"unit_of_measurement": "km"})
     entry = MockConfigEntry(domain=DOMAIN, data={"odometer": "sensor.car"})
     entry.add_to_hass(hass)
     with patch(
