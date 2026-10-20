@@ -12,7 +12,7 @@ exclude = ["assets*", "tests*", "docs*", "scripts*"]
 
 [project]
 name = "mobility-forecast"
-version = "1.0.0"
+version = "1.1.0"
 requires-python = ">=3.14.2"
 description = "Explainable per-vehicle Home Assistant distance forecasts"
 
