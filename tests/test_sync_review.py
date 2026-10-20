@@ -87,7 +87,9 @@ async def test_24h_unchanged_then_edit_cancel_outage(hass):
             assert runtime.calendar_status == "stale"
             assert target.date() in runtime.plans
             await cycle(start + timedelta(days=1, hours=3))
-            assert not runtime.plans
+            assert target.date() in runtime.plans  # Provisional within 24 hours.
+            await cycle(start + timedelta(days=2, hours=1))
+            assert not runtime.plans  # Expired, not retained indefinitely.
         # Restore then authoritative cancellation removes the overlay.
         await cycle(start + timedelta(days=1, hours=3))
         events = []

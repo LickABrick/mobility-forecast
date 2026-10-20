@@ -45,6 +45,16 @@ def recommend(
             shortfall = leg.departure
             break
     if untimed_km > 0:
+        if already_violated:
+            return (
+                ChargingRecommendation(
+                    "insufficient_data",
+                    "reserve_already_violated_untimed_demand",
+                    "estimated",
+                ),
+                None,
+                anchor,
+            )
         total_need = drive_energy(
             sum(leg.distance_km for leg in future) + untimed_km,
             telemetry.consumption_kwh_per_100km or config.consumption_kwh_per_100km,
