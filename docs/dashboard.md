@@ -1,4 +1,28 @@
-# Predicted versus actual mileage dashboard
+# Vehicle dashboards
+
+## Native overview
+
+No frontend plugin is needed for this card. Replace every example ID with the actual
+ID from your vehicle device or Developer Tools → States.
+
+```yaml
+type: entities
+title: Vehicle forecast
+entities:
+  - sensor.car_expected_distance_today
+  - sensor.car_expected_distance_tomorrow
+  - sensor.car_expected_distance_next_7_days
+  - sensor.car_expected_distance_next_30_days
+  - sensor.car_expected_annual_distance
+  - switch.car_manual_sync
+```
+
+Optionally add your EV status, recommended target and next suggested charging time
+from the same device. Native cards inherit light/dark themes. Use Developer Tools
+→ Actions for read-only history and forecast responses without ApexCharts.
+
+## Optional Mileage Timeline and ApexCharts
+
 
 The five existing forecast sensors are unchanged. For daily charts, enable the
 **Mileage timeline** entity on your vehicle's device page (Settings → Devices &
@@ -128,23 +152,3 @@ disabled by default and never controls the vehicle or charger. Existing mileage
 entities, history and calendar synchronization remain independent.
 
 
-## Native overview
-
-No frontend plugin is needed for this card. Replace every example ID with the actual
-ID from your vehicle device or Developer Tools → States.
-
-```yaml
-type: entities
-title: Vehicle forecast
-entities:
-  - sensor.car_expected_distance_today
-  - sensor.car_expected_distance_tomorrow
-  - sensor.car_expected_distance_next_7_days
-  - sensor.car_expected_distance_next_30_days
-  - sensor.car_expected_annual_distance
-  - switch.car_manual_sync
-```
-
-Optionally add your EV status, recommended target and next suggested charging time
-from the same device. Native cards inherit light/dark themes. Use Developer Tools
-→ Actions for read-only history and forecast responses without ApexCharts.

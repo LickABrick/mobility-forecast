@@ -25,6 +25,31 @@ def check_link(source, link):
     link = unquote(link)
     parsed = urlsplit(link)
     if parsed.scheme or link.startswith("//"):
+        if parsed.netloc == "github.com" and "/blob/" in parsed.path:
+            parts = parsed.path.strip("/").split("/")
+            # Only this repository's docs are resolved locally; other repositories
+            # remain approved external references, unless masquerading as this one.
+            if parts[1:2] == ["mobility-forecast"] or parts[:2] == [
+                "LickABrick",
+                "mobility-forecast",
+            ]:
+                assert parsed.scheme == "https" and not parsed.query, (
+                    f"Malformed documentation URL: {link}"
+                )
+                assert parts[:4] == [
+                    "LickABrick",
+                    "mobility-forecast",
+                    "blob",
+                    "main",
+                ], f"Unexpected repository/branch: {link}"
+                assert len(parts) > 5 and parts[4] == "docs", (
+                    f"Unexpected documentation URL: {link}"
+                )
+                check_link(
+                    ROOT / "README.md",
+                    "/".join(parts[4:])
+                    + (f"#{parsed.fragment}" if parsed.fragment else ""),
+                )
         return
     target = (source.parent / parsed.path).resolve() if parsed.path else source
     assert target.is_relative_to(ROOT) and target.exists(), f"{source}: missing {link}"
@@ -32,6 +57,20 @@ def check_link(source, link):
         assert parsed.fragment in anchors(target.read_text()), (
             f"{source}: missing anchor {link}"
         )
+
+
+def check_help_url(link):
+    parsed = urlsplit(link)
+    assert parsed.scheme == "https" and parsed.netloc == "github.com", (
+        "Unexpected help URL origin"
+    )
+    assert parsed.path.startswith("/LickABrick/mobility-forecast/blob/main/docs/"), (
+        "Unexpected help repository/branch/path"
+    )
+    assert parsed.fragment and not parsed.query, (
+        "Help must target a section without a query"
+    )
+    check_link(ROOT / "README.md", link)
 
 
 def main():
@@ -63,21 +102,34 @@ def main():
         manifest["documentation"] == "https://github.com/LickABrick/mobility-forecast"
     )
     for path in (ROOT / ".github").rglob("*.yml"):
-        yaml.safe_load(path.read_text())
+        text = path.read_text()
+        yaml.safe_load(text)
+        assert "github.com/LickABrick/mobility-forecast/blob/master/" not in text, path
+        for link in re.findall(
+            r"https://github.com/LickABrick/mobility-forecast/blob/main/docs/[^\s]+",
+            text,
+        ):
+            check_link(path, link)
     for name in ("strings.json", "translations/en.json", "translations/nl.json"):
         data = json.loads(
             (ROOT / "custom_components/mobility_forecast" / name).read_text()
         )
-        for target in re.findall(
-            r"https://github.com/LickABrick/mobility-forecast/blob/master/([^\s)]+)",
-            json.dumps(data),
-        ):
+        for target in re.findall(r"https://[^\s)\"]+", json.dumps(data)):
             check_link(ROOT / "README.md", target)
     import ast
 
     flow = ast.parse(
         (ROOT / "custom_components/mobility_forecast/config_flow.py").read_text()
     )
+    constants = {
+        node.targets[0].id: ast.literal_eval(node.value)
+        for node in flow.body
+        if isinstance(node, ast.Assign)
+        and isinstance(node.targets[0], ast.Name)
+        and isinstance(node.value, ast.Constant)
+    }
+    assert constants["DOCS_REPOSITORY"] == "LickABrick/mobility-forecast"
+    assert constants["DOCS_BRANCH"] == "main"
     targets = next(
         ast.literal_eval(node.value)
         for node in flow.body
@@ -87,7 +139,9 @@ def main():
         )
     )
     for target in targets.values():
-        check_link(ROOT / "docs/index.md", target)
+        check_help_url(
+            f"https://github.com/{constants['DOCS_REPOSITORY']}/blob/{constants['DOCS_BRANCH']}/docs/{target}"
+        )
     print(
         "Documentation links, anchors, YAML examples, help targets and drift checks passed."
     )
