@@ -27,7 +27,7 @@ def window(config, source, start, end, now, stop_identity="home", charger=None):
     )
 
 
-def home_windows(config, now, legs, telemetry):
+def home_windows(config, now, legs, telemetry, home_identity="home"):
     if config.charging_mode == "appointments_only":
         return []
     result = []
@@ -52,24 +52,33 @@ def home_windows(config, now, legs, telemetry):
                 now.date() + timedelta(days=7), time(), now.tzinfo
             ).astimezone(UTC),
         )
-        if start >= end or (
-            start <= now.astimezone(UTC) and telemetry.location_state == "not_home"
-        ):
+        if start >= end:
             continue
-        grouped = {}
-        for leg in legs:
-            if leg.quality == "daily_estimate":
+        ordered = sorted(legs, key=lambda leg: leg.departure)
+        away = []
+        left = None
+        for leg in ordered:
+            if leg.origin_identity == home_identity or left is None:
+                left = leg.departure.astimezone(UTC) if left is None else left
+            if leg.destination_identity == home_identity:
+                away.append((left, leg.arrival.astimezone(UTC)))
+                left = None
+        if left is not None:
+            away.append((left, end))
+        if telemetry.location_state == "not_home":
+            arrival = min(
+                (
+                    leg.arrival.astimezone(UTC)
+                    for leg in ordered
+                    if leg.destination_identity == home_identity
+                    and leg.arrival.astimezone(UTC) > now.astimezone(UTC)
+                ),
+                default=None,
+            )
+            # Current away evidence lasts until a known return, not forever.
+            if arrival is None:
                 continue
-            grouped.setdefault(leg.departure.astimezone(now.tzinfo).date(), []).append(
-                leg
-            )
-        away = [
-            (
-                min(item.departure.astimezone(UTC) for item in items),
-                max(item.arrival.astimezone(UTC) for item in items),
-            )
-            for items in grouped.values()
-        ]
+            start = max(start, arrival)
         segments = [(start, end)]
         for away_start, away_end in sorted(away):
             retained = []

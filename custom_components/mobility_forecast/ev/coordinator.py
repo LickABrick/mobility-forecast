@@ -220,7 +220,12 @@ class EVRuntime:
             self.parent.data.days, plans, getattr(self.parent, "history_cache", []), now
         )
         estimated = bool(unallocated)
-        opportunities = home_windows(config, now, legs, vehicle) + [
+        from ..locations import home_and_known
+
+        home, _ = home_and_known(
+            self.hass, self.parent.entry.options.get("known_locations", {})
+        )
+        opportunities = home_windows(config, now, legs, vehicle, home.identifier) + [
             item for item in self.public if item.end > now and item.end < cutoff
         ]
         result, alternative, shortfall = recommend(
