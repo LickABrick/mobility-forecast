@@ -130,7 +130,15 @@ class MobilityOptions(config_entries.OptionsFlow):
     async def async_step_init(self, user_input=None):
         self._options()
         return self.async_show_menu(
-            step_id="init", menu_options=["vehicle", "calendars", "locations"]
+            step_id="init",
+            menu_options=[
+                "vehicle",
+                "calendars",
+                "locations",
+                "ev",
+                "ev_advanced",
+                "ev_entities",
+            ],
         )
 
     async def async_step_vehicle(self, user_input=None):
@@ -265,4 +273,194 @@ class MobilityOptions(config_entries.OptionsFlow):
                     )
                 }
             ),
+        )
+
+    async def async_step_ev(self, user_input=None):
+        import math
+
+        options = self._options()
+        errors = {}
+        if user_input is not None:
+            if user_input.get("ev_enabled"):
+                for key, upper in (
+                    ("usable_capacity_kwh", 300),
+                    ("consumption_kwh_per_100km", 100),
+                    ("max_ac_charge_power_kw", 43),
+                ):
+                    value = user_input.get(key)
+                    if (
+                        not isinstance(value, (int, float))
+                        or not math.isfinite(value)
+                        or not 0 < value <= upper
+                    ):
+                        errors[key] = "invalid_ev"
+                state = self.hass.states.get(user_input.get("soc_entity", ""))
+                if (
+                    state is None
+                    or state.domain != "sensor"
+                    or state.attributes.get("unit_of_measurement") != "%"
+                ):
+                    errors["soc_entity"] = "invalid_ev"
+                if (
+                    not 0 <= user_input.get("minimum_soc", 15) <= 50
+                    or not 50 <= user_input.get("preferred_max_soc", 80) <= 100
+                    or user_input.get("minimum_soc", 15)
+                    >= user_input.get("preferred_max_soc", 80)
+                ):
+                    errors["base"] = "invalid_ev"
+                if user_input.get(
+                    "charging_mode"
+                ) != "home_only" and not user_input.get("external_lookup_consent"):
+                    errors["external_lookup_consent"] = "consent_required"
+            if not errors:
+                options.update(user_input)
+                return self.async_create_entry(title="", data=options)
+        fields = {
+            vol.Required(
+                "ev_enabled", default=options.get("ev_enabled", False)
+            ): BooleanSelector(),
+            vol.Optional(
+                "soc_entity",
+                **(
+                    {"default": options["soc_entity"]}
+                    if options.get("soc_entity")
+                    else {}
+                ),
+            ): EntitySelector(EntitySelectorConfig(domain="sensor")),
+        }
+        for key, default in (
+            ("usable_capacity_kwh", None),
+            ("consumption_kwh_per_100km", None),
+            ("max_ac_charge_power_kw", None),
+            ("minimum_soc", 15),
+            ("preferred_max_soc", 80),
+        ):
+            value = options.get(key, default)
+            fields[
+                vol.Optional(key, **({"default": value} if value is not None else {}))
+            ] = vol.Coerce(float)
+        fields[
+            vol.Required(
+                "charging_mode", default=options.get("charging_mode", "home_only")
+            )
+        ] = SelectSelector(
+            SelectSelectorConfig(
+                options=["home_only", "home_and_appointments", "appointments_only"],
+                translation_key="charging_mode",
+            )
+        )
+        fields[
+            vol.Optional(
+                "external_lookup_consent",
+                default=options.get("external_lookup_consent", False),
+            )
+        ] = BooleanSelector()
+        return self.async_show_form(
+            step_id="ev", data_schema=vol.Schema(fields), errors=errors
+        )
+
+    async def async_step_ev_advanced(self, user_input=None):
+        import math
+        from datetime import time
+
+        options = self._options()
+        errors = {}
+        bounds = {
+            "session_overhead_minutes": (0, 120, 15),
+            "minimum_useful_charge_kwh": (0, 100, 5),
+            "absolute_max_soc": (50, 100, 100),
+        }
+        if options.get("charging_mode", "home_only") != "home_only":
+            bounds.update(
+                minimum_appointment_minutes=(1, 1440, 90),
+                max_charger_distance_m=(1, 1000, 300),
+            )
+        if user_input is not None:
+            for key, (low, high, _) in bounds.items():
+                value = user_input.get(key)
+                if (
+                    not isinstance(value, (int, float))
+                    or not math.isfinite(value)
+                    or not low <= value <= high
+                ):
+                    errors[key] = "invalid_ev"
+            for key in ("home_window_start", "home_window_end"):
+                if key in user_input:
+                    try:
+                        time.fromisoformat(user_input[key])
+                    except ValueError:
+                        errors[key] = "invalid_ev"
+            if user_input.get("absolute_max_soc", 100) < options.get(
+                "preferred_max_soc", 80
+            ):
+                errors["absolute_max_soc"] = "invalid_ev"
+            if not errors:
+                options.update(user_input)
+                return self.async_create_entry(title="", data=options)
+        fields = {
+            vol.Required(key, default=options.get(key, default)): vol.Coerce(float)
+            for key, (_, _, default) in bounds.items()
+        }
+        for key, default in (
+            ("prefer_long_sessions", True),
+            ("allow_above_preferred_soc", False),
+        ):
+            fields[vol.Required(key, default=options.get(key, default))] = (
+                BooleanSelector()
+            )
+        if options.get("charging_mode", "home_only") != "appointments_only":
+            for key, default in (
+                ("home_window_start", "18:00"),
+                ("home_window_end", "07:00"),
+            ):
+                fields[vol.Required(key, default=options.get(key, default))] = (
+                    TextSelector()
+                )
+        return self.async_show_form(
+            step_id="ev_advanced", data_schema=vol.Schema(fields), errors=errors
+        )
+
+    async def async_step_ev_entities(self, user_input=None):
+        from .ev.vehicle import OPTIONAL_UNITS
+
+        options = self._options()
+        errors = {}
+        if user_input is not None:
+            for key, entity_id in user_input.items():
+                state = self.hass.states.get(entity_id) if entity_id else None
+                if (
+                    state is not None
+                    and key in OPTIONAL_UNITS
+                    and state.attributes.get("unit_of_measurement")
+                    not in OPTIONAL_UNITS[key]
+                ):
+                    errors[key] = "invalid_ev"
+            if not errors:
+                for key in (
+                    *OPTIONAL_UNITS,
+                    "charging_state_entity",
+                    "plugged_in_entity",
+                    "vehicle_location_entity",
+                ):
+                    options.pop(key, None)
+                options.update({k: v for k, v in user_input.items() if v})
+                return self.async_create_entry(title="", data=options)
+        fields = {}
+        for key in (
+            *OPTIONAL_UNITS,
+            "charging_state_entity",
+            "plugged_in_entity",
+            "vehicle_location_entity",
+        ):
+            fields[
+                vol.Optional(
+                    key, **({"default": options[key]} if options.get(key) else {})
+                )
+            ] = EntitySelector(
+                EntitySelectorConfig(
+                    domain=["sensor", "binary_sensor", "device_tracker"]
+                )
+            )
+        return self.async_show_form(
+            step_id="ev_entities", data_schema=vol.Schema(fields), errors=errors
         )

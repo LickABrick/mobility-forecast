@@ -33,7 +33,10 @@
         "menu_options": {
           "vehicle": "Vehicle",
           "calendars": "Calendars",
-          "locations": "Known locations"
+          "locations": "Known locations",
+          "ev": "Electric vehicle",
+          "ev_advanced": "EV advanced settings",
+          "ev_entities": "Additional vehicle data"
         }
       },
       "locations": {
@@ -88,12 +91,57 @@
         "data": {
           "location": "Location"
         }
+      },
+      "ev": {
+        "title": "Electric vehicle",
+        "data": {
+          "ev_enabled": "Enable EV charging forecasts",
+          "soc_entity": "Vehicle battery level",
+          "usable_capacity_kwh": "Usable battery capacity (kWh)",
+          "consumption_kwh_per_100km": "Average energy consumption (kWh/100 km)",
+          "max_ac_charge_power_kw": "Maximum vehicle AC charging power (kW)",
+          "preferred_max_soc": "Preferred charging limit (%)",
+          "minimum_soc": "Minimum reserve after driving (%)",
+          "charging_mode": "Where can your vehicle charge?",
+          "external_lookup_consent": "Allow external destination lookups"
+        },
+        "description": "Appointment addresses may be sent to PDOK and destination coordinates to NDW. No titles or descriptions are sent. Explicit consent is required for public charging; disable at any time. Enter usable, not nominal capacity."
+      },
+      "ev_advanced": {
+        "title": "EV advanced settings",
+        "data": {
+          "minimum_appointment_minutes": "Minimum appointment duration to consider charging (min)",
+          "max_charger_distance_m": "Maximum straight-line charger distance (m)",
+          "session_overhead_minutes": "Time reserved for connecting/disconnecting (min)",
+          "minimum_useful_charge_kwh": "Preferred minimum useful charge (kWh)",
+          "prefer_long_sessions": "Prefer fewer longer sessions",
+          "home_window_start": "Home charging available from",
+          "home_window_end": "Home charging available until",
+          "allow_above_preferred_soc": "Allow higher targets for long journeys",
+          "absolute_max_soc": "Maximum exceptional target (%)"
+        }
+      },
+      "ev_entities": {
+        "title": "Additional vehicle data",
+        "data": {
+          "range_entity": "Vehicle reported range",
+          "charging_state_entity": "Charging state",
+          "plugged_in_entity": "Cable connected",
+          "charging_power_entity": "Actual charging power",
+          "vehicle_charge_limit_entity": "Vehicle enforced charging limit",
+          "remaining_charge_time_entity": "Vehicle time remaining",
+          "vehicle_location_entity": "Vehicle home/away location",
+          "consumption_entity": "Vehicle average consumption",
+          "energy_added_entity": "Charging energy added"
+        }
       }
     },
     "error": {
       "routing_unavailable": "Install Waze Travel Time before enabling routes.",
       "invalid_location": "Enter a full address with street number and city, or valid coordinates.",
-      "duplicate_location": "This location name already exists. Choose Edit location."
+      "duplicate_location": "This location name already exists. Choose Edit location.",
+      "invalid_ev": "Invalid EV value or incompatible entity unit.",
+      "consent_required": "Consent is required for external lookups."
     }
   },
   "entity": {
@@ -159,6 +207,15 @@
           "name": "Days",
           "description": "1–365 days of history."
         }
+      }
+    }
+  },
+  "selector": {
+    "charging_mode": {
+      "options": {
+        "home_only": "Home only",
+        "home_and_appointments": "Home and appointments",
+        "appointments_only": "Appointments only"
       }
     }
   }

@@ -33,7 +33,10 @@
         "menu_options": {
           "vehicle": "Voertuig",
           "calendars": "Agenda’s",
-          "locations": "Bekende locaties"
+          "locations": "Bekende locaties",
+          "ev": "Elektrisch voertuig",
+          "ev_advanced": "Geavanceerde EV-instellingen",
+          "ev_entities": "Aanvullende voertuiggegevens"
         }
       },
       "locations": {
@@ -88,12 +91,57 @@
         "data": {
           "location": "Locatie"
         }
+      },
+      "ev": {
+        "title": "Elektrisch voertuig",
+        "data": {
+          "ev_enabled": "Laadvoorspellingen inschakelen",
+          "soc_entity": "Accupercentage van de auto",
+          "usable_capacity_kwh": "Bruikbare accucapaciteit (kWh)",
+          "consumption_kwh_per_100km": "Gemiddeld energieverbruik (kWh/100 km)",
+          "max_ac_charge_power_kw": "Maximaal AC-laadvermogen van de auto (kW)",
+          "preferred_max_soc": "Gewenste maximale acculading (%)",
+          "minimum_soc": "Gewenste accureserve na het rijden (%)",
+          "charging_mode": "Waar kan je auto laden?",
+          "external_lookup_consent": "Externe bestemmingsaanvragen toestaan"
+        },
+        "description": "Afspraakadressen kunnen naar PDOK worden verstuurd en bestemmingscoördinaten naar NDW. Titels en beschrijvingen worden niet verstuurd. Openbaar laden vereist toestemming; uitschakelen kan altijd. Gebruik de bruikbare, niet nominale capaciteit."
+      },
+      "ev_advanced": {
+        "title": "Geavanceerde EV-instellingen",
+        "data": {
+          "minimum_appointment_minutes": "Minimale afspraakduur om laden te overwegen (min)",
+          "max_charger_distance_m": "Maximale hemelsbrede afstand tot een laadpunt (m)",
+          "session_overhead_minutes": "Tijd reserveren voor aansluiten en loskoppelen (min)",
+          "minimum_useful_charge_kwh": "Minimale nuttige laadhoeveelheid (kWh)",
+          "prefer_long_sessions": "Voorkeur voor minder, langere laadsessies",
+          "home_window_start": "Vanaf hoe laat kun je thuis laden?",
+          "home_window_end": "Tot hoe laat kun je thuis laden?",
+          "allow_above_preferred_soc": "Bij lange ritten een hogere acculading adviseren",
+          "absolute_max_soc": "Maximale acculading bij uitzonderingen (%)"
+        }
+      },
+      "ev_entities": {
+        "title": "Aanvullende voertuiggegevens",
+        "data": {
+          "range_entity": "Geschatte actieradius volgens de auto",
+          "charging_state_entity": "Laadstatus",
+          "plugged_in_entity": "Laadkabel aangesloten",
+          "charging_power_entity": "Actueel laadvermogen",
+          "vehicle_charge_limit_entity": "Ingestelde laadlimiet van de auto",
+          "remaining_charge_time_entity": "Resterende laadtijd volgens de auto",
+          "vehicle_location_entity": "Locatie of thuisstatus van de auto",
+          "consumption_entity": "Gemiddeld verbruik volgens de auto",
+          "energy_added_entity": "Toegevoegde laadenergie"
+        }
       }
     },
     "error": {
       "routing_unavailable": "Installeer Waze Travel Time voordat je routes inschakelt.",
       "invalid_location": "Voer een volledig adres met huisnummer en plaatsnaam, of geldige coördinaten in.",
-      "duplicate_location": "Deze locatienaam bestaat al. Kies Locatie wijzigen."
+      "duplicate_location": "Deze locatienaam bestaat al. Kies Locatie wijzigen.",
+      "invalid_ev": "Ongeldige EV-waarde of ongeschikte entiteitseenheid.",
+      "consent_required": "Toestemming voor externe aanvragen is vereist."
     }
   },
   "entity": {
@@ -159,6 +207,15 @@
           "name": "Dagen",
           "description": "1–365 dagen geschiedenis."
         }
+      }
+    }
+  },
+  "selector": {
+    "charging_mode": {
+      "options": {
+        "home_only": "Alleen thuis",
+        "home_and_appointments": "Thuis en bij afspraken",
+        "appointments_only": "Alleen bij afspraken"
       }
     }
   }
