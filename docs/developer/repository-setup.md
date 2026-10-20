@@ -1,8 +1,8 @@
 # Maintainer-only repository setup
 
-These are instructions, not settings changed by this implementation. Current local
-branch is `master`; workflows support both `master` and `main`. Apply protections to
-the actual default branch. Rename only deliberately, updating default-branch help URLs.
+These are instructions, not settings changed by this implementation. GitHub's verified
+default branch is `main`. Apply protections and publication deployment restrictions
+to `main`. Local working branch names do not determine documentation URLs.
 
 ## Actions and release credentials
 
