@@ -30,6 +30,9 @@ class VehicleStore(Store):
                 ):
                     raise ValueError("Invalid vehicle storage structure")
                 self.payload.update(data)
+                from .comparison import migrate_snapshots
+
+                self.payload["snapshots"] = migrate_snapshots(self.payload["snapshots"])
             values = [
                 Reading(datetime.fromisoformat(row[0]), float(row[1]), row[2], row[3])
                 for row in self.payload["readings"]

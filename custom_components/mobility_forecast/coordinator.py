@@ -16,8 +16,9 @@ from homeassistant.helpers.event import (
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
+from .comparison import capture
 from .const import DOMAIN, FORECAST_KEYS
-from .forecasting import evaluate, predict
+from .forecasting import predict
 from .history import (
     ResettingCounterError,
     daily_distances,
@@ -134,6 +135,11 @@ class VehicleCoordinator(DataUpdateCoordinator):
         self.entry.async_on_unload(
             async_track_time_change(
                 self.hass, self._midnight, hour=0, minute=0, second=1
+            )
+        )
+        self.entry.async_on_unload(
+            async_track_time_change(
+                self.hass, self._capture_tomorrow, hour=23, minute=55, second=0
             )
         )
         from homeassistant.helpers import issue_registry as ir
@@ -326,6 +332,26 @@ class VehicleCoordinator(DataUpdateCoordinator):
         if self.pending is None:
             self.pending = self.hass.loop.call_later(60, self._refresh_later)
 
+    async def _capture_tomorrow(self, now):
+        zone = ZoneInfo(self.hass.config.time_zone)
+        local = dt_util.utcnow().astimezone(zone)
+        # Delayed callbacks after midnight must not fabricate missed snapshots.
+        if (
+            local.date() != now.astimezone(zone).date()
+            or local.hour != 23
+            or local.minute != 55
+        ):
+            return
+        await self.async_refresh()
+        if capture(self.store.payload["snapshots"], self.data, local):
+            cutoff = (local.date() - timedelta(days=365)).isoformat()
+            self.store.payload["snapshots"] = {
+                key: value
+                for key, value in self.store.payload["snapshots"].items()
+                if key >= cutoff
+            }
+            self.store.schedule(self.readings)
+
     async def _midnight(self, now):
         await self.async_request_refresh()
 
@@ -347,11 +373,6 @@ class VehicleCoordinator(DataUpdateCoordinator):
                 self.history_cache_key = history_key
             history = self.history_cache
             forecast = predict(history, now, self.plans)
-            snapshots = self.store.payload["snapshots"]
-            self.store.payload["evaluation"] = evaluate(snapshots, history)
-            if forecast.values["today"] is not None:
-                snapshots.setdefault(now.date().isoformat(), forecast.values["today"])
-            self.store.payload["snapshots"] = dict(sorted(snapshots.items())[-90:])
             if not self.source_available:
                 forecast.status = Status.SOURCE_UNAVAILABLE
             if (
