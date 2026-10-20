@@ -1,0 +1,17 @@
+name: Feature request
+description: Explain the user need before proposing implementation.
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What problem would this solve?
+      description: Use generic examples without private locations or vehicle data.
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome and alternatives
+      description: Prefer native Home Assistant and simple behavior over new services or settings.
+    validations:
+      required: true

@@ -1,0 +1,55 @@
+name: Bug report
+description: Report a reproducible problem with sanitized details.
+body:
+  - type: markdown
+    attributes:
+      value: Do not post addresses, vehicle identifiers, credentials, raw calendar events or private storage. Review logs and diagnostics before sharing.
+  - type: input
+    id: version
+    attributes:
+      label: Integration version
+    validations:
+      required: true
+  - type: input
+    id: ha
+    attributes:
+      label: Home Assistant version
+    validations:
+      required: true
+  - type: dropdown
+    id: installation
+    attributes:
+      label: Installation method
+      options: [HACS custom repository, Manual]
+  - type: checkboxes
+    id: features
+    attributes:
+      label: Enabled features
+      options:
+        - label: Calendars and Waze
+        - label: EV home charging
+        - label: EV public charging
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs and diagnostics
+      description: Include status/error categories and relevant sanitized diagnostics only.
+      render: text
