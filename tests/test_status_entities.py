@@ -147,4 +147,16 @@ async def test_runtime_verified_calendar_gate(hass, age, status, eligible):
         assert runtime.data.status.value == (
             "calendar_only" if eligible else "learning"
         )
+        if eligible:
+            # A retained numeric plan is not verified for an edited appointment.
+            runtime.candidate_fingerprints[now.date()] = "changed"
+            runtime.day_fingerprints[now.date()] = "old"
+            await runtime.async_refresh()
+            assert runtime.data.values["today"] is None
+            runtime.candidate_fingerprints[now.date()] = "old"
+            await runtime.async_refresh()
+            assert runtime.data.values["today"] == 40
+            runtime.plans.clear()  # authoritative cancellation
+            await runtime.async_refresh()
+            assert runtime.data.values["today"] is None
         await hass.config_entries.async_unload(entry.entry_id)

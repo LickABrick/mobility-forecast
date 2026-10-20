@@ -434,20 +434,28 @@ class VehicleCoordinator(DataUpdateCoordinator):
             # require fresh verification, not merely retained compatible cache.
             from .calendar_storage import routing_identity
 
+            identity_matches = getattr(
+                self, "calendar_signature", None
+            ) == routing_identity(self.hass, self.entry.options)
             eligible = {
                 day: plan
                 for day, plan in self.plans.items()
-                if self.entry.options.get("routing")
+                if not self.source_incompatible
+                and self.entry.options.get("routing")
                 and self.entry.options.get("calendars")
                 and self.calendar_status
                 not in ("stale", "provisional", "calendar_unavailable")
-                and getattr(self, "calendar_signature", None)
-                == routing_identity(self.hass, self.entry.options)
+                and identity_matches
                 and day in self.day_verified
                 and 0
                 <= (now - self.day_verified[day]).total_seconds()
                 <= CALENDAR_STALE_SECONDS
                 and plan.complete
+                and (
+                    self.calendar_days is None
+                    or self.candidate_fingerprints.get(day)
+                    == self.day_fingerprints.get(day)
+                )
             }
             forecast = predict(history, now, self.plans, verified_plans=eligible)
             if not self.source_available:

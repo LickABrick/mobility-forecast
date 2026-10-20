@@ -48,5 +48,17 @@ async def test_ev_sensors_api_and_unload(hass):
         assert result["estimated_range_km"] == 75
         assert result["telemetry"]["freshness"] == "fresh"
         assert runtime.ev.http.requests == 0
+        from custom_components.mobility_forecast.forecasting import predict
+        from custom_components.mobility_forecast.routing import Plan
+
+        now = runtime.data.generated_at
+        runtime.async_set_updated_data(
+            predict([], now, verified_plans={now.date(): Plan(50, True)})
+        )
+        await runtime.ev.update()
+        assert runtime.ev.result["status"] == "insufficient_data"
+        assert runtime.ev.result["reason"] == "mileage_history_insufficient"
+        assert runtime.ev.result["energy_demand_kwh"] is None
+        assert runtime.ev.http.requests == 0
         await hass.config_entries.async_unload(entry.entry_id)
         assert runtime.ev.stopping
