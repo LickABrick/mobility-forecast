@@ -53,6 +53,9 @@ class VehicleCoordinator(DataUpdateCoordinator):
         self.calendar_attempted_at = None
         self.calendar_fetch_failures = 0
         self.calendar_fetch_retry_at = None
+        from .manual_sync import ManualSync
+
+        self.manual_sync = ManualSync(self, self._manual_sync_cycle)
         self.ev = None
         self.rejected = 0
         self.history_cache_key = None
@@ -862,8 +865,43 @@ class VehicleCoordinator(DataUpdateCoordinator):
             self._cancel_calendar_publish()
             await self.async_request_refresh()
 
+    async def _manual_sync_cycle(self):
+        # Initialization owns Store loading; never refresh an uninitialized store.
+        if self.initialization_task and not self.initialization_task.done():
+            await asyncio.shield(self.initialization_task)
+        # Join automatic calendar work instead of starting competing providers.
+        if self.calendar_task and not self.calendar_task.done():
+            await asyncio.shield(self.calendar_task)
+        self.calendar_refreshed_at = None
+        self.calendar_fetch_retry_at = None
+        if self.calendar_retry:
+            self.calendar_retry.cancel()
+            self.calendar_retry = None
+        await self.async_refresh()
+        if self.calendar_task and not self.calendar_task.done():
+            await asyncio.shield(self.calendar_task)
+        await self.async_refresh()
+        if self.ev:
+            self.ev.schedule()
+            if self.ev.pending:
+                self.ev.pending.cancel()
+                self.ev.pending = None
+            if self.ev.task and not self.ev.task.done():
+                await asyncio.shield(self.ev.task)
+            self.ev.launch()
+            if self.ev.task:
+                await asyncio.shield(self.ev.task)
+        if self.calendar_status in (
+            "calendar_unavailable",
+            "routing_unavailable",
+            "routing_timeout",
+            "stale",
+        ):
+            raise RuntimeError("sync_incomplete")
+
     async def shutdown(self):
         self.stopping = True
+        await self.manual_sync.close()
         if self.ev:
             await self.ev.close()
         self._cancel_calendar_publish()

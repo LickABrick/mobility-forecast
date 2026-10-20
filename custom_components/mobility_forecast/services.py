@@ -100,6 +100,21 @@ def register_services(hass):
             else forecast_data(runtime)
         )
 
+    async def sync_now(call):
+        entry = hass.config_entries.async_get_entry(call.data["entry_id"])
+        if (
+            entry is None
+            or entry.domain != DOMAIN
+            or not hasattr(entry, "runtime_data")
+            or entry.runtime_data.stopping
+        ):
+            raise HomeAssistantError("Vehicle is not loaded")
+        await entry.runtime_data.manual_sync.request()
+
+    hass.services.async_register(
+        DOMAIN, "sync_now", sync_now, schema=vol.Schema({vol.Required("entry_id"): str})
+    )
+
     schema = vol.Schema(
         {
             vol.Required("entry_id"): str,

@@ -4,10 +4,7 @@ import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
-import pytest
 
-
-@pytest.mark.xfail(strict=True, reason="Manual sync controller not implemented")
 async def test_manual_sync_coalesces_and_resets(hass):
     from custom_components.mobility_forecast.manual_sync import ManualSync
 
@@ -30,7 +27,6 @@ async def test_manual_sync_coalesces_and_resets(hass):
     await controller.close()
 
 
-@pytest.mark.xfail(strict=True, reason="Manual sync controller not implemented")
 async def test_failure_resets_without_exposing_exception(hass):
     from custom_components.mobility_forecast.manual_sync import ManualSync
 
