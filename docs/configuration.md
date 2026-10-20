@@ -118,3 +118,9 @@ fixtures now process all destinations across bounded passes rather than starving
 entries after the first ten. Full suite: 218 passed. The full requested restart,
 race, session and DST matrices are not yet covered; multi-session scheduling,
 coarse-day timing and provider semantics remain supervised-test limitations.
+
+## Project branding
+
+The [Mobility Forecast brand assets](../assets/brand/README.md) include transparent
+icons and light/dark wordmarks. They are repository presentation assets, not an
+automatically installed Home Assistant integration tile.

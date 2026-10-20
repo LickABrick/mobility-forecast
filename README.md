@@ -1,4 +1,15 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/brand/logo-dark.svg">
+    <img src="assets/brand/logo.svg" alt="Mobility Forecast — route and prediction mark" width="480">
+  </picture>
+</p>
+
 # Mobility Forecast
+
+Local, explainable travel predictions for your Home Assistant vehicles.
+
+[Brand assets and usage](assets/brand/README.md) · [Manual sync](docs/configuration.md#manual-sync)
 
 ## Finding your forecasts
 
