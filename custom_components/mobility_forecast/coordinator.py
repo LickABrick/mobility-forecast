@@ -492,6 +492,7 @@ class VehicleCoordinator(DataUpdateCoordinator):
         )
         if (
             not continuing
+            and self.calendar_fetch_retry_at is None
             and self.calendar_refreshed_at is not None
             and (now - self.calendar_refreshed_at).total_seconds() < 1800
         ):
