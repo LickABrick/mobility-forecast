@@ -243,7 +243,10 @@ class MobilityOptions(config_entries.OptionsFlow):
             data_schema=vol.Schema(
                 {
                     field: SelectSelector(
-                        SelectSelectorConfig(options=["eu", "us", "na", "il", "au"])
+                        SelectSelectorConfig(
+                            options=["eu", "us", "na", "il", "au"],
+                            translation_key="region",
+                        )
                     )
                 }
             ),

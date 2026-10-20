@@ -108,7 +108,8 @@
         "data_description": {
           "preferred_max_soc": "Normal maximum battery percentage after charging, not charging power.",
           "minimum_soc": "Battery percentage you prefer to preserve after driving.",
-          "external_lookup_consent": "Sends destination addresses to PDOK and coordinates to NDW, not titles or descriptions."
+          "external_lookup_consent": "Needed only for appointment charging. Home-only makes no PDOK/NDW requests. Sends addresses to PDOK and coordinates to NDW, not titles.",
+          "ev_enabled": "When disabled, saved values are retained and the remaining EV fields are not required."
         }
       },
       "ev_advanced": {
@@ -233,25 +234,25 @@
   "services": {
     "get_history": {
       "name": "Get mileage history",
-      "description": "Read-only mileage data without calendar content.",
+      "description": "Returns completed local dates and accuracy from memory; no network requests.",
       "fields": {
         "entry_id": {
           "name": "Vehicle config entry",
-          "description": "Config entry ID for the vehicle."
+          "description": "Select the loaded vehicle config entry."
         },
         "days": {
           "name": "Days",
-          "description": "1–365 days of history."
+          "description": "Completed local dates (1–365), default 30; missing observations are not zero."
         }
       }
     },
     "get_forecast": {
       "name": "Get distance forecast",
-      "description": "Read-only mileage data without calendar content.",
+      "description": "Returns daily distance estimates from memory; no network requests.",
       "fields": {
         "entry_id": {
           "name": "Vehicle config entry",
-          "description": "Config entry ID for the vehicle."
+          "description": "Select the loaded vehicle config entry."
         },
         "days": {
           "name": "Days",
@@ -261,10 +262,11 @@
     },
     "get_ev_plan": {
       "name": "Get EV charging plan",
-      "description": "Read-only charging recommendation; no vehicle control.",
+      "description": "Returns experimental charging advice; shorter horizons are filtered, not recalculated. No network requests or control.",
       "fields": {
         "entry_id": {
-          "name": "Vehicle"
+          "name": "Vehicle",
+          "description": "Select the loaded vehicle config entry."
         },
         "horizon_days": {
           "name": "Days (maximum 7)"
@@ -273,10 +275,11 @@
     },
     "sync_now": {
       "name": "Sync now",
-      "description": "Runs an immediate bounded synchronization cycle.",
+      "description": "Waits for bounded synchronization, which may use the network; raises on failure. The switch queues work without waiting.",
       "fields": {
         "entry_id": {
-          "name": "Vehicle"
+          "name": "Vehicle",
+          "description": "Select the loaded vehicle config entry."
         }
       }
     }
@@ -287,6 +290,15 @@
         "home_only": "Home only",
         "home_and_appointments": "Home and appointments",
         "appointments_only": "Appointments only"
+      }
+    },
+    "region": {
+      "options": {
+        "eu": "Europe",
+        "us": "USA",
+        "na": "North America",
+        "il": "Israel",
+        "au": "Australia"
       }
     }
   }

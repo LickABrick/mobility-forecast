@@ -108,7 +108,8 @@
         "data_description": {
           "preferred_max_soc": "Normale maximale acculading na laden; geen laadvermogen.",
           "minimum_soc": "Gewenste resterende acculading na het rijden.",
-          "external_lookup_consent": "Stuurt bestemmingsadressen naar PDOK en coördinaten naar NDW; geen titels of beschrijvingen."
+          "external_lookup_consent": "Alleen nodig voor laden bij afspraken. Alleen thuis doet geen PDOK/NDW-aanvragen. Stuurt adressen naar PDOK en coördinaten naar NDW, geen titels.",
+          "ev_enabled": "Uitgeschakeld? Je opgeslagen waarden blijven behouden; andere EV-velden zijn dan niet nodig."
         }
       },
       "ev_advanced": {
@@ -233,25 +234,25 @@
   "services": {
     "get_history": {
       "name": "Kilometergeschiedenis ophalen",
-      "description": "Alleen-lezen gegevens zonder kalenderinhoud.",
+      "description": "Leest voltooide lokale dagen en nauwkeurigheid uit het geheugen; geen netwerkaanvragen.",
       "fields": {
         "entry_id": {
           "name": "Voertuigconfiguratie",
-          "description": "Configuratie-ID van het voertuig."
+          "description": "Selecteer de geladen voertuigconfiguratie."
         },
         "days": {
           "name": "Dagen",
-          "description": "1–365 dagen geschiedenis."
+          "description": "Aantal voltooide lokale dagen (1–365), standaard 30; ontbrekende waarnemingen zijn niet nul."
         }
       }
     },
     "get_forecast": {
       "name": "Afstandsprognose ophalen",
-      "description": "Alleen-lezen gegevens zonder kalenderinhoud.",
+      "description": "Leest dagelijkse afstandsschattingen uit het geheugen; geen netwerkaanvragen.",
       "fields": {
         "entry_id": {
           "name": "Voertuigconfiguratie",
-          "description": "Configuratie-ID van het voertuig."
+          "description": "Selecteer de geladen voertuigconfiguratie."
         },
         "days": {
           "name": "Dagen",
@@ -261,10 +262,11 @@
     },
     "get_ev_plan": {
       "name": "Laadplan ophalen",
-      "description": "Alleen-lezen laadadvies; geen aansturing.",
+      "description": "Leest het experimentele laadadvies; kortere perioden worden gefilterd, niet opnieuw berekend. Geen netwerkaanvragen of bediening.",
       "fields": {
         "entry_id": {
-          "name": "Voertuig"
+          "name": "Voertuig",
+          "description": "Selecteer de geladen voertuigconfiguratie."
         },
         "horizon_days": {
           "name": "Dagen (maximaal 7)"
@@ -273,10 +275,11 @@
     },
     "sync_now": {
       "name": "Nu synchroniseren",
-      "description": "Voert één begrensde synchronisatieronde uit.",
+      "description": "Wacht op een begrensde synchronisatie met mogelijke netwerkaanvragen; geeft een fout bij mislukking. De schakelaar wacht niet.",
       "fields": {
         "entry_id": {
-          "name": "Voertuig"
+          "name": "Voertuig",
+          "description": "Selecteer de geladen voertuigconfiguratie."
         }
       }
     }
@@ -287,6 +290,15 @@
         "home_only": "Alleen thuis",
         "home_and_appointments": "Thuis en bij afspraken",
         "appointments_only": "Alleen bij afspraken"
+      }
+    },
+    "region": {
+      "options": {
+        "eu": "Europa",
+        "us": "Verenigde Staten",
+        "na": "Noord-Amerika",
+        "il": "Israël",
+        "au": "Australië"
       }
     }
   }
