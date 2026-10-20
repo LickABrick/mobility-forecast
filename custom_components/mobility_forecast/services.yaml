@@ -41,3 +41,11 @@ get_ev_plan:
           min: 1
           max: 7
           mode: box
+
+sync_now:
+  fields:
+    entry_id:
+      required: true
+      selector:
+        config_entry:
+          integration: mobility_forecast

@@ -182,6 +182,11 @@
       "ev_charge_forecast_status": {
         "name": "Status laadvoorspelling"
       }
+    },
+    "switch": {
+      "manual_sync": {
+        "name": "Handmatige synchronisatie"
+      }
     }
   },
   "issues": {
@@ -236,6 +241,15 @@
         },
         "horizon_days": {
           "name": "Dagen (maximaal 7)"
+        }
+      }
+    },
+    "sync_now": {
+      "name": "Nu synchroniseren",
+      "description": "Voert één begrensde synchronisatieronde uit.",
+      "fields": {
+        "entry_id": {
+          "name": "Voertuig"
         }
       }
     }

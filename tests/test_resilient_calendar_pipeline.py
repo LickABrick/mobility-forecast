@@ -102,7 +102,8 @@ async def test_calendar_service_to_five_sensors(hass, count):
             for e in er.async_entries_for_config_entry(
                 er.async_get(hass), entry.entry_id
             )
-            if not e.unique_id.endswith("_mileage_timeline")
+            if e.entity_id.startswith("sensor.")
+            and not e.unique_id.endswith("_mileage_timeline")
         ]
         assert len(entities) == 5
         assert all(
@@ -132,7 +133,8 @@ async def test_calendar_service_to_five_sensors(hass, count):
             for e in er.async_entries_for_config_entry(
                 er.async_get(hass), entry.entry_id
             )
-            if not e.unique_id.endswith("_mileage_timeline")
+            if e.entity_id.startswith("sensor.")
+            and not e.unique_id.endswith("_mileage_timeline")
         }
         assert entry.runtime_data.store.payload["routes"] == cache
         await hass.config_entries.async_unload(entry.entry_id)

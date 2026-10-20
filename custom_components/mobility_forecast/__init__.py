@@ -18,7 +18,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: MobilityEntry) -> bool:
     # Register the platform before storage, history or model work. A successful
     # config flow must yield entities even if initialization later fails.
     entry.async_on_unload(entry.add_update_listener(async_reload))
-    await hass.config_entries.async_forward_entry_setups(entry, [Platform.SENSOR])
+    await hass.config_entries.async_forward_entry_setups(
+        entry, [Platform.SENSOR, Platform.SWITCH]
+    )
     coordinator.start_initialization()
     return True
 
@@ -28,7 +30,9 @@ async def async_reload(hass: HomeAssistant, entry: MobilityEntry) -> None:
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: MobilityEntry) -> bool:
-    if await hass.config_entries.async_unload_platforms(entry, [Platform.SENSOR]):
+    if await hass.config_entries.async_unload_platforms(
+        entry, [Platform.SENSOR, Platform.SWITCH]
+    ):
         await entry.runtime_data.shutdown()
         return True
     return False

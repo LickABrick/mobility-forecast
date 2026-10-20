@@ -30,7 +30,8 @@ async def test_learning_entities_exist_in_registry_and_states(hass, value):
             for e in er.async_entries_for_config_entry(
                 er.async_get(hass), entry.entry_id
             )
-            if not e.unique_id.endswith("_mileage_timeline")
+            if e.entity_id.startswith("sensor.")
+            and not e.unique_id.endswith("_mileage_timeline")
         ]
         assert len(entities) == 5
         assert {e.unique_id for e in entities} == {
@@ -66,7 +67,8 @@ async def test_slow_initialization_does_not_delay_registration(hass):
             for e in er.async_entries_for_config_entry(
                 er.async_get(hass), entry.entry_id
             )
-            if not e.unique_id.endswith("_mileage_timeline")
+            if e.entity_id.startswith("sensor.")
+            and not e.unique_id.endswith("_mileage_timeline")
         ]
         assert len(entities) == 5
         assert all(hass.states.get(e.entity_id).state == "unknown" for e in entities)
@@ -92,7 +94,8 @@ async def test_import_failure_keeps_states(hass):
                     for e in er.async_entries_for_config_entry(
                         er.async_get(hass), entry.entry_id
                     )
-                    if not e.unique_id.endswith("_mileage_timeline")
+                    if e.entity_id.startswith("sensor.")
+                    and not e.unique_id.endswith("_mileage_timeline")
                 ]
             )
             == 5

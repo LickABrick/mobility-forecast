@@ -30,7 +30,7 @@ async def test_disabled_identity_preserved_on_reload(hass):
             e.unique_id: e.entity_id
             for e in er.async_entries_for_config_entry(registry, entry.entry_id)
         }
-        assert len(before) == 6
+        assert len(before) == 7  # Six sensors plus the action-style sync switch.
         timeline = registry.async_get(before[f"{entry.entry_id}_mileage_timeline"])
         assert timeline.disabled_by == er.RegistryEntryDisabler.INTEGRATION
         assert hass.states.get(timeline.entity_id) is None
@@ -48,7 +48,7 @@ async def test_disabled_identity_preserved_on_reload(hass):
                 [
                     e
                     for e in er.async_entries_for_config_entry(registry, entry.entry_id)
-                    if hass.states.get(e.entity_id)
+                    if e.entity_id.startswith("sensor.") and hass.states.get(e.entity_id)
                 ]
             )
             == 4
