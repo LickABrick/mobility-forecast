@@ -52,7 +52,7 @@ class ManualSyncSwitch(SwitchEntity):
         }
 
     async def async_turn_on(self, **kwargs):
-        await self.controller.request()
+        self.controller.trigger()
 
     async def async_turn_off(self, **kwargs):
         # Runtime state owns off; a user-off is not a cancellation request.

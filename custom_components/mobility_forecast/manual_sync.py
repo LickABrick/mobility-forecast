@@ -28,7 +28,7 @@ class ManualSync:
         for listener in tuple(self.listeners):
             listener()
 
-    async def request(self):
+    def trigger(self):
         if self.stopping:
             return
         self.requested_at = dt_util.utcnow()
@@ -43,7 +43,12 @@ class ManualSync:
             self.task = self.owner.hass.async_create_task(
                 self.run(), "Mobility manual sync"
             )
-        await asyncio.shield(self.task)
+        return self.task
+
+    async def request(self):
+        task = self.trigger()
+        if task:
+            await asyncio.shield(task)
 
     async def run(self):
         try:

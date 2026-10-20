@@ -110,6 +110,8 @@ def register_services(hass):
         ):
             raise HomeAssistantError("Vehicle is not loaded")
         await entry.runtime_data.manual_sync.request()
+        if entry.runtime_data.manual_sync.status != "success":
+            raise HomeAssistantError("Manual synchronization failed; inspect sync status")
 
     hass.services.async_register(
         DOMAIN, "sync_now", sync_now, schema=vol.Schema({vol.Required("entry_id"): str})

@@ -37,13 +37,14 @@ async def test_switch_cycle_off_is_not_cancel_and_reload(hass):
             )
         )
         await entered.wait()
+        await asyncio.wait_for(task, 0.5)
         assert hass.states.get(entity_id).state == "on"
         await hass.services.async_call(
             "switch", "turn_off", {"entity_id": entity_id}, blocking=True
         )
         assert hass.states.get(entity_id).state == "on"
         release.set()
-        await task
+        await runtime.manual_sync.task
         assert hass.states.get(entity_id).state == "off"
         assert hass.states.get(entity_id).attributes["status"] == "success"
         assert await hass.config_entries.async_reload(entry.entry_id)
