@@ -55,7 +55,7 @@ jobs:
             echo '::error::Release preparation did not run. Configure repository Actions secret RELEASE_PLEASE_TOKEN (fine-grained PAT: Contents, Pull requests and Issues read/write). See docs/developer/repository-setup.md.'
             exit 1
           fi
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v5
         if: steps.current.outputs.current == 'true'
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
@@ -104,7 +104,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: test "$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)" = "$GITHUB_SHA"
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@v5
         with:
           target-branch: main
           skip-github-pull-request: true
