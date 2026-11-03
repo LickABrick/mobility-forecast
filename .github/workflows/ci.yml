@@ -21,7 +21,7 @@ jobs:
       - run: pip wheel --no-deps --wheel-dir dist .
       - run: python scripts/check_wheel.py
       - run: pytest -q --cov=custom_components.mobility_forecast --cov-fail-under=85 --cov-report=term-missing --cov-report=xml --junitxml=test-results.xml -o junit_family=legacy
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: quality-reports
