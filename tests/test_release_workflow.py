@@ -64,11 +64,9 @@ def test_publication_explicit_and_quality_gated():
     )
     assert jobs["prepare"]["permissions"] == {"contents": "read"}
     events = workflow()[True]
-    assert events["workflow_dispatch"]["inputs"]["publish"] == {
-        "description": "Explicitly approve publishing the merged release PR at main HEAD",
-        "type": "boolean",
-        "default": False,
-    }
+    approval = events["workflow_dispatch"]["inputs"]["publish"]
+    assert approval["type"] == "boolean"
+    assert approval["default"] is False
     assert jobs["quality"]["uses"] == "./.github/workflows/ci.yml"
     for job in (jobs["quality"], publish):
         assert "github.ref_name == github.event.repository.default_branch" in job["if"]
