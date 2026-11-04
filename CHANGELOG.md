@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.1.1](https://github.com/LickABrick/mobility-forecast/compare/v1.1.0...v1.1.1) (2026-11-04)
+
+
+### Maintenance
+
+* **ci:** migrate to Renovate and introduce development workflow ([357334b](https://github.com/LickABrick/mobility-forecast/commit/357334b002f58c8f96eab043c949dab890a5b2ad))
+* **deps:** bump actions/upload-artifact from 4 to 7 ([bf5ade7](https://github.com/LickABrick/mobility-forecast/commit/bf5ade79bd7d4a65f3b40d22db80898d5b65d2b4))
+* **deps:** bump googleapis/release-please-action from 4 to 5 ([509b405](https://github.com/LickABrick/mobility-forecast/commit/509b4052b0f83662547b8c9eca74cd6a92cb17bd))
+* **deps:** migrate Dependabot configuration to Renovate ([b10972d](https://github.com/LickABrick/mobility-forecast/commit/b10972dd4cbfc845614a7a49d236b37fcb0118bc))
+* pin mutable GitHub Actions dependencies ([d3f0f69](https://github.com/LickABrick/mobility-forecast/commit/d3f0f69dc3be95aa355a4f95f15941a936a1c62a))
+* validate development and main branches ([fb7c6e0](https://github.com/LickABrick/mobility-forecast/commit/fb7c6e070e05cd58bc9d107857186b21929754b3))
+
 ## [1.1.0](https://github.com/LickABrick/mobility-forecast/compare/v1.0.0...v1.1.0) (2026-10-20)
 
 
