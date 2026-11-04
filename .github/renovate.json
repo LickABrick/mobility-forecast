@@ -1,0 +1,51 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:best-practices"],
+  "baseBranchPatterns": ["development"],
+  "enabledManagers": ["pep621", "github-actions"],
+  "timezone": "Europe/Amsterdam",
+  "schedule": ["* 4-7 * * 1"],
+  "dependencyDashboard": true,
+  "prConcurrentLimit": 5,
+  "prHourlyLimit": 2,
+  "labels": ["dependencies"],
+  "automerge": false,
+  "semanticCommits": "enabled",
+  "semanticCommitType": "chore",
+  "semanticCommitScope": "deps",
+  "vulnerabilityAlerts": {
+    "enabled": false
+  },
+  "packageRules": [
+    {
+      "description": "Require explicit approval before major upgrades",
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Keep Home Assistant on the tested minor release",
+      "matchPackageNames": ["homeassistant"],
+      "matchUpdateTypes": ["major", "minor"],
+      "enabled": false
+    },
+    {
+      "description": "Preserve the explicitly supported Python minimum version",
+      "matchManagers": ["pep621"],
+      "matchDepTypes": ["requires-python"],
+      "enabled": false
+    },
+    {
+      "description": "Group Python development tooling updates",
+      "matchManagers": ["pep621"],
+      "matchPackageNames": ["ruff", "mypy", "Pillow", "pytest-cov"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "Python tooling"
+    },
+    {
+      "description": "Group GitHub Actions minor and patch updates",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "GitHub Actions"
+    }
+  ]
+}
