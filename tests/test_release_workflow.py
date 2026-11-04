@@ -23,7 +23,10 @@ def test_preparation_trust_boundary():
     job = data["jobs"]["prepare"]
     assert "needs" not in job
     for guard in (
+        "github.event_name == 'workflow_run'",
         "conclusion == 'success'",
+        "github.repository == 'LickABrick/mobility-forecast'",
+        "github.event.repository.default_branch == 'main'",
         "event == 'push'",
         "head_repository.full_name == github.repository",
         "head_branch == github.event.repository.default_branch",
@@ -60,3 +63,23 @@ def test_publication_explicit_and_quality_gated():
         "check_release_candidate.py" in step.get("run", "") for step in publish["steps"]
     )
     assert jobs["prepare"]["permissions"] == {"contents": "read"}
+    events = workflow()[True]
+    assert events["workflow_dispatch"]["inputs"]["publish"] == {
+        "description": "Explicitly approve publishing the merged release PR at main HEAD",
+        "type": "boolean",
+        "default": False,
+    }
+    assert jobs["quality"]["uses"] == "./.github/workflows/ci.yml"
+    for job in (jobs["quality"], publish):
+        assert "github.ref_name == github.event.repository.default_branch" in job["if"]
+    assert any(
+        "commits/main" in step.get("run", "") and "$GITHUB_SHA" in step.get("run", "")
+        for step in publish["steps"]
+    )
+    action = next(
+        step
+        for step in publish["steps"]
+        if "release-please-action" in step.get("uses", "")
+    )
+    assert action["with"]["target-branch"] == "main"
+    assert action["with"]["skip-github-pull-request"] is True
