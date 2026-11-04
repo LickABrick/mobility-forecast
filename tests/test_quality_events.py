@@ -10,14 +10,14 @@ ROOT = Path(__file__).parents[1]
 def test_quality_event_filters_and_required_jobs():
     data = yaml.safe_load((ROOT / ".github/workflows/ci.yml").read_text())
     events = data[True]  # YAML 1.1's spelling of the GitHub Actions `on` key.
-    assert events == {
-        "push": {"branches": ["main"]},
-        "pull_request": {"branches": ["main"]},
-        "workflow_dispatch": None,
-        "workflow_call": None,
-    }
+    assert set(events) == {"push", "pull_request", "workflow_dispatch", "workflow_call"}
+    for event in ("push", "pull_request"):
+        assert set(events[event]) == {"branches"}
+        assert set(events[event]["branches"]) == {"main", "development"}
+    assert events["workflow_dispatch"] is None
+    assert events["workflow_call"] is None
     # No paths, actor or PR-type exclusions: opened/synchronize/reopened defaults
-    # cover feature, Dependabot and Release Please PRs targeting main alike.
+    # cover feature, Renovate and Release Please PRs on either long-lived branch.
     assert data["name"] == "Quality"
     assert set(data["jobs"]) == {"tests", "hassfest", "hacs"}
     assert data["permissions"] == {"contents": "read"}
